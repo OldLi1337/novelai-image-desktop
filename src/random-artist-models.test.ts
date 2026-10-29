@@ -36,7 +36,5 @@ describe('random gacha is independent from target iteration', () => {
     for (const model of models) expect(NAI_MODELS.some(option => option.value === model)).toBe(true);
     expect(detectiveParameters().model).toBe('nai-diffusion-4-5-full');
     for (const model of models.filter(m => m.startsWith('nai-diffusion-5-'))) expect(() => detectiveParameters({model} as never)).toThrow();
-    const legacy = readFileSync(new URL('./ArtistLab.tsx', import.meta.url), 'utf8');
-    expect(legacy).toContain('model: "nai-diffusion-4-5-full" as const');
   });
 });

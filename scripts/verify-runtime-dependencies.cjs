@@ -83,12 +83,6 @@ async function verifyRuntimeDependencies(context) {
   const archive = path.join(resources, 'app.asar');
   const unpacked = archive + '.unpacked';
   const details = { missingRequired: [], invalidUnpacked: [], skips: [] };
-  const config = readJson(path.join(projectDir, 'package.json')).build || {};
-  const platformConfig = config[platform === 'win32' ? 'win' : platform === 'darwin' ? 'mac' : 'linux'] || {};
-  const configuredFiles = [...(Array.isArray(config.files) ? config.files : []), ...(Array.isArray(platformConfig.files) ? platformConfig.files : [])];
-  // This pre-existing browser-only ONNX build is deliberately excluded. No other
-  // required dependency may be excused by a files negation or by being optional elsewhere.
-  const browserOnnxExcluded = configuredFiles.includes('!node_modules/onnxruntime-web/**');
   const packages = new Map();
   const entries = asar.listPackage(archive).map(name => name.replace(/^[/\\]+/, '').replace(/\\/g, '/'));
   const seenNames = new Set();
@@ -155,10 +149,6 @@ async function verifyRuntimeDependencies(context) {
         !Object.hasOwn(pkg.dependencies || {}, name) && !Object.hasOwn(pkg.optionalDependencies || {}, name);
       if (peerOnly && verifiedTypeOnlyPeer(projectDir, from, name)) {
         details.skips.push({ from: from || 'APP', name, reason: 'verified type-only peer: installed .d.ts declaration, no runtime main/module, no JavaScript/native files or links' });
-        continue;
-      }
-      if (name === 'onnxruntime-web' && browserOnnxExcluded) {
-        details.skips.push({ from: from || 'APP', name, reason: 'pre-existing explicit browser-only ONNX build exclusion; Node runtime uses onnxruntime-node' });
         continue;
       }
       if (optional) {

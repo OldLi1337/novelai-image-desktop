@@ -786,7 +786,7 @@ describe("desktop UI consistency guards", () => {
     expect(gallery).toContain("artistPageSize");
     expect(artistIpc).toContain("DANBOORU_TAG_PAGE_SIZE = 1000");
     expect(artistIpc).toContain("countActiveArtistTags");
-    const ranking = artistIpc.slice(artistIpc.indexOf("export async function loadPopularArtistRanking"), artistIpc.indexOf("async function scorer"));
+    const ranking = artistIpc.slice(artistIpc.indexOf("export async function loadPopularArtistRanking"), artistIpc.indexOf("function absoluteDanbooruMediaUrl"));
     expect(ranking).not.toContain("5000");
     expect(presets).toContain("LOCAL_PAGE_SIZE_OPTIONS");
     expect(presets).toContain("LocalPresetPageNumberInput");

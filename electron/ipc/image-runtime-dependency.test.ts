@@ -6,7 +6,7 @@ describe("image decoding is a declared cross-platform production dependency", ()
   it("unpacks version-suffixed native libraries as well as their bindings", () => {
     // libvips-cpp.so.8.x is not a .node file; auto-unpack alone missed it in Linux packages.
     expect(manifest.build.asarUnpack).toEqual(expect.arrayContaining([
-      "node_modules/sharp/**", "node_modules/@img/**", "node_modules/onnxruntime-node/**",
+      "node_modules/sharp/**", "node_modules/@img/**",
     ]));
   });
   it("pins the direct sharp dependency, override and lockfile root consistently", () => {
@@ -27,9 +27,4 @@ it('verifies the packaged runtime dependency closure after every platform pack',
  const hook=(await import('../../scripts/verify-runtime-dependencies.cjs')).default;
  expect(typeof hook).toBe('function');
  await expect(hook({electronPlatformName:'linux-unsupported'})).rejects.toThrow('Unsupported packaging target platform');
-});
-
-it.each(['win','mac'])('includes actual scoring runtime for %s instead of advertising an excluded feature',platform=>{
- for(const excluded of ['!node_modules/@huggingface/transformers/**','!node_modules/onnxruntime-node/**'])expect(manifest.build[platform].files??[]).not.toContain(excluded);
- for(const architecture of ['darwin','win32'])expect(manifest.build.files).not.toContain(`!node_modules/onnxruntime-node/bin/napi-v3/${architecture}/**`);
 });

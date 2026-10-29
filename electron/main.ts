@@ -111,15 +111,11 @@ import {
 } from "./ipc/aitag-cache";
 import { clearOnlineGalleryDataCache, downloadOnlineGalleryImages, getOnlineGalleryDetail, searchOnlineGallery, selectOnlineGalleryDownloadDir } from "./ipc/online-gallery";
 import {
-  artistLabModelStatus,
   artistStylePreview,
   artistStylePreviewPage,
-  discoverSimilarArtists,
-  clearArtistLabModels,
   loadPopularArtistRanking,
   loadPopularArtistPool,
   pickArtistLabTarget,
-  scoreArtistLabImages,
   searchArtistTags,
 } from "./ipc/artist-lab";
 import { createArtistPoolSyncManager } from "./ipc/artist-pool-sync";
@@ -737,20 +733,6 @@ ipcMain.handle("artistDetective:downloadDirectory", () => detectiveDownloadDirec
     (_event, page: unknown, pageSize: unknown, query: unknown, force: unknown) =>
       loadPopularArtistRanking(page, pageSize, query, force),
   );
-  ipcMain.handle(
-    "artistLab:scoreImages",
-    (_event, mode: unknown, targetPath: unknown, candidatePath: unknown) =>
-      scoreArtistLabImages(mode, targetPath, candidatePath),
-  );
-  ipcMain.handle("artistLab:modelStatus", (_event, mode: unknown) =>
-    artistLabModelStatus(mode),
-  );
-  ipcMain.handle(
-    "artistLab:discoverSimilar",
-    (_event, mode: unknown, targetPath: unknown, offset: unknown, scanCount: unknown, shortlist: unknown, force: unknown) =>
-      discoverSimilarArtists(mode, targetPath, offset, scanCount, shortlist, force),
-  );
-  ipcMain.handle("artistLab:clearModels", () => clearArtistLabModels());
   ipcMain.handle("artistLab:stylePreview", (_event, tag: unknown) =>
     artistStylePreview(tag),
   );

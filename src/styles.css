@@ -10565,7 +10565,6 @@ html.theme-dark #root {
 .artist-run-options > label { display: grid; gap: 6px; flex: 1 1 150px; }
 .artist-browser { display: grid; gap: 12px; }
 .artist-section-heading,
-.artist-gallery-heading,
 .artist-candidate-header,
 .artist-string-block > span {
   display: flex;
@@ -10573,18 +10572,7 @@ html.theme-dark #root {
   justify-content: space-between;
   gap: 12px;
 }
-.artist-section-heading h3,
-.artist-gallery-heading h3 { margin-bottom: 3px; }
-.artist-section-heading > b {
-  flex: 0 0 auto;
-  min-width: 38px;
-  min-height: 30px;
-  display: grid;
-  place-items: center;
-  border-radius: var(--radius-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
+.artist-section-heading h3 { margin-bottom: 3px; }
 .artist-browser-heading { justify-content: space-between; align-items: end; flex-wrap: wrap; }
 .artist-browser-heading h3 { margin-bottom: 3px; }
 .artist-search-row { flex: 1; justify-content: flex-end; min-width: min(100%, 360px); }
@@ -10641,26 +10629,7 @@ html.theme-dark #root {
 .artist-combination-queue code { min-width: 0; color: var(--text-secondary); overflow-wrap: anywhere; white-space: normal; }
 .artist-lab-actions { position: sticky; top: -20px; z-index: var(--z-base); padding: 12px 14px; border-radius: var(--radius-xl); }
 .artist-lab-actions > span { min-width: 0; color: var(--text-secondary); overflow-wrap: anywhere; }
-.artist-baseline-panel,
 .artist-contribution-panel { display: grid; gap: 12px; }
-.artist-baseline-content {
-  display: grid;
-  grid-template-columns: 112px minmax(0, 1fr);
-  align-items: center;
-  gap: 14px;
-  padding: 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--bg-panel);
-}
-.artist-baseline-content img {
-  width: 112px;
-  aspect-ratio: 1;
-  object-fit: contain;
-  border-radius: var(--radius-md);
-  background: var(--bg-canvas);
-}
-.artist-baseline-content p { margin: 6px 0 0; color: var(--text-secondary); }
 .artist-contribution-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -10685,9 +10654,6 @@ html.theme-dark #root {
 .artist-contribution-list .positive { color: var(--success); }
 .artist-contribution-list .negative { color: var(--danger); }
 .artist-gallery-section { display: grid; gap: 12px; min-width: 0; }
-.artist-gallery-heading { align-items: end; }
-.artist-gallery-heading h3 { margin-top: 0; }
-.artist-gallery-heading small { color: var(--text-secondary); }
 .artist-sort-toggle {
   flex: 0 0 auto;
   display: inline-flex;
@@ -10713,8 +10679,7 @@ html.theme-dark #root {
 .artist-candidate-header { padding: 9px 11px; border-bottom: 1px solid var(--border); }
 .artist-candidate-header b { color: var(--accent); font-variant-numeric: tabular-nums; }
 .artist-candidate-header span { color: var(--text-secondary); font-size: 12px; font-weight: 700; }
-.artist-candidate.generating .artist-candidate-header span,
-.artist-candidate.scoring .artist-candidate-header span { color: var(--accent); }
+.artist-candidate.generating .artist-candidate-header span { color: var(--accent); }
 .artist-candidate.failed .artist-candidate-header span { color: var(--danger); }
 .artist-candidate-media { position: relative; aspect-ratio: 1; background: var(--bg-panel); overflow: hidden; }
 .artist-candidate-media img { width: 100%; height: 100%; object-fit: contain; display: block; cursor: zoom-in; }
@@ -10738,7 +10703,6 @@ html.theme-dark #root {
 .artist-candidate-preview-button:hover { background: rgba(124, 58, 237, .9); }
 .artist-candidate-preview-button .ui-icon { width: 17px; height: 17px; }
 .artist-candidate-placeholder { height: 100%; display: grid; place-items: center; color: var(--text-muted); }
-.artist-score { position: absolute; right: 8px; top: 8px; border-radius: var(--radius-pill); padding: 5px 9px; color: white; background: rgba(23, 18, 48, 0.82); backdrop-filter: blur(8px); }
 .artist-string-block { margin: 10px 12px 0; min-width: 0; }
 .artist-string-block > span { color: var(--text-secondary); font-size: 12px; font-weight: 800; }
 .artist-string-block > span button {
@@ -11211,7 +11175,6 @@ html.theme-dark #root {
   .target-panel h3, .target-panel small { grid-column: 1 / -1; }
   .artist-lab-actions { top: -12px; flex-wrap: wrap; }
   .artist-combination-queue { grid-template-columns: 1fr; }
-  .artist-gallery-heading { align-items: stretch; flex-direction: column; }
   .artist-sort-toggle { align-self: start; }
   .artist-lab-mode-grid { grid-template-columns: 1fr; min-height: auto; }
   .artist-lab-mode-card { min-height: 220px; }
@@ -11618,14 +11581,6 @@ html.theme-dark #root {
 .theme-dark .tag-comic-balance { color: #86efac; background: rgba(22, 163, 74, 0.14); }
 
 .artist-preview-actions { display: flex; align-items: center; gap: 10px; }
-.artist-lab-advanced { margin-top: 10px; border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 10px 12px; }
-.artist-lab-advanced summary { cursor: pointer; font-weight: 750; color: var(--text-secondary); }
-.artist-lab-advanced .artist-run-options { margin-top: 12px; }
-.artist-reference-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 12px; }
-.artist-reference-grid article { position: relative; min-width: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
-.artist-reference-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-.artist-reference-grid b { display: block; padding: 8px 8px 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
-.artist-reference-grid span { display: block; padding: 0 8px 8px; color: var(--accent); font-size: 11px; font-weight: 750; }
 @media (max-width: 960px) {
   .tag-comic { padding: 12px 12px 28px; }
   .tag-comic-header { align-items: flex-start; }

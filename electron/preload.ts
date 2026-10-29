@@ -168,28 +168,6 @@ contextBridge.exposeInMainWorld("naiDesktop", {
   },
   artistLabArtistRanking: (page?: number, pageSize?: number, query?: string, force?: boolean) =>
     ipcRenderer.invoke("artistLab:artistRanking", page, pageSize, query, force),
-  artistLabScoreImages: (
-    mode: "high" | "light",
-    targetPath: string,
-    candidatePath: string,
-  ) =>
-    ipcRenderer.invoke(
-      "artistLab:scoreImages",
-      mode,
-      targetPath,
-      candidatePath,
-    ),
-  artistLabModelStatus: (mode: "high" | "light") =>
-    ipcRenderer.invoke("artistLab:modelStatus", mode),
-  artistLabDiscoverSimilar: (
-    mode: "high" | "light",
-    targetPath: string,
-    offset?: number,
-    scanCount?: number,
-    shortlist?: number,
-    force?: boolean,
-  ) => ipcRenderer.invoke("artistLab:discoverSimilar", mode, targetPath, offset, scanCount, shortlist, force),
-  artistLabClearModels: () => ipcRenderer.invoke("artistLab:clearModels"),
   artistLabStylePreview: (tag: string) =>
     ipcRenderer.invoke("artistLab:stylePreview", tag) as Promise<ArtistStylePreviewResult | null>,
   artistLabStylePreviewPage: (tag: string, page = 1, pageSize = 12) =>

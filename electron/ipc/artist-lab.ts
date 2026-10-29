@@ -1,4 +1,3 @@
-import {prepareArtistModel} from './artist-model-download';
 import { processableImage } from "./image-codec";
 import { app, dialog, nativeImage } from "electron";
 import { galleryGet } from "./gallery-network";
@@ -7,10 +6,6 @@ import path from "path";
 import crypto from "crypto";
 import { toLocalMediaUrl } from "./local-media-protocol";
 import type {
-  ArtistDiscoveryResult,
-  ArtistLabImageScore,
-  ArtistLabModelMode,
-  ArtistLabModelStatus,
   ArtistTagRecord,
   ArtistRankingSnapshot,
   ArtistPoolSnapshot,
@@ -23,20 +18,6 @@ const DANBOORU_POSTS_URL = "https://danbooru.donmai.us/posts.json";
 const POPULAR_ARTIST_CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 const DANBOORU_TAG_PAGE_SIZE = 1000;
 const DANBOORU_MAX_NUMBERED_PAGE = 1000;
-const MODEL_IDS: Record<ArtistLabModelMode, string> = {
-  // Base/full precision is the default Windows scorer. It is materially more
-  // accurate than the small quantized fallback without shipping model weights
-  // inside every installer.
-  high: "onnx-community/dinov2-base",
-  light: "onnx-community/dinov2-small",
-};
-const pipelines = new Map<ArtistLabModelMode, any>();
-const loading = new Map<ArtistLabModelMode, Promise<any>>();
-const embeddingCache = new Map<string, Float32Array>();
-
-function modelCacheDir() {
-  return path.join(app.getPath("userData"), "artist-lab-model-cache");
-}
 
 function popularArtistCacheFile() {
   return path.join(app.getPath("userData"), "artist-lab-popular-artists.json");
@@ -46,37 +27,8 @@ function artistRankingCountCacheFile() {
   return path.join(app.getPath("userData"), "artist-lab-ranking-counts.json");
 }
 
-function referenceCacheDir() {
-  return path.join(app.getPath("userData"), "artist-lab-reference-cache");
-}
-
 function stylePreviewCacheDir() {
   return path.join(app.getPath("userData"), "artist-style-preview-cache");
-}
-
-function directoryStats(root: string): { bytes: number; files: number } {
-  if (!fs.existsSync(root)) return { bytes: 0, files: 0 };
-  let bytes = 0;
-  let files = 0;
-  const stack = [root];
-  while (stack.length > 0) {
-    const current = stack.pop()!;
-    let entries: fs.Dirent[] = [];
-    try {
-      entries = fs.readdirSync(current, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-    for (const entry of entries) {
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) stack.push(full);
-      else if (entry.isFile()) {
-        files += 1;
-        try { bytes += fs.statSync(full).size; } catch { /* best effort */ }
-      }
-    }
-  }
-  return { bytes, files };
 }
 
 export async function pickArtistLabTarget(sourcePath?: string) {
@@ -160,15 +112,6 @@ function normalizeRankedArtists(items: ArtistTagRecord[]): ArtistTagRecord[] {
     result.push({ ...item, name, postCount: Number.isFinite(Number(item.postCount)) ? Math.max(0, Number(item.postCount)) : 0 });
   }
   return result;
-}
-
-export async function loadPopularArtistTags(
-  rawLimit: unknown,
-  rawForce: unknown,
-): Promise<ArtistTagRecord[]> {
-  const result = await requestPopularArtistPool(rawLimit, rawForce === true, false);
-  if (result.issue && result.items.length === 0) throw new ArtistPoolError(result.issue);
-  return result.items;
 }
 
 class ArtistPoolError extends Error {
@@ -370,121 +313,6 @@ export async function loadPopularArtistRanking(
   };
 }
 
-async function scorer(mode: ArtistLabModelMode) {
-  const existing = pipelines.get(mode);
-  if (existing) return existing;
-  const pending = loading.get(mode);
-  if (pending) return pending;
-  const promise = (async () => {
-    const transformers = await import("@huggingface/transformers");
-    await prepareArtistModel(modelCacheDir(), MODEL_IDS[mode], mode === "light");
-    transformers.env.cacheDir = modelCacheDir();
-    transformers.env.localModelPath = modelCacheDir() + path.sep;
-    transformers.env.allowLocalModels = true;
-    transformers.env.allowRemoteModels = false;
-    const pipe = await transformers.pipeline(
-      "image-feature-extraction",
-      MODEL_IDS[mode],
-      { dtype: mode === "high" ? "fp32" : "q8", local_files_only: true } as any,
-    );
-    pipelines.set(mode, pipe);
-    return pipe;
-  })();
-  loading.set(mode, promise);
-  try {
-    return await promise;
-  } finally {
-    loading.delete(mode);
-  }
-}
-
-function cosine(left: Float32Array | number[], right: Float32Array | number[]): number {
-  const length = Math.min(left.length, right.length);
-  let dot = 0;
-  let a = 0;
-  let b = 0;
-  for (let index = 0; index < length; index += 1) {
-    dot += left[index] * right[index];
-    a += left[index] * left[index];
-    b += right[index] * right[index];
-  }
-  return a > 0 && b > 0 ? dot / Math.sqrt(a * b) : 0;
-}
-
-function normalized(values: Float32Array): Float32Array {
-  let magnitude = 0;
-  for (const value of values) magnitude += value * value;
-  const scale = magnitude > 0 ? 1 / Math.sqrt(magnitude) : 1;
-  const output = new Float32Array(values.length);
-  for (let index = 0; index < values.length; index += 1) output[index] = values[index] * scale;
-  return output;
-}
-
-async function embedding(pipe: any, filePath: string): Promise<Float32Array> {
-  if (!path.isAbsolute(filePath) || !fs.existsSync(filePath)) throw new Error("Image file is unavailable");
-  const stat = fs.statSync(filePath);
-  const key = `style-v3:${filePath}:${stat.size}:${stat.mtimeMs}`;
-  const cached = embeddingCache.get(key);
-  if (cached) return cached;
-  const output = await pipe(filePath);
-  const data = output?.data;
-  if (!data || typeof data.length !== "number") throw new Error("The scoring model returned no image features");
-  const values = data instanceof Float32Array ? data : Float32Array.from(data);
-  const dims = Array.isArray(output?.dims) ? output.dims.map(Number) : [];
-  // DINOv2 returns [batch, CLS + patch tokens, hidden size]. A CLS-only score
-  // over-weights subject/composition, while flattening all patches over-weights
-  // exact spatial alignment. Blend a normalized global token with the mean
-  // local-patch token so linework, rendering and texture influence the score
-  // without requiring the candidate to copy the target pose pixel-for-pixel.
-  if (dims.length === 3 && dims[0] === 1 && dims[2] > 0 && values.length >= dims[2]) {
-    const hidden = dims[2];
-    const tokenCount = Math.max(1, Math.min(dims[1], Math.floor(values.length / hidden)));
-    const global = normalized(values.slice(0, hidden));
-    const local = new Float32Array(hidden);
-    const localVariance = new Float32Array(hidden);
-    const patchCount = Math.max(1, tokenCount - 1);
-    for (let token = 1; token < tokenCount; token += 1) {
-      const offset = token * hidden;
-      for (let index = 0; index < hidden; index += 1) local[index] += values[offset + index] / patchCount;
-    }
-    for (let token = 1; token < tokenCount; token += 1) {
-      const offset = token * hidden;
-      for (let index = 0; index < hidden; index += 1) {
-        const delta = values[offset + index] - local[index];
-        localVariance[index] += (delta * delta) / patchCount;
-      }
-    }
-    for (let index = 0; index < hidden; index += 1) localVariance[index] = Math.sqrt(localVariance[index]);
-    const normalizedLocal = normalized(local);
-    const normalizedVariance = normalized(localVariance);
-    const vector = new Float32Array(hidden * 3);
-    const globalScale = Math.sqrt(.28);
-    const localScale = Math.sqrt(.48);
-    const varianceScale = Math.sqrt(.24);
-    for (let index = 0; index < hidden; index += 1) {
-      vector[index] = global[index] * globalScale;
-      vector[hidden + index] = normalizedLocal[index] * localScale;
-      vector[hidden * 2 + index] = normalizedVariance[index] * varianceScale;
-    }
-    embeddingCache.set(key, vector);
-    return vector;
-  }
-  embeddingCache.set(key, values);
-  return values;
-}
-
-function referenceFile(artist: ArtistTagRecord, sourceUrl: string): string {
-  const extension = (() => {
-    try {
-      const ext = path.extname(new URL(sourceUrl).pathname).toLowerCase();
-      return [".png", ".jpg", ".jpeg", ".webp"].includes(ext) ? ext : ".jpg";
-    } catch { return ".jpg"; }
-  })();
-  const safe = artist.name.replace(/[^a-z0-9_()-]+/gi, "_").slice(0, 90);
-  const hash = crypto.createHash("sha1").update(sourceUrl).digest("hex").slice(0, 12);
-  return path.join(referenceCacheDir(), `${artist.id}-${safe}-${hash}${extension}`);
-}
-
 function absoluteDanbooruMediaUrl(value: unknown): string {
   if (typeof value !== "string") return "";
   const trimmed = value.trim();
@@ -500,55 +328,6 @@ const danbooruImageHeaders = {
   Referer: "https://danbooru.donmai.us/",
   "User-Agent": "Langbai-NovelAI-Studio/Artist-Preview",
 };
-
-async function representativeImages(artist: ArtistTagRecord, limit = 3): Promise<string[]> {
-  const manifestFile = path.join(referenceCacheDir(), `${artist.id}.json`);
-  const cachedFiles: string[] = [];
-  try {
-    const manifest = JSON.parse(fs.readFileSync(manifestFile, "utf8")) as { file?: string; files?: string[] };
-    for (const file of manifest.files ?? (manifest.file ? [manifest.file] : [])) {
-      if (typeof file === "string" && fs.existsSync(file) && !cachedFiles.includes(file)) cachedFiles.push(file);
-    }
-    if (cachedFiles.length >= limit) return cachedFiles.slice(0, limit);
-  } catch { /* live lookup */ }
-  const response = await galleryGet(DANBOORU_POSTS_URL, {
-    timeout: 30_000,
-    headers: { Accept: "application/json", "User-Agent": "Langbai-NovelAI-Studio/Artist-Lab" },
-    params: { limit: 12, tags: `${artist.name} rating:g order:rank` },
-  });
-  fs.mkdirSync(referenceCacheDir(), { recursive: true });
-  const files = [...cachedFiles];
-  const sourceUrls: string[] = [];
-  for (const post of Array.isArray(response.data) ? response.data : []) {
-    if (files.length >= limit) break;
-    const sourceUrl = [post?.large_file_url, post?.file_url, post?.preview_file_url]
-      .map(absoluteDanbooruMediaUrl)
-      .find(Boolean);
-    if (!sourceUrl || sourceUrls.includes(sourceUrl)) continue;
-    sourceUrls.push(sourceUrl);
-    const file = referenceFile(artist, sourceUrl);
-    try {
-      if (!fs.existsSync(file)) {
-        const image = await galleryGet<ArrayBuffer>(sourceUrl, {
-          responseType: "arraybuffer",
-          timeout: 45_000,
-          maxContentLength: 12 * 1024 * 1024,
-          headers: danbooruImageHeaders,
-        });
-        const bytes = Buffer.from(image.data);
-        if (bytes.length < 128 || bytes.length > 12 * 1024 * 1024) continue;
-        fs.writeFileSync(file, bytes);
-      }
-      if (!files.includes(file)) files.push(file);
-    } catch {
-      // A single stale CDN object must not discard the artist candidate.
-    }
-  }
-  if (files.length > 0) {
-    fs.writeFileSync(manifestFile, JSON.stringify({ file: files[0], files, sourceUrls, savedAt: Date.now() }), "utf8");
-  }
-  return files.slice(0, limit);
-}
 
 type StylePreviewManifest = ArtistStylePreviewResult & { filePath: string; savedAt: number };
 const pendingStylePreviews = new Map<string, Promise<ArtistStylePreviewResult | null>>();
@@ -758,99 +537,4 @@ export async function artistStylePreviewPage(
     hasMore: offset + pageSize < posts.length,
     items,
   };
-}
-
-async function mapLimit<T, R>(items: T[], limit: number, task: (item: T) => Promise<R>): Promise<R[]> {
-  const output = new Array<R>(items.length);
-  let cursor = 0;
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor++;
-      output[index] = await task(items[index]);
-    }
-  }));
-  return output;
-}
-
-export async function discoverSimilarArtists(
-  rawMode: unknown,
-  rawTargetPath: unknown,
-  rawOffset: unknown,
-  rawScanCount: unknown,
-  rawShortlist: unknown,
-  rawForce: unknown,
-): Promise<ArtistDiscoveryResult> {
-  const mode: ArtistLabModelMode = rawMode === "light" ? "light" : "high";
-  if (typeof rawTargetPath !== "string" || !path.isAbsolute(rawTargetPath) || !fs.existsSync(rawTargetPath)) {
-    throw new Error("Target image is unavailable");
-  }
-  const offset = Math.max(0, Math.floor(Number(rawOffset) || 0));
-  const scanCount = Math.max(10, Math.min(120, Math.floor(Number(rawScanCount) || 40)));
-  const shortlist = Math.max(4, Math.min(scanCount, Math.floor(Number(rawShortlist) || 20)));
-  const pool = await loadPopularArtistTags(offset + scanCount, rawForce);
-  const candidates = pool.slice(offset, offset + scanCount);
-  const pipe = await scorer(mode);
-  const target = await embedding(pipe, rawTargetPath);
-  const matches = (await mapLimit(candidates, 5, async (artist) => {
-    try {
-      const filePaths = await representativeImages(artist, 3);
-      if (filePaths.length === 0) return null;
-      const vectors = await Promise.all(filePaths.map((filePath) => embedding(pipe, filePath)));
-      const similarities = vectors
-        .map((vector) => Math.max(0, Math.min(1, cosine(target, vector))))
-        .sort((left, right) => right - left);
-      const similarity = similarities.reduce((sum, value) => sum + value, 0) / similarities.length;
-      return {
-        artist,
-        similarity,
-        referencePath: filePaths[0],
-        referenceUrl: toLocalMediaUrl(filePaths[0]),
-      };
-    } catch { return null; }
-  }))
-    .filter((item): item is NonNullable<typeof item> => Boolean(item))
-    .sort((left, right) => right.similarity - left.similarity)
-    .slice(0, shortlist);
-  return {
-    matches,
-    scanned: candidates.length,
-    nextOffset: offset + candidates.length,
-    poolSize: pool.length,
-    cachedBytes: directoryStats(referenceCacheDir()).bytes,
-  };
-}
-
-export async function scoreArtistLabImages(
-  rawMode: unknown,
-  targetPath: unknown,
-  candidatePath: unknown,
-): Promise<ArtistLabImageScore> {
-  const mode: ArtistLabModelMode = rawMode === "light" ? "light" : "high";
-  if (typeof targetPath !== "string" || typeof candidatePath !== "string") throw new Error("Invalid image path");
-  const pipe = await scorer(mode);
-  const [target, candidate] = await Promise.all([
-    embedding(pipe, targetPath),
-    embedding(pipe, candidatePath),
-  ]);
-  // DINO image embeddings are compared directly. Remapping [-1, 1] to [0, 1]
-  // would make unrelated images appear to start around 50% similar.
-  const similarity = Math.max(0, Math.min(1, cosine(target, candidate)));
-  return { similarity, model: MODEL_IDS[mode] };
-}
-
-export function artistLabModelStatus(rawMode: unknown): ArtistLabModelStatus {
-  const mode: ArtistLabModelMode = rawMode === "light" ? "light" : "high";
-  const stats = directoryStats(modelCacheDir());
-  return { mode, modelId: MODEL_IDS[mode], cachedBytes: stats.bytes, cachedFiles: stats.files };
-}
-
-export async function clearArtistLabModels(): Promise<ArtistLabModelStatus> {
-  if (loading.size > 0) throw new Error("Model is still loading; try again after it finishes");
-  for (const pipe of pipelines.values()) {
-    try { await pipe.dispose?.(); } catch { /* best effort */ }
-  }
-  pipelines.clear();
-  embeddingCache.clear();
-  fs.rmSync(modelCacheDir(), { recursive: true, force: true });
-  return artistLabModelStatus("high");
 }

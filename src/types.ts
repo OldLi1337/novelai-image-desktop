@@ -1847,25 +1847,6 @@ export interface NaiDesktopApi {
     query?: string,
     force?: boolean,
   ) => Promise<import("./artist-lab").ArtistRankingSnapshot>;
-  artistLabScoreImages: (
-    mode: import("./artist-lab").ArtistLabModelMode,
-    targetPath: string,
-    candidatePath: string,
-  ) => Promise<import("./artist-lab").ArtistLabImageScore>;
-  artistLabModelStatus: (
-    mode: import("./artist-lab").ArtistLabModelMode,
-  ) => Promise<import("./artist-lab").ArtistLabModelStatus>;
-  artistLabDiscoverSimilar: (
-    mode: import("./artist-lab").ArtistLabModelMode,
-    targetPath: string,
-    offset?: number,
-    scanCount?: number,
-    shortlist?: number,
-    force?: boolean,
-  ) => Promise<import("./artist-lab").ArtistDiscoveryResult>;
-  artistLabClearModels: () => Promise<
-    import("./artist-lab").ArtistLabModelStatus
-  >;
   artistLabStylePreview: (tag: string) => Promise<ArtistStylePreviewResult | null>;
   artistLabStylePreviewPage: (
     tag: string,
