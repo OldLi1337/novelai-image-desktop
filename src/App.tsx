@@ -204,8 +204,6 @@ const DEFAULT_HTTP_PROXY = "http://127.0.0.1:7890";
 const DEFAULT_SOCKS_PROXY = "socks5://127.0.0.1:10808";
 const appIconUrl = "./icon.png";
 const onboardingHeroUrl = "./onboarding-hero.png";
-const rewardWechatUrl = "./about/wechat-reward.jpg";
-const rewardAlipayUrl = "./about/alipay-reward.jpg";
 
 function makeStylePresetId() {
   const cryptoId = globalThis.crypto?.randomUUID?.();
@@ -6217,32 +6215,8 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                 </div>
                 <div className="about-block">
                   <div>
-                    <strong>{t("settings.aboutAuthorTitle")}</strong>
-                    <span>{t("settings.aboutAuthorDesc")}</span>
-                  </div>
-                  <div className="about-copyline">
-                    <span>{t("settings.aboutAuthorQq")}</span>
-                    <strong>2786886095</strong>
-                  </div>
-                  <div className="about-copyline">
-                    <span>{t("settings.aboutNovelAiGroup")}</span>
-                    <strong>921985070</strong>
-                  </div>
-                </div>
-                <div className="about-block">
-                  <div>
-                    <strong>{t("settings.aboutSupportTitle")}</strong>
-                    <span>{t("settings.aboutSupportMessage")}</span>
-                  </div>
-                  <div className="reward-grid">
-                    <figure>
-                      <img src={rewardWechatUrl} alt={t("settings.aboutWechatReward")} />
-                      <figcaption>{t("settings.aboutWechatReward")}</figcaption>
-                    </figure>
-                    <figure>
-                      <img src={rewardAlipayUrl} alt={t("settings.aboutAlipayReward")} />
-                      <figcaption>{t("settings.aboutAlipayReward")}</figcaption>
-                    </figure>
+                    <strong>{t("settings.aboutLicenseTitle")}</strong>
+                    <span>{t("settings.aboutLicenseDesc")}</span>
                   </div>
                 </div>
               </div>

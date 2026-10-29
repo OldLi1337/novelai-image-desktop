@@ -1434,15 +1434,9 @@ const DESKTOP_SETTINGS_UI_TEXT: Record<AppLanguage, Record<string, string>> = {
     "settings.aboutProjectTitle": "项目地址",
     "settings.aboutProjectDesc":
       "GitHub 开源项目地址，点击即可在浏览器中打开。",
-    "settings.aboutAuthorTitle": "作者",
-    "settings.aboutAuthorDesc": "软件作者与维护者，欢迎反馈问题与建议。",
-    "settings.aboutAuthorQq": "作者 QQ",
-    "settings.aboutNovelAiGroup": "NovelAI QQ交流群",
-    "settings.aboutSupportTitle": "赞赏支持",
-    "settings.aboutSupportMessage":
-      "如果软件帮到了你，可以请我喝杯奶茶（doge），或者随手赞赏支持一下，十分感谢。",
-    "settings.aboutWechatReward": "微信赞赏码",
-    "settings.aboutAlipayReward": "支付宝赞赏码",
+    "settings.aboutLicenseTitle": "开源许可",
+    "settings.aboutLicenseDesc":
+      "本软件基于 Langbai NovelAI Studio 开源项目修改，遵循 MIT 许可证。原项目 Copyright (c) 2026 Langbai。",
   },
 };
 

@@ -145,15 +145,6 @@ Windows 便携版与安装版共享本机用户数据目录 `%APPDATA%\novelai-i
 
 [提交问题](https://github.com/OldLi1337/novelai-image-desktop/issues/new) · [查看已有问题](https://github.com/OldLi1337/novelai-image-desktop/issues)
 
-NovelAI 交流群：**921985070**。欢迎交流软件使用、提示词和创作经验。
-
-<details>
-<summary>展开 QQ 群二维码</summary>
-
-<img src="./docs/assets/qq-group-921985070.jpg" width="280" alt="NovelAI 交流群二维码，群号 921985070" />
-
-</details>
-
 ---
 
 看板娘为《原神》角色芙宁娜，宣传图为 AI 生成的非官方同人视觉，与 HoYoverse / NovelAI 无官方合作或背书关系。项目代码的 MIT 许可不授予第三方角色、商标或素材权利。配图说明见[视觉素材记录](./docs/assets/readme/ASSETS.md)。
