@@ -66,14 +66,12 @@ class _LibraryDialogState extends State<_LibraryDialog> {
  // 保存当前 on the library bar opens the editor directly, with the filter remembered from an earlier opening: a tag removed since then is dropped, not pre-filled.
  void begin(List<Map<String,Object>> entries,bool current){if(isStalePromptTagFilter([for(final p in entries)negativePresetTags(p)],tagFilter))setTagFilter('');draft={'id':id(),'name':'','prompt':current?widget.current:'','createdAt':DateTime.now().toUtc().toIso8601String()};name.text='';prompt.text=current?widget.current:'';tags.text=tagFilter.isNotEmpty&&tagFilter!=untaggedPromptFilter?tagFilter:'';error='';}
  void create(List<Map<String,Object>> entries,bool current)=>setState(()=>begin(entries,current));
- Future<void> run(Future<void> Function() action)async{setState((){busy=true;error='';});try{await action();}catch(e){if(mounted)setState(()=>error='$e');}finally{if(mounted)setState(()=>busy=false);}}
+ Future<void> run(Future<void> Function() action)async{setState((){busy=true;error='';});try{await action();}catch(e){if(mounted)setState(()=>error=negativeLibraryErrorText(e));}finally{if(mounted)setState(()=>busy=false);}}
  Future<void> save()async{if(draft==null||name.text.trim().isEmpty||prompt.text.trim().isEmpty)return;final entry=<String,Object>{...draft!,'name':name.text.trim(),'prompt':prompt.text}..remove('tags')..addAll(promptTagField(tags.text));await context.read<AppState>().mutateNegativePresets((old)=>old.any((p)=>p['id']==entry['id'])?old.map((p)=>p['id']==entry['id']?entry:p).toList():mergeNegativeLibrary(old,[entry],id));if(mounted)setState((){selectedId=entry['id'] as String;draft=null;});}
  Future<void> importFile()async{
   final result=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['json'],withData:true);
-  if(result==null)return;final picked=result.files.single;if(picked.size>5000000)throw const FormatException('Library file exceeds 5 MB');
-  final raw=picked.bytes!=null?String.fromCharCodes(picked.bytes!):await File(picked.path!).readAsString();
-  // File.readAsString uses UTF-8; decode byte-based picker results identically.
-  final imported=parseNegativeLibrary(picked.bytes!=null?decodeNegativeFile(picked.bytes!):raw);
+  if(result==null)return;final picked=result.files.single;if(picked.size>5000000)throw const FormatException(negativeLibraryTooLarge);
+  final imported=parseNegativeLibrary(decodeNegativeFile(picked.bytes??await File(picked.path!).readAsBytes()));
   if(!mounted)return;await context.read<AppState>().mutateNegativePresets((old)=>mergeNegativeLibrary(old,imported,id));
  }
  Future<void> exportFile()async{

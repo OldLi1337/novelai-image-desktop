@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -16,6 +17,25 @@ void main(){
   expect(normalizeNegativePromptPresets(null),fixture);expect(parseNegativeLibrary(exportNegativeLibrary(normalizeNegativePromptPresets(null))),fixture);
   final p=negativeBuiltins.first['prompt']!;expect(applyNegativePreset('keep',p,'append'),'keep, $p');expect(applyNegativePreset('keep',p,'replace'),p);
   expect(()=>parseNegativeLibrary('{}'),throwsFormatException);expect(normalizeNegativePromptPresets([]),isEmpty);
+ });
+ test('import, merge and dialog errors use the desktop Chinese messages',(){
+  String message(void Function() action){try{action();}on FormatException catch(e){return e.message;}fail('expected a FormatException');}
+  const invalid='不是有效的负面提示词库文件。';
+  expect(message(()=>parseNegativeLibrary('x'*5000001)),'词库文件超过 5 MB。');
+  for(final text in ['x','{}','[]','{"identifier":"langbai-negative-prompt-library","version":2,"presets":[]}']){expect(message(()=>parseNegativeLibrary(text)),invalid,reason:text);}
+  final library=jsonDecode(exportNegativeLibrary(normalizeNegativePromptPresets(null))) as Map<String,dynamic>;
+  final first=(library['presets'] as List).first;
+  expect(message(()=>parseNegativeLibrary(jsonEncode({...library,'presets':[{'id':'x'}]}))),invalid);
+  expect(message(()=>parseNegativeLibrary(jsonEncode({...library,'presets':[first,first]}))),'词库中有重复的预设 ID。');
+  expect(message(()=>decodeNegativeFile(Uint8List.fromList([0x7b,0xff,0xfe]))),invalid);
+  expect(decodeNegativeFile(Uint8List.fromList(utf8.encode('{"名":1}'))),'{"名":1}');
+  final full=[for(var i=0;i<2000;i++)<String,Object>{'id':'n$i','name':'N$i','prompt':'p$i','createdAt':'now'}];
+  expect(message(()=>mergeNegativeLibrary(full,[{'id':'extra','name':'Extra','prompt':'extra','createdAt':'now'}],()=>'new')),'预设最多 2000 个。');
+  // The dialog shows the message without Dart's 'FormatException: ' / 'Bad state: ' / 'Exception: ' prefix.
+  expect(negativeLibraryErrorText(const FormatException(invalid)),invalid);
+  expect(negativeLibraryErrorText(StateError('保存失败')),'保存失败');
+  expect(negativeLibraryErrorText(Exception('读取失败')),'读取失败');
+  expect(negativeLibraryErrorText(const FormatException('')),'操作失败。');
  });
  test('named edits/deletes persist through cold storage and simultaneous writes do not lose entries',()async{
   final s=AppState();addTearDown(s.dispose);
