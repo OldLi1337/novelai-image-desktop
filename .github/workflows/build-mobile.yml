@@ -3,9 +3,6 @@ name: Build iOS
 on:
   push:
     tags: ['v*']
-    # Temporary: run once on the work branch so the first macOS build happens
-    # before release (workflow_dispatch needs the file on main first).
-    branches: ['claude/vigilant-ptolemy-a6grwv']
   pull_request:
     paths:
       - 'mobile/**'
