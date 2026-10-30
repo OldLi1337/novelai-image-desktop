@@ -7,7 +7,6 @@ import {
   formatArtistCardTags,
   formatArtistFullPrompt,
   formatArtistString,
-  generateArtistMatchRecipes,
   generatePopularArtistRecipes,
   parseArtistRecipe,
   randomizeArtistRecipeWeights,
@@ -74,31 +73,6 @@ describe("artist recipe grammar", () => {
     expect(recipes.some((recipe) => recipe.artists.some((artist) => artist.weight < 0.65))).toBe(true);
     expect(recipes.some((recipe) => recipe.artists.some((artist) => artist.weight > 1))).toBe(true);
     expect(recipes.every((recipe) => recipe.artists.every((artist) => artist.weight <= 1.2))).toBe(true);
-  });
-
-  it("searches target styles from single artists into bounded elite mutations", () => {
-    const first = generateArtistMatchRecipes(pool, {
-      count: 6,
-      round: 1,
-      random: seeded(),
-    });
-    expect(first).toHaveLength(6);
-    expect(first.every((recipe) => recipe.artists.length === 1)).toBe(true);
-
-    const second = generateArtistMatchRecipes(pool, {
-      count: 8,
-      round: 2,
-      eliteArtists: [first[0].artists, first[1].artists],
-      seenPrompts: new Set(first.map((recipe) => recipe.prompt)),
-      random: seeded(),
-    });
-    expect(second).toHaveLength(8);
-    expect(second.every((recipe) => recipe.artists.length <= 4)).toBe(true);
-    expect(second.filter((recipe) => recipe.move === "probe")).toHaveLength(2);
-    expect(second.some((recipe) => recipe.move === "weight")).toBe(true);
-    expect(second.some((recipe) => recipe.move === "expand")).toBe(true);
-    expect(second.some((recipe) => recipe.artists.length > 1)).toBe(true);
-    expect(second.every((recipe) => !first.some((item) => item.prompt === recipe.prompt))).toBe(true);
   });
 
   it("normalizes qualified Danbooru names and prefixes every generated artist tag", () => {

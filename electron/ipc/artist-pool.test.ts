@@ -1,5 +1,4 @@
 vi.mock("./store", () => ({ getSettings: () => ({ proxyMode: "direct" }) }));
-vi.mock('./download-request',()=>({downloadRequest:vi.fn()}));
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -9,7 +8,7 @@ vi.mock("axios", () => ({ default: { get: m.get } }));
 vi.mock("electron", () => ({ app: { getPath: () => m.dir }, dialog: {}, nativeImage: {} }));
 vi.mock("./proxy", () => ({ proxyConfig: () => ({}), proxyConfigForUrl: async () => ({ proxy: false }) }));
 vi.mock("./image-codec", () => ({ processableImage: vi.fn() }));
-import { loadPopularArtistPool, loadPopularArtistTags } from "./artist-lab";
+import { loadPopularArtistPool } from "./artist-lab";
 const artists = (count: number, start = 1) => Array.from({ length: count }, (_, i) => ({ id: i + start, name: `fixture_${i + start}`, postCount: 100000 - i - start, deprecated: false }));
 const response = (count: number, start = 1) => ({ data: artists(count, start).map(a => ({ ...a, category: 1, post_count: a.postCount, is_deprecated: false })) });
 const file = () => path.join(m.dir, "artist-lab-popular-artists.json");
@@ -78,14 +77,6 @@ it("deduplicates concurrent requests but a later load always re-requests", async
   await loadPopularArtistPool(100); expect(m.get).toHaveBeenCalledTimes(2);
   m.get.mockRejectedValue(new Error("offline"));
   expect((await loadPopularArtistPool(100)).items).toEqual([]); expect(m.get).toHaveBeenCalledTimes(3);
-});
-it("does not break the separate similarity-scoring cache", async () => {
-  cache(200, Date.now());
-  expect(await loadPopularArtistTags(100, false)).toHaveLength(100); expect(m.get).not.toHaveBeenCalled();
-});
-it("legacy scoring loads also never inject static candidates", async () => {
-  m.get.mockRejectedValue(new Error("offline")); await expect(loadPopularArtistTags(100, true)).rejects.toThrow();
-  m.get.mockResolvedValue(response(100)); expect(await loadPopularArtistTags(100, true)).toHaveLength(100);
 });
 it("persists only ranked records and reports exact counts with no extra names", async () => {
   m.get.mockResolvedValue(response(100));

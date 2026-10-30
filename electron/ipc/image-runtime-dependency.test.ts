@@ -6,7 +6,7 @@ describe("image decoding is a declared cross-platform production dependency", ()
   it("unpacks version-suffixed native libraries as well as their bindings", () => {
     // libvips-cpp.so.8.x is not a .node file; auto-unpack alone missed it in Linux packages.
     expect(manifest.build.asarUnpack).toEqual(expect.arrayContaining([
-      "node_modules/sharp/**", "node_modules/@img/**", "node_modules/onnxruntime-node/**",
+      "node_modules/sharp/**", "node_modules/@img/**",
     ]));
   });
   it("pins the direct sharp dependency, override and lockfile root consistently", () => {
@@ -15,13 +15,16 @@ describe("image decoding is a declared cross-platform production dependency", ()
     expect(lock.packages[""].dependencies.sharp).toBe(manifest.dependencies.sharp);
     expect(lock.packages["node_modules/sharp"].version).toBe(manifest.dependencies.sharp);
   });
-  it.each(["mac", "linux"])("does not strip mandatory sharp or its native libraries from %s", platform => {
+  it.each(["win", "mac"])("does not strip mandatory sharp or its native libraries from %s", platform => {
     expect(manifest.build[platform].files ?? []).not.toContain("!node_modules/sharp/**");
     expect(manifest.build[platform].files ?? []).not.toContain("!node_modules/@img/**");
   });
 });
 
-it.each(['mac','linux'])('includes actual scoring runtime for %s instead of advertising an excluded feature',platform=>{
- for(const excluded of ['!node_modules/@huggingface/transformers/**','!node_modules/onnxruntime-node/**'])expect(manifest.build[platform].files??[]).not.toContain(excluded);
- for(const architecture of ['darwin','linux'])expect(manifest.build.files).not.toContain(`!node_modules/onnxruntime-node/bin/napi-v3/${architecture}/**`);
+it('verifies the packaged runtime dependency closure after every platform pack',async()=>{
+ // Losing this hook would ship packages without the closure gate; no build step calls it otherwise.
+ expect(manifest.build.afterPack).toBe('scripts/verify-runtime-dependencies.cjs');
+ const hook=(await import('../../scripts/verify-runtime-dependencies.cjs')).default;
+ expect(typeof hook).toBe('function');
+ await expect(hook({electronPlatformName:'linux-unsupported'})).rejects.toThrow('Unsupported packaging target platform');
 });

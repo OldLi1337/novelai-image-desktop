@@ -1,4 +1,3 @@
-export type ArtistLabModelMode = "high" | "light";
 export type ArtistLabDiscoveryMode = "match" | "random";
 
 export interface ArtistTagRecord {
@@ -61,50 +60,6 @@ export interface ArtistCombination {
   id: string;
   tags: ArtistWeightedTag[];
   prompt: string;
-}
-
-export interface ArtistLabImageScore {
-  similarity: number;
-  model: string;
-}
-
-export interface ArtistLabModelStatus {
-  mode: ArtistLabModelMode;
-  modelId: string;
-  cachedBytes: number;
-  cachedFiles: number;
-}
-
-export interface ArtistReferenceMatch {
-  artist: ArtistTagRecord;
-  similarity: number;
-  referencePath: string;
-  referenceUrl: string;
-}
-
-export interface ArtistDiscoveryResult {
-  matches: ArtistReferenceMatch[];
-  scanned: number;
-  nextOffset: number;
-  poolSize: number;
-  cachedBytes: number;
-}
-
-export function normalizeArtistProgress(
-  baselineSimilarity: number,
-  candidateSimilarity: number,
-): number {
-  const baseline = Math.max(0, Math.min(1, baselineSimilarity));
-  const candidate = Math.max(0, Math.min(1, candidateSimilarity));
-  const remaining = Math.max(1e-6, 1 - baseline);
-  return Math.max(0, Math.min(100, ((candidate - baseline) / remaining) * 100));
-}
-
-export function shouldResetArtistSearch(
-  stagnantRounds: number,
-  configuredRounds: number,
-): boolean {
-  return stagnantRounds >= Math.max(1, Math.floor(configuredRounds));
 }
 
 function clampWeight(value: number): number {

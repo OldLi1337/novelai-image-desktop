@@ -36,33 +36,33 @@ describe('release tools use authoritative source version without weakening misma
     const helper = load(path.join(root, 'scripts/release-version.cjs'));
     expect(() => helper.assertPackagedVersion('2.5.8', current)).toThrow('Wrong packaged version');
   });
-  it('actual Agent probe accepts matching version before attempting module loading', () => {
+  it('actual accounts probe accepts matching version before attempting module loading', () => {
     const dir = temp(); put(dir, 'package.json', JSON.stringify({ version: current }));
-    const result = cli('packaged-agent-probe.cjs', [dir, current]);
-    expect(result.status).toBe(1); // Deliberately incomplete package, no model or paid call.
+    const result = cli('packaged-accounts-probe.cjs', [dir, current]);
+    expect(result.status).toBe(1); // Deliberately incomplete package, no login or paid call.
     expect(result.stderr).not.toContain('Wrong packaged version');
-    expect(result.stderr).toContain('agent-runtime.js');
+    expect(result.stderr).toContain('nai-accounts-vault.js');
   });
-  it('actual Agent probe rejects stale bytes before attempting module loading', () => {
+  it('actual accounts probe rejects stale bytes before attempting module loading', () => {
     const dir = temp(); put(dir, 'package.json', JSON.stringify({ version: '2.5.8' }));
-    const result = cli('packaged-agent-probe.cjs', [dir, current]);
+    const result = cli('packaged-accounts-probe.cjs', [dir, current]);
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('Wrong packaged version');
-    expect(result.stderr).not.toContain('agent-runtime.js');
+    expect(result.stderr).not.toContain('nai-accounts-vault.js');
   });
-  it('actual Agent probe refuses a missing authoritative expected version', () => {
+  it('actual accounts probe refuses a missing authoritative expected version', () => {
     const dir = temp(); put(dir, 'package.json', JSON.stringify({ version: current }));
-    const result = cli('packaged-agent-probe.cjs', [dir]);
+    const result = cli('packaged-accounts-probe.cjs', [dir]);
     expect(result.status).toBe(1); expect(result.stderr).toContain('Missing expected release version');
   });
-  it('actual font asset probe checks matching source, mobile and packaged bytes at current version', () => {
+  it('actual font asset probe checks matching source and packaged bytes at current version', () => {
     const source = temp(), packaged = temp();
     for (const dir of [source, packaged]) put(dir, 'package.json', JSON.stringify({ version: current }));
     const digest = (b: Buffer) => crypto.createHash('sha256').update(b).digest('hex');
     const rows = Array.from({ length: 6 }, (_, index) => {
       const bytes = Buffer.from(`synthetic font ${index}`), license = Buffer.from('synthetic SIL Open Font License');
       const file = `${index}.woff2`, licenseFile = `${index}.txt`;
-      for (const prefix of ['public/ui-fonts', 'mobile/assets/ui-fonts']) put(source, `${prefix}/${file}`, bytes);
+      put(source, `public/ui-fonts/${file}`, bytes);
       put(packaged, `dist/ui-fonts/${file}`, bytes); put(packaged, `dist/ui-fonts/${licenseFile}`, license);
       return { id: String(index), file, licenseFile, bytes: bytes.length, sha256: digest(bytes), licenseSha256: digest(license) };
     });
@@ -74,7 +74,7 @@ describe('release tools use authoritative source version without weakening misma
     const fail = cli('packaged-font-assets-probe.cjs', [packaged, source]);
     expect(fail.status).toBe(1); expect(fail.stderr).toContain('Wrong packaged version');
   });
-  it('metadata verifier reads real current desktop/mobile versions and current-only notes', () => {
+  it('metadata verifier reads real current desktop versions and current-only notes', () => {
     const result = cli('verify-release-windows-metadata.cjs', []);
     expect(result.status, result.stderr).toBe(0);
     expect(JSON.parse(result.stdout)).toMatchObject({ version: current, pass: true });
@@ -82,7 +82,7 @@ describe('release tools use authoritative source version without weakening misma
   it('native runtime caller passes source-derived expected version to the package probe', () => {
     const source = fs.readFileSync(path.join(root, 'scripts/verify-packaged-runtime.mjs'), 'utf8');
     expect(source).toContain('const expectedVersion=readReleaseVersion(root)');
-    expect(source).toContain("path.resolve('scripts/packaged-agent-probe.cjs'),appRoot,expectedVersion");
+    expect(source).toContain("path.resolve('scripts/packaged-accounts-probe.cjs'),appRoot,expectedVersion");
     expect(fs.readFileSync(path.join(root, 'scripts/verify-packaged-fonts.cjs'), 'utf8')).toContain('version:readReleaseVersion(process.cwd())');
   });
 });

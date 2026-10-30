@@ -14,12 +14,7 @@ if(process.platform==='darwin'){
  binary=path.join(contents,'MacOS/Langbai NovelAI Studio');resources=path.join(contents,'Resources');
 }else if(process.platform==='win32'){
  binary=path.resolve('release/win-unpacked/Langbai NovelAI Studio.exe');resources=path.resolve('release/win-unpacked/resources');
-}else{
- resources=path.resolve('release/linux-unpacked/resources');
- const appDir=path.dirname(resources);
- const candidate=fs.readdirSync(appDir).find(name=> !name.includes('.') && !['resources','locales','chrome-sandbox','chrome_crashpad_handler','swiftshader'].includes(name) && fs.statSync(path.join(appDir,name)).isFile());
- if(!candidate)throw Error('Packaged Linux executable not found');binary=path.join(appDir,candidate);
-}
+}else throw Error('Packaged runtime verification supports only Windows and macOS packages');
 const checks=[];
 function run(command,args,env,name){
  const childEnv={...process.env,...env};for(const key of Object.keys(childEnv))if(childEnv[key]===null)delete childEnv[key];
@@ -40,14 +35,13 @@ console.log('IG5_PACKAGED_BYTES_VERIFIED',ig5.version,ig5.files.length);
 if(process.platform==='darwin'){
  for(const arch of [process.arch === 'arm64' ? 'arm64' : 'x86_64'])run('/usr/bin/arch',['-'+arch,binary,probe,appRoot],{ELECTRON_RUN_AS_NODE:'1'},'runtime-'+arch);
 }else run(binary,[probe,appRoot],{ELECTRON_RUN_AS_NODE:'1'},'runtime');
-run(binary,[path.resolve('scripts/packaged-agent-probe.cjs'),appRoot,expectedVersion],{ELECTRON_RUN_AS_NODE:'1'},'pi-accounts-runtime');
-for(const tab of ['01-generate','08-tools','09-reference-presets','11-agent']){
+run(binary,[path.resolve('scripts/packaged-accounts-probe.cjs'),appRoot,expectedVersion],{ELECTRON_RUN_AS_NODE:'1'},'accounts-runtime');
+for(const tab of ['01-generate','08-tools','09-reference-presets']){
  const image=path.join(output,tab+'.png');
  const userData=path.join(output,'profile');fs.mkdirSync(userData,{recursive:true});
  const env={ELECTRON_RUN_AS_NODE:null,NAI_UI_CAPTURE_PATH:image,NAI_UI_CAPTURE_USER_DATA:userData};
  const args=['--disable-gpu'];
- if(process.platform==='linux')run('xvfb-run',['-a',binary,'--no-sandbox',...args],env,tab);
- else run(binary,args,env,tab);
+ run(binary,args,env,tab);
  if(!fs.existsSync(image))throw Error('Missing packaged UI capture: '+tab);
  const auditPath=image+'.audit.json';
  if(!fs.existsSync(auditPath))throw Error('Missing packaged UI audit: '+tab);

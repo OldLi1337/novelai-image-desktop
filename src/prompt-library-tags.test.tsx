@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import {
   addPromptTagToInput,
   collectPromptTags,
+  isStalePromptTagFilter,
   matchesPromptLibraryEntry,
   mergePromptTags,
   normalizePromptTags,
@@ -69,10 +70,35 @@ describe("saved prompt tags", () => {
     expect(matchesPromptLibraryEntry({}, ["c# notes"], "#")).toBe(true);
   });
 
-  it("has complete labels for every UI language", () => {
-    for (const language of ["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"]) {
-      for (const value of Object.values(promptTagText(language))) expect(value.trim()).not.toBe("");
-    }
+  it("matches #tags that contain spaces, preferring the longest tag", () => {
+    const entry = { tags: normalizePromptTags("night sky, 服装") };
+    expect(matchesPromptLibraryEntry(entry, ["x"], "#night sky")).toBe(true);
+    expect(matchesPromptLibraryEntry(entry, ["x"], "#Night  Sky #服装")).toBe(true);
+    expect(matchesPromptLibraryEntry(entry, ["city"], "#night sky city")).toBe(true);
+    expect(matchesPromptLibraryEntry(entry, ["x"], "#night sky city")).toBe(false);
+    expect(matchesPromptLibraryEntry(entry, ["x"], "#night")).toBe(false);
+    expect(matchesPromptLibraryEntry(entry, ["x"], "#night skyline")).toBe(false);
+    // Words after a shorter tag stay part of the text search.
+    expect(matchesPromptLibraryEntry({ tags: ["night"] }, ["sky blue"], "#night sky")).toBe(true);
+    expect(matchesPromptLibraryEntry({ tags: ["night"] }, ["x"], "#night sky")).toBe(false);
+  });
+
+  it("detects a selected filter whose tag or untagged entries are gone", () => {
+    const items = [{ tags: ["夜景", "Night Sky"] }, {}];
+    expect(isStalePromptTagFilter(items, "")).toBe(false);
+    expect(isStalePromptTagFilter(items, "夜景")).toBe(false);
+    expect(isStalePromptTagFilter(items, "night sky")).toBe(false);
+    expect(isStalePromptTagFilter(items, UNTAGGED_PROMPT_FILTER)).toBe(false);
+    expect(isStalePromptTagFilter(items, "角色")).toBe(true);
+    expect(isStalePromptTagFilter([{ tags: ["夜景"] }, { tags: ["角色"] }], UNTAGGED_PROMPT_FILTER)).toBe(true);
+    expect(isStalePromptTagFilter([{}], "夜景")).toBe(true);
+    expect(isStalePromptTagFilter([], "夜景")).toBe(true);
+    expect(isStalePromptTagFilter([], UNTAGGED_PROMPT_FILTER)).toBe(true);
+    expect(isStalePromptTagFilter([], "")).toBe(false);
+  });
+
+  it("has complete labels", () => {
+    for (const value of Object.values(promptTagText("zh-CN"))) expect(value.trim()).not.toBe("");
     expect(promptTagText(undefined)).toEqual(promptTagText("zh-CN"));
   });
 
@@ -83,7 +109,7 @@ describe("saved prompt tags", () => {
     expect(html).toContain("#服装");
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain("未加标签");
-    const input = renderToStaticMarkup(<PromptTagInput value={outfit} onChange={() => {}} suggestions={[outfit, "夜景"]} language="en-US" />);
+    const input = renderToStaticMarkup(<PromptTagInput value={outfit} onChange={() => {}} suggestions={[outfit, "夜景"]} language="zh-CN" />);
     expect(input).toContain("+ 夜景");
     expect(input).not.toContain("+ 服装");
   });

@@ -333,7 +333,6 @@ describe("desktop UI consistency guards", () => {
       "PositivePromptPresets.tsx",
       "ReferencePresetManager.tsx",
       "comic/TagComicGenerator.tsx",
-      "AgentPage.tsx",
     ];
     for (const file of sourceFiles) {
       const source = fs.readFileSync(path.join(projectRoot, "src", file), "utf8");
@@ -459,8 +458,6 @@ describe("desktop UI consistency guards", () => {
     const injected = new Set([
       "--ws-left",
       "--ws-right",
-      "--tavern-background",
-      "--tavern-popover-pointer",
       "--reference-catalog-columns",
       "--reference-preset-columns",
     ]);
@@ -528,7 +525,7 @@ describe("desktop UI consistency guards", () => {
     expect(app).toContain('typeof idleWindow.requestIdleCallback === "function"');
     const criticalStart = app.indexOf("const warmCriticalScreen");
     const minimumStart = app.indexOf("const minimumSplash", criticalStart);
-    expect(app.slice(criticalStart, minimumStart)).not.toMatch(/load(?:ToolsHub|OnlineGalleryPage|AgentPage|MetadataInspector)\(/);
+    expect(app.slice(criticalStart, minimumStart)).not.toMatch(/load(?:ToolsHub|OnlineGalleryPage|MetadataInspector)\(/);
   });
 
   it("keeps the saved NovelAI token revealable and provides an AI translation provider", () => {
@@ -551,13 +548,12 @@ describe("desktop UI consistency guards", () => {
     expect(fs.readFileSync(path.join(projectRoot, "electron/ipc/credential-vault.ts"), "utf8")).toContain('"translateAiApiKey"');
     expect(nai).toContain('settings.translateProvider === "ai"');
     expect(nai).toContain('`${base}/chat/completions`');
-    expect(i18n.match(/"settings\.aiTranslate"/g)).toHaveLength(5);
+    expect(i18n.match(/"settings\.aiTranslate"/g)).toHaveLength(1);
   });
 
   it("uses the shared listbox selector across every desktop feature", () => {
     const files = [
       "src/App.tsx",
-      "src/AgentPage.tsx",
       "src/AitagGallery.tsx",
       "src/ArtistLab.tsx",
       "src/ComicGenerator.tsx",
@@ -619,10 +615,8 @@ describe("desktop UI consistency guards", () => {
 
   it("uses non-blocking dialogs and virtualizes large history grids", () => {
     const app = fs.readFileSync(path.join(projectRoot, "src", "App.tsx"), "utf8");
-    const agent = fs.readFileSync(path.join(projectRoot, "src", "AgentPage.tsx"), "utf8");
     const ui = fs.readFileSync(path.join(projectRoot, "src", "components", "ui.tsx"), "utf8");
-    expect(`${app}\n${agent}`).not.toMatch(/window\.(?:alert|prompt)\s*\(/);
-    expect(agent).toContain("stylePresetDialog");
+    expect(app).not.toMatch(/window\.(?:alert|prompt)\s*\(/);
     expect(app).toContain("useVirtualizer({");
     expect(app).toContain("virtualizeHistory = history.length >= 80");
     expect(app).toContain("const MemoizedHistoryPanel = memo(HistoryPanel)");
@@ -661,9 +655,7 @@ describe("desktop UI consistency guards", () => {
     const app = fs.readFileSync(path.join(projectRoot, "src", "App.tsx"), "utf8");
     const boundary = fs.readFileSync(path.join(projectRoot, "src", "components", "AppErrorBoundary.tsx"), "utf8");
     const comic = fs.readFileSync(path.join(projectRoot, "src", "comic", "TagComicGenerator.tsx"), "utf8");
-    const tavern = fs.readFileSync(path.join(projectRoot, "src", "AgentPage.tsx"), "utf8");
     const store = fs.readFileSync(path.join(projectRoot, "src", "store.ts"), "utf8");
-    const updater = fs.readFileSync(path.join(projectRoot, "electron", "ipc", "auto-update.ts"), "utf8");
     const nai = fs.readFileSync(path.join(projectRoot, "electron", "ipc", "nai.ts"), "utf8");
     expect(main).toContain('window.addEventListener("unhandledrejection"');
     expect(main).toContain('<AppErrorBoundary scope="app" root>');
@@ -673,24 +665,9 @@ describe("desktop UI consistency guards", () => {
     expect(comic).toContain('useComicGenerationQueue()');
     expect(comicQueue).toContain('result=await deps.generate(request)');
     expect(comicQueue).toMatch(/finally\s*\{[\s\S]*deps\.store\.setBusy\(false\)/);
-    expect(tavern).toMatch(/catch \(error\) \{\s*if \(sceneRequest === undefined\) setComposer\(text\)/);
     expect(store).toMatch(/catch \(error\) \{[\s\S]*status: "failed"/);
-    expect(updater).toContain("mainWindow.webContents.isDestroyed()");
     expect(nai).toContain('signal?.removeEventListener("abort", onAbort)');
     expect(app).toContain("Number.isFinite(days) ? days : 30");
-  });
-
-  it("uses a fluid custom model picker after detection", () => {
-    const source = fs.readFileSync(path.join(projectRoot, "src", "AgentPage.tsx"), "utf8");
-    const css = fs.readFileSync(path.join(projectRoot, "src", "styles.css"), "utf8");
-    expect(source).not.toContain('list="tavern-models"');
-    expect(source).not.toContain('<datalist id="tavern-models"');
-    expect(source).toContain('role="combobox"');
-    expect(source).toContain('role="listbox"');
-    expect(source).toContain("discoverAndOpen");
-    expect(source).toContain("closeOnOutside");
-    expect(css).toMatch(/\.tavern-model-results\s*\{[^}]*position:\s*absolute/s);
-    expect(css).toContain("animation: tavern-model-list-in");
   });
 
   it("keeps the retired novel-shorts module out of active product code", () => {
@@ -748,13 +725,13 @@ describe("desktop UI consistency guards", () => {
     const breakpoints = new Set(
       [...css.matchAll(/@media\s*\([^)]*max-width:\s*(\d+)px/g)].map((match) => Number(match[1])),
     );
-    expect([...breakpoints].sort((a, b) => a - b)).toEqual([480, 640, 768, 960, 1200, 1440]);
+    expect([...breakpoints].sort((a, b) => a - b)).toEqual([480, 640, 768, 960, 1200]);
   });
 
-  it("keeps compact prompt and tavern controls easy to hit without changing layout", () => {
+  it("keeps compact prompt controls easy to hit without changing layout", () => {
     const css = fs.readFileSync(path.join(projectRoot, "src", "styles.css"), "utf8");
-    expect(css).toMatch(/\.lock-btn,\s*button\.prompt-chip-head,\s*\.tavern-image-status > button\s*\{\s*position:\s*relative;/s);
-    expect(css).toMatch(/\.lock-btn::after,\s*button\.prompt-chip-head::after,\s*\.tavern-image-status > button::after\s*\{[^}]*content:\s*"";[^}]*position:\s*absolute;[^}]*inset:\s*-4px 0;/s);
+    expect(css).toMatch(/\.lock-btn,\s*button\.prompt-chip-head\s*\{\s*position:\s*relative;/s);
+    expect(css).toMatch(/\.lock-btn::after,\s*button\.prompt-chip-head::after\s*\{[^}]*content:\s*"";[^}]*position:\s*absolute;[^}]*inset:\s*-4px 0;/s);
   });
 
   it("names high stacking layers by height instead of misleading dialog semantics", () => {
@@ -801,26 +778,17 @@ describe("desktop UI consistency guards", () => {
     expect(panel).toContain("disabledReason={outputLimitReason}");
   });
 
-  it("pages the complete artist ranking and local preset libraries on both clients", () => {
+  it("pages the complete artist ranking and local preset libraries", () => {
     const gallery = fs.readFileSync(path.join(projectRoot, "src", "AitagGallery.tsx"), "utf8");
     const artistIpc = fs.readFileSync(path.join(projectRoot, "electron", "ipc", "artist-lab.ts"), "utf8");
     const presets = fs.readFileSync(path.join(projectRoot, "src", "ReferencePresetManager.tsx"), "utf8");
-    const mobileGallery = fs.readFileSync(path.join(projectRoot, "mobile", "lib", "screens", "online_gallery_screen.dart"), "utf8");
-    const mobileArtists = fs.readFileSync(path.join(projectRoot, "mobile", "lib", "services", "artist_tag_service.dart"), "utf8");
-    const mobilePresets = fs.readFileSync(path.join(projectRoot, "mobile", "lib", "screens", "generate_screen.dart"), "utf8");
     expect(gallery).toContain("artistLabArtistRanking(targetPage, targetPageSize, targetQuery, force)");
     expect(gallery).toContain("artistPageSize");
     expect(artistIpc).toContain("DANBOORU_TAG_PAGE_SIZE = 1000");
     expect(artistIpc).toContain("countActiveArtistTags");
-    const ranking = artistIpc.slice(artistIpc.indexOf("export async function loadPopularArtistRanking"), artistIpc.indexOf("async function scorer"));
+    const ranking = artistIpc.slice(artistIpc.indexOf("export async function loadPopularArtistRanking"), artistIpc.indexOf("function absoluteDanbooruMediaUrl"));
     expect(ranking).not.toContain("5000");
     expect(presets).toContain("LOCAL_PAGE_SIZE_OPTIONS");
     expect(presets).toContain("LocalPresetPageNumberInput");
-    expect(mobileGallery).toContain("artistService.rankingPage");
-    expect(mobileGallery).toContain("_chooseArtistPage");
-    expect(mobileArtists).toContain("_apiPageSize = 1000");
-    expect(mobileArtists).toContain("Future<ArtistRankingPage> rankingPage");
-    expect(mobilePresets).toContain("referencePresets.pagePosition");
-    expect(mobilePresets).not.toContain("reference-preset-load-more");
   });
 });

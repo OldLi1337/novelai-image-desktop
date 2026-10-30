@@ -9,13 +9,11 @@ import {parseNaiAccountSummary} from './nai-account-summary';
 import {validateNaiAccountReadOnly,requireNaiAccountValidation} from './nai-accounts-validation';
 import { currentNaiAccount, getNaiAccountSummary } from './nai-accounts-runtime';
 import {preparePromptAssistance,isSparsePromptEditSource,type PromptEditRequest} from "../../src/prompt-assistant.js";
-import {authorizeAgentBatchRequest} from './batch-run-authorization';
 import {currentBatchImageBinding,assertBatchImageBinding,prepareBatchImageService} from './batch-image-service';
 import {compatibleComicInput} from '../../src/comic/compatible-comic';
 import {currentComicImageBinding,assertComicImageBinding} from './comic-image-service';
 import {generateConfiguredImages} from './compatible-generation';
 import {bindAgentImageProvider} from './agent-image-provider';
-import {authorizeAgentComicRequest} from './comic-run-authorization';
 import {readComicImage,readComicReferences,buildComicSelectedZip,writeComicZip} from './comic-assets';
 import {reverseTemplateProtocol} from "../../src/reverse-template";
 import {normalizePromptSkillVersion,selectPromptSkillTemplate,supportsPromptSkillModel,renderPromptSkillTemplate} from '../../src/prompt-skill';
@@ -948,7 +946,7 @@ export async function prepareExtras(
   }
   // Validate the entire bundle before image decoding or any paid encoding call.
   if (extras.vibeImages?.length) {
-    if (!supportsNAIVibeTransfer(params.model)) throw new Error("Vibe Transfer requires V4/V4.5 or V3, not V5.");
+    if (!supportsNAIVibeTransfer(params.model)) throw new Error("氛围迁移（Vibe Transfer）仅支持 V4 / V4.5 或 V3，不支持 V5。");
     for (const ref of extras.vibeImages) validateVibeModel(ref, params.model);
     extras = {...extras, vibeImages: await Promise.all(extras.vibeImages.map(async ref => matchingVibeEncoding(ref, params.model) ? ref : ({...ref, base64:(await processableImage(Buffer.from(stripBase64Prefix(ref.base64), "base64"))).toString("base64")})))};
   }
@@ -4014,8 +4012,7 @@ export async function generateComicPanel(
   return result;
 }
 
-const comicRuns=new Map<string,{controller:AbortController;done:Promise<void>}>();
-export async function waitTagComicGeneration(runId:string){await comicRuns.get(runId)?.done;}
+const comicRuns=new Map<string,{controller:AbortController}>();
 export function cancelTagComicGeneration(runId:string){
   const owned=comicRuns.get(runId);owned?.controller.abort(Error('漫画任务已停止'));
   return {ok:true,requested:Boolean(owned)};
@@ -4023,10 +4020,10 @@ export function cancelTagComicGeneration(runId:string){
 export async function generateTagComicCandidate(request:TagComicGenerateRequest):Promise<GenerateResult>{
   const runId=request.runId??crypto.randomUUID();
   if(typeof runId!=='string'||!/^[a-zA-Z0-9_-]{1,160}$/.test(runId)||comicRuns.has(runId))return {ok:false,items:[],message:'漫画任务标识无效或该任务已有请求进行中'};
-  const controller=new AbortController();let settled!:()=>void;const done=new Promise<void>(resolve=>settled=resolve);comicRuns.set(runId,{controller,done});
+  const controller=new AbortController();comicRuns.set(runId,{controller});
   try{return await generateTagComicCandidateRequest(request,controller.signal);}
   catch(error){return {ok:false,items:[],message:error instanceof Error?error.message:String(error)};}
-  finally{if(comicRuns.get(runId)?.controller===controller)comicRuns.delete(runId);settled();}
+  finally{if(comicRuns.get(runId)?.controller===controller)comicRuns.delete(runId);}
 }
 async function generateTagComicCandidateRequest(
   request: TagComicGenerateRequest, signal:AbortSignal,
@@ -4046,7 +4043,6 @@ async function generateTagComicCandidateRequest(
   try { preciseReferences = await readComicReferences(request, tagComicReferenceRoot(request.projectId)); }
   catch(error) { return {ok:false,items:[],message:error instanceof Error?error.message:String(error)}; }
   signal.throwIfAborted();
-  const beforeSubmit=await authorizeAgentComicRequest(request);signal.throwIfAborted();
   const historyGroup = ensureHistoryGroup(
     request.projectTitle,
     request.historyGroupId,
@@ -4059,8 +4055,6 @@ async function generateTagComicCandidateRequest(
     params,
     { vibeImages: [], charCaptions: [], preciseReferences },
     { groupOverride,signal,beforeSubmit:async()=>{
-      if(request.imageServiceBinding)assertComicImageBinding(request.imageServiceBinding);
-      await beforeSubmit?.();
       if(request.imageServiceBinding)assertComicImageBinding(request.imageServiceBinding);
     } },
   );
@@ -4083,12 +4077,11 @@ async function generateCompatibleComicCandidate(request:TagComicGenerateRequest,
   const binding=request.imageServiceBinding??currentComicImageBinding();
   assertComicImageBinding(binding);
   const input=compatibleComicInput(settings,request);signal.throwIfAborted();
-  const guard=await authorizeAgentComicRequest(request);signal.throwIfAborted();
   assertComicImageBinding(binding);
   const group=ensureHistoryGroup(request.projectTitle,request.historyGroupId);
   const result=await generateConfiguredImages({prompt:input.prompt,n:1,historyGroupId:group.id,fileNamePrefix:request.params.fileNamePrefix||`comic-${request.panelIndex}`},{
     signal,size:input.size,expectedProvider:bindAgentImageProvider(settings),
-    beforeSubmit:async()=>{signal.throwIfAborted();assertComicImageBinding(binding);await guard?.();signal.throwIfAborted();assertComicImageBinding(binding);},
+    beforeSubmit:async()=>{signal.throwIfAborted();assertComicImageBinding(binding);},
   });
   annotateComicImages(result,request,group.id);return result;
 }
@@ -4124,7 +4117,7 @@ export async function importTagComicReference(
     if(!(await fs.readFile(filePath)).equals(buffer))throw Error('参考图写入读回不一致');
     return {
       ok: true,
-      message: "Reference imported.",
+      message: "参考图已导入。",
       asset: {
         id,
         name: path.basename(sourcePath),
@@ -4737,13 +4730,12 @@ export async function generateI2I(
 // Batch redraw = img2img on an EXPLICIT source image (not the workbench image),
 // saved into a named history group (created if missing) on disk + in history.
 // Driven serially by the 图片批量重绘 tool, one call per image.
-const batchRuns=new Map<string,{controller:AbortController;done:Promise<void>}>();
-export async function waitBatchRedraw(runId:string){await batchRuns.get(runId)?.done;}
+const batchRuns=new Map<string,{controller:AbortController}>();
 export function cancelBatchRedraw(runId:string){const owned=batchRuns.get(runId);owned?.controller.abort(Error('批量重绘已停止'));return {ok:true,requested:Boolean(owned)};}
 export async function redrawImage(request:BatchRedrawRequest):Promise<GenerateResult>{
  const id=request.runId??crypto.randomUUID();if(typeof id!=='string'||!/^[a-zA-Z0-9_-]{1,160}$/.test(id)||batchRuns.has(id))return {ok:false,items:[],message:'批量重绘运行标识无效或正在提交'};
- const controller=new AbortController();let release!:()=>void;const done=new Promise<void>(r=>release=r);batchRuns.set(id,{controller,done});
- try{prepareBatchImageService([request]);return await redrawImageRequest(request,controller.signal);}catch(error){return handleGenerateError(error,"批量重绘失败");}finally{if(batchRuns.get(id)?.controller===controller)batchRuns.delete(id);release();}
+ const controller=new AbortController();batchRuns.set(id,{controller});
+ try{prepareBatchImageService([request]);return await redrawImageRequest(request,controller.signal);}catch(error){return handleGenerateError(error,"批量重绘失败");}finally{if(batchRuns.get(id)?.controller===controller)batchRuns.delete(id);}
 }
 
 async function redrawImageRequest(
@@ -4773,8 +4765,7 @@ async function redrawImageRequest(
     job.controller.signal.throwIfAborted();
     prepareBatchImageService([request]);
     const binding=request.imageServiceBinding??currentBatchImageBinding();assertBatchImageBinding(binding);
-    const guard=await authorizeAgentBatchRequest(request);
-    const beforeSubmit=async()=>{job.controller.signal.throwIfAborted();assertBatchImageBinding(binding);await guard?.();assertBatchImageBinding(binding);job.controller.signal.throwIfAborted();};
+    const beforeSubmit=async()=>{job.controller.signal.throwIfAborted();assertBatchImageBinding(binding);};
     const srcBuffer = Buffer.from(
       stripBase64Prefix(request.imageBase64),
       "base64",
@@ -5389,7 +5380,7 @@ export async function translateText(
   if (!trimmed) return { ok: false, error: "没有可翻译的内容。" };
   sourceLanguage = normalizeTranslationSource(sourceLanguage);
   const settings = getSettings();
-  target = resolveTranslationTarget(target ?? settings.translateTargetLanguage, settings.language);
+  target = resolveTranslationTarget(target ?? settings.translateTargetLanguage);
   if (settings.translateProvider === "baidu") {
     return baiduTranslate(
       trimmed,

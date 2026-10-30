@@ -1,17 +1,14 @@
 import {PreviewImageViewer} from './PreviewImageViewer';
+import {errorText} from '../error-message';
 import {useEffect,useState} from 'react';
 import {useAppStore} from '../store';
 import {AppPortal,Button} from './ui';
 import type {StylePromptPreset} from '../types';
 export const favoriteStyleLabels:Record<string,string[]>={
- 'zh-CN':['保存为风格预设','全选','取消全选','保存','取消','已保存'],
- 'zh-TW':['儲存為風格預設','全選','取消全選','儲存','取消','已儲存'],
- 'en-US':['Save as style presets','Select all','Clear selection','Save','Cancel','Saved'],
- 'ja-JP':['画風プリセットとして保存','すべて選択','選択解除','保存','キャンセル','保存しました'],
- 'ko-KR':['스타일 프리셋으로 저장','전체 선택','선택 해제','저장','취소','저장됨']};
+ 'zh-CN':['保存为风格预设','全选','取消全选','保存','取消','已保存']};
 export type FavoriteStyleSource={id:string;prompt:string;image?:{filePath:string;fileUrl:string}};
 export function FavoriteStyleExport({items}:{items:FavoriteStyleSource[]}) {
- const language=useAppStore(s=>s.settings?.language),t=favoriteStyleLabels[language??'en-US']??favoriteStyleLabels['en-US'];
+ const language=useAppStore(s=>s.settings?.language),t=favoriteStyleLabels[language??'zh-CN']??favoriteStyleLabels['zh-CN'];
  const [open,setOpen]=useState(false),[selected,setSelected]=useState<string[]>([]),[names,setNames]=useState<Record<string,string>>({}),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const [preview,setPreview]=useState<number|null>(null);
  const previewItems=items.filter(item=>item.image);
@@ -29,7 +26,7 @@ export function FavoriteStyleExport({items}:{items:FavoriteStyleSource[]}) {
    await useAppStore.getState().refreshSettings();useAppStore.getState().setToast(`${t[5]} · ${created.length}`);setPreview(null);setOpen(false);
   }catch(e){
    if(!committed)await Promise.allSettled(created.map(p=>window.naiDesktop.deleteStylePromptPresetImages(p.id)));
-   setError(String(e));
+   setError(errorText(e));
   }finally{setBusy(false);}
  }
  return <><Button disabled={!items.length} onClick={()=>{setSelected(items.map(i=>i.id));setNames(Object.fromEntries(items.map(i=>[i.id,i.prompt.slice(0,60)])));setError('');setPreview(null);setOpen(true);}}>{t[0]}</Button>

@@ -1,5 +1,3 @@
-import { COMFY_SETUP_IPC, type ComfySetupApi } from "../src/comfyui/setup-contract";
-import { COMFY_IPC, type ComfyLocalApi, type ComfyResponse, type ComfyEvent } from "../src/comfyui/contract";
 import { contextBridge, ipcRenderer, webUtils } from "electron";
 import { createImageSaveTracker, type ImageSaveNotice } from "../src/image-save-feedback";
 import type {
@@ -37,7 +35,6 @@ import type {
   SettingKey,
   TextToolHistoryItem,
   UpscaleScale,
-  UpdateProgressEvent,
   StylePromptPreviewImage,
   ReferencePresetExportRequest,
   ReferencePresetLibrary,
@@ -51,16 +48,6 @@ import type {
 } from "../src/types";
 import type { AitagSearchRequest } from "../src/aitag";
 import type { PromptCodexSnapshot } from "../src/prompt-codex";
-import type {
-  AgentEvent,
-  AgentMemory,
-  AgentProviderProbe,
-  AgentSendRequest,
-  AgentSkill,
-  AgentWorkspaceData,
-  TavernCardExportRequest,
-  TavernImageRequest,
-} from "../src/agent/types";
 
 const imageSaves = createImageSaveTracker();
 
@@ -99,26 +86,6 @@ contextBridge.exposeInMainWorld("naiDesktop", {
     const listener=(_event:Electron.IpcRendererEvent,notice:{message:string})=>callback(notice);
     ipcRenderer.on('favorites:changed',listener);return ()=>ipcRenderer.removeListener('favorites:changed',listener);
   },
-  onStudioAgentRequest: (callback:(request:import('../src/studio-agent-contract').StudioAgentRequest)=>void) => {
-    const listener=(_event:Electron.IpcRendererEvent,request:import('../src/studio-agent-contract').StudioAgentRequest)=>callback(request);
-    ipcRenderer.on('studio-agent:request',listener);
-    return ()=>ipcRenderer.removeListener('studio-agent:request',listener);
-  },
-  replyStudioAgent: (id:string,reply:import('../src/studio-agent-contract').StudioAgentReply) => ipcRenderer.invoke('studio-agent:reply',id,reply),
-  commitStudioSetting: (id:string,key:SettingKey,expected:AppSettings[SettingKey],value:AppSettings[SettingKey]) => ipcRenderer.invoke('studio-agent:commit',id,key,expected,value),
-  harnessSetAutoPluginUpdates: (enabled:boolean) => ipcRenderer.invoke('harness:setAutoPluginUpdates',enabled),
-  harnessCheckPluginUpdates: () => ipcRenderer.invoke('harness:checkPluginUpdates'),
-  harnessSnapshot: () => ipcRenderer.invoke("harness:snapshot"),
-  harnessStart: () => ipcRenderer.invoke("harness:start"),
-  harnessStop: () => ipcRenderer.invoke("harness:stop"),
-  harnessPlanDownload: (kind: 'component' | 'official', reinstall = false) => ipcRenderer.invoke("harness:planDownload", kind, reinstall),
-  harnessUninstall: (confirmed: boolean) => ipcRenderer.invoke("harness:uninstall", confirmed),
-  harnessPrepareUpdate: (kind: 'component' | 'official', token: string, disablePlugins: string[] = []) => ipcRenderer.invoke("harness:prepareUpdate", kind, token, disablePlugins),
-  harnessApplyPreparedUpdate: (token: string) => ipcRenderer.invoke("harness:applyPreparedUpdate", token),
-  harnessCheckUpdates: () => ipcRenderer.invoke("harness:checkUpdates"),
-  harnessUpdate: () => ipcRenderer.invoke("harness:update"),
-  harnessOpenBackups: () => ipcRenderer.invoke("harness:openBackups"),
-  harnessRestoreBackup: () => ipcRenderer.invoke("harness:restoreBackup"),
   onImageSaveFeedback: (callback: (notices: ImageSaveNotice[]) => void) => imageSaves.subscribe(callback),
   dismissImageSaveFeedback: (id: number) => imageSaves.dismiss(id),
   platform: process.platform,
@@ -142,9 +109,9 @@ contextBridge.exposeInMainWorld("naiDesktop", {
     return () => ipcRenderer.removeListener("resource-database:progress", listener);
   },
   listPortableRecoveries: () => ipcRenderer.invoke("dataBackup:listRecoveries"),
-  openPortableRecovery: (kind: "agent" | "detective", id: string): Promise<void> =>
+  openPortableRecovery: (kind: "detective", id: string): Promise<void> =>
     ipcRenderer.invoke("dataBackup:openRecovery", kind, id),
-  activatePortableRecovery: (kind: "agent" | "detective", id: string): Promise<{preserved:string}> =>
+  activatePortableRecovery: (kind: "detective", id: string): Promise<{preserved:string}> =>
     ipcRenderer.invoke("dataBackup:activateRecovery", kind, id),
   exportDataBackup: (request: DataBackupExportRequest): Promise<DataBackupOperationResult> =>
     ipcRenderer.invoke("dataBackup:export", request),
@@ -160,44 +127,6 @@ contextBridge.exposeInMainWorld("naiDesktop", {
     ipcRenderer.invoke("dataBackup:selectDirectory"),
   openBackupDirectory: (): Promise<{ ok: boolean; message?: string }> =>
     ipcRenderer.invoke("dataBackup:openDirectory"),
-  getAgentWorkspace: () => ipcRenderer.invoke("agent:getWorkspace"),
-  saveTavernWorkspace: (workspace: AgentWorkspaceData) => ipcRenderer.invoke("agent:saveWorkspace", workspace),
-  createAgentConversation: (title?: string) => ipcRenderer.invoke("agent:createConversation", title),
-  selectAgentConversation: (conversationId: string) => ipcRenderer.invoke("agent:selectConversation", conversationId),
-  renameAgentConversation: (conversationId: string, title: string) => ipcRenderer.invoke("agent:renameConversation", conversationId, title),
-  setAgentConversationArchived: (conversationId: string, archived: boolean) => ipcRenderer.invoke("agent:setConversationArchived", conversationId, archived),
-  setStudioConversationOptions: (conversationId:string,patch:Partial<import('../src/agent/workspace-controls').StudioConversationOptions>)=>ipcRenderer.invoke('agent:setStudioOptions',conversationId,patch),
-  deleteAgentConversation: (conversationId: string) => ipcRenderer.invoke("agent:deleteConversation", conversationId),
-  importAgentFileData: (conversationId:string, files:Array<{name:string;bytes:Uint8Array}>) => ipcRenderer.invoke("agent:importFileData",conversationId,files),
-  importAgentFiles: (conversationId: string, sourcePaths?: string[]) => ipcRenderer.invoke("agent:importFiles", conversationId, sourcePaths),
-  importStudioResources: (kind:'presets'|'worldbooks'|'characters') => ipcRenderer.invoke('agent:importStudioResources',kind),
-  deleteAgentAttachment: (conversationId: string, attachmentId: string) => ipcRenderer.invoke("agent:deleteAttachment", conversationId, attachmentId),
-  exportAgentAttachment: (conversationId: string, messageId: string, attachmentId: string) => imageSaves.run(`agent:${conversationId}:${messageId}:${attachmentId}`, "image", () => ipcRenderer.invoke("agent:exportAttachment", conversationId, messageId, attachmentId), 1),
-  sendAgentMessage: (request: AgentSendRequest) => ipcRenderer.invoke("agent:send", request),
-  generateTavernImage: (request: TavernImageRequest) => ipcRenderer.invoke("agent:generateImage", request),
-  importTavernCards: (sourcePaths?: string[]) => ipcRenderer.invoke("agent:importCards", sourcePaths),
-  exportTavernCard: (request: TavernCardExportRequest) => ipcRenderer.invoke("agent:exportCard", request),
-  importTavernVisualAsset: (kind: "avatar" | "background", sourcePath?: string) => ipcRenderer.invoke("agent:importVisual", kind, sourcePath),
-  abortAgentMessage: (conversationId: string) => ipcRenderer.invoke("agent:abort", conversationId),
-  compactAgentConversation: (conversationId: string) => ipcRenderer.invoke("agent:compact", conversationId),
-  getAgentPendingQuestions:()=>ipcRenderer.invoke("agent:pendingQuestions"),
-  respondAgentQuestion:(response:import("../src/agent/types").AgentQuestionResponse)=>ipcRenderer.invoke("agent:respondQuestion",response),
-  respondAgentPermission: (permissionId: string, response: "once" | "always" | "reject") => ipcRenderer.invoke("agent:respondPermission", permissionId, response),
-  upsertAgentSkill: (skill: Partial<AgentSkill> & Pick<AgentSkill, "name" | "instructions">) => ipcRenderer.invoke("agent:upsertSkill", skill),
-  deleteAgentSkill: (skillId: string) => ipcRenderer.invoke("agent:deleteSkill", skillId),
-  upsertAgentMemory: (memory: Partial<AgentMemory> & Pick<AgentMemory, "title" | "content" | "scope">) => ipcRenderer.invoke("agent:upsertMemory", memory),
-  deleteAgentMemory: (memoryId: string) => ipcRenderer.invoke("agent:deleteMemory", memoryId),
-  getAgentRuntimeStatus: () => ipcRenderer.invoke("agent:runtimeStatus"),
-  getAgentPendingPermissions: () => ipcRenderer.invoke("agent:pendingPermissions"),
-  restartAgentRuntime: () => ipcRenderer.invoke("agent:restartRuntime"),
-  discoverAgentModels: (probe: AgentProviderProbe) => ipcRenderer.invoke("agent:discoverModels", probe),
-  getAgentWorkspaceLocation: () => ipcRenderer.invoke("agent:workspaceLocation"),
-  openAgentWorkspaceDirectory: () => ipcRenderer.invoke("agent:openWorkspace"),
-  onAgentEvent: (callback: (event: AgentEvent) => void) => {
-    const listener = (_event: unknown, payload: AgentEvent) => callback(payload);
-    ipcRenderer.on("agent:event", listener);
-    return () => ipcRenderer.removeListener("agent:event", listener);
-  },
   promptCodexCache: (): Promise<PromptCodexSnapshot | null> =>
     ipcRenderer.invoke("promptCodex:cache"),
   promptCodexBundled: (): Promise<PromptCodexSnapshot> =>
@@ -239,28 +168,6 @@ contextBridge.exposeInMainWorld("naiDesktop", {
   },
   artistLabArtistRanking: (page?: number, pageSize?: number, query?: string, force?: boolean) =>
     ipcRenderer.invoke("artistLab:artistRanking", page, pageSize, query, force),
-  artistLabScoreImages: (
-    mode: "high" | "light",
-    targetPath: string,
-    candidatePath: string,
-  ) =>
-    ipcRenderer.invoke(
-      "artistLab:scoreImages",
-      mode,
-      targetPath,
-      candidatePath,
-    ),
-  artistLabModelStatus: (mode: "high" | "light") =>
-    ipcRenderer.invoke("artistLab:modelStatus", mode),
-  artistLabDiscoverSimilar: (
-    mode: "high" | "light",
-    targetPath: string,
-    offset?: number,
-    scanCount?: number,
-    shortlist?: number,
-    force?: boolean,
-  ) => ipcRenderer.invoke("artistLab:discoverSimilar", mode, targetPath, offset, scanCount, shortlist, force),
-  artistLabClearModels: () => ipcRenderer.invoke("artistLab:clearModels"),
   artistLabStylePreview: (tag: string) =>
     ipcRenderer.invoke("artistLab:stylePreview", tag) as Promise<ArtistStylePreviewResult | null>,
   artistLabStylePreviewPage: (tag: string, page = 1, pageSize = 12) =>
@@ -478,7 +385,6 @@ contextBridge.exposeInMainWorld("naiDesktop", {
   ) as Promise<ArtistStyleCatalogResult>,
   translate: (text: string, target?: string, sourceLanguage?: string) =>
     ipcRenderer.invoke("nai:translate", text, target, sourceLanguage),
-  readAgentClipboardFiles: () => ipcRenderer.invoke("agent:readClipboardFiles"),
   readClipboardImageFiles: () => ipcRenderer.invoke("imageInput:readClipboard"),
   savePastedImageFiles: (images: Array<{name:string;bytes:Uint8Array}>) => ipcRenderer.invoke("imageInput:save", images),
   loadImage: () => ipcRenderer.invoke("nai:loadImage"),
@@ -618,16 +524,6 @@ contextBridge.exposeInMainWorld("naiDesktop", {
   isFirstRun: () => ipcRenderer.invoke("settings:isFirstRun"),
   completeSetup: () => ipcRenderer.invoke("settings:completeSetup"),
 
-  checkUpdate: () => ipcRenderer.invoke("app:checkUpdate"),
-  isPortable: () => ipcRenderer.invoke("app:isPortable"),
-  downloadUpdate: () => ipcRenderer.invoke("app:downloadUpdate"),
-  installUpdate: () => ipcRenderer.invoke("app:installUpdate"),
-  onUpdateEvent: (callback: (event: UpdateProgressEvent) => void) => {
-    const listener = (_event: unknown, payload: UpdateProgressEvent) =>
-      callback(payload);
-    ipcRenderer.on("app:updateEvent", listener);
-    return () => ipcRenderer.removeListener("app:updateEvent", listener);
-  },
   minimize: () => ipcRenderer.invoke("window:minimize"),
   maximize: () => ipcRenderer.invoke("window:maximize"),
   close: () => ipcRenderer.invoke("window:close"),
@@ -655,69 +551,3 @@ contextBridge.exposeInMainWorld("naiDesktop", {
 });
 
 contextBridge.exposeInMainWorld('naiAccounts', { list: () => ipcRenderer.invoke('naiAccounts:list'), state: () => ipcRenderer.invoke('naiAccounts:state'), select: (id?: string) => ipcRenderer.invoke('naiAccounts:select', id), login: (input: import('./ipc/nai-accounts-login').OfficialLoginInput) => ipcRenderer.invoke('naiAccounts:login', input), migrate: () => ipcRenderer.invoke('naiAccounts:migrate'), add: (input: import('../src/nai-accounts').NaiAccountInput) => ipcRenderer.invoke('naiAccounts:add', input), remove: (id: string) => ipcRenderer.invoke('naiAccounts:remove', id), reveal: (id:string) => ipcRenderer.invoke('naiAccounts:reveal',id), probe: (id: string) => ipcRenderer.invoke('naiAccounts:probe', id) });
-
-
-// The local ComfyUI bridge is deliberately separate from account-bound NovelAI
-// APIs. Paths and prompt graphs remain owned/validated by the main process.
-function invokeComfy<T>(channel: string, ...args: unknown[]): Promise<ComfyResponse<T>> {
-  return ipcRenderer.invoke(channel, ...args).catch(() => ({
-    ok: false as const,
-    error: { code: "internal" as const, message: "ComfyUI request could not be completed." },
-  }));
-}
-const setupBridge: ComfySetupApi = {
-  getState: () => invokeComfy(COMFY_SETUP_IPC.getState),
-  discover: () => invokeComfy(COMFY_SETUP_IPC.discover),
-  chooseDiscoveryRoot: () => invokeComfy(COMFY_SETUP_IPC.chooseDiscoveryRoot),
-  adoptCandidate: (id, confirmed) => invokeComfy(COMFY_SETUP_IPC.adoptCandidate, id, confirmed),
-  openOfficialPage: () => invokeComfy(COMFY_SETUP_IPC.openOfficialPage),
-  chooseTargetDirectory: () => invokeComfy(COMFY_SETUP_IPC.chooseTargetDirectory),
-  chooseArchive: () => invokeComfy(COMFY_SETUP_IPC.chooseArchive),
-  install: input => invokeComfy(COMFY_SETUP_IPC.install, input),
-  cancel: () => invokeComfy(COMFY_SETUP_IPC.cancel),
-  createShortcut: id => invokeComfy(COMFY_SETUP_IPC.createShortcut, id),
-  onEvent: callback => {
-    if (typeof callback !== "function") return () => undefined;
-    const listener = (_event: Electron.IpcRendererEvent, state: Parameters<typeof callback>[0]) => callback(state);
-    ipcRenderer.on(COMFY_SETUP_IPC.event, listener);
-    return () => ipcRenderer.removeListener(COMFY_SETUP_IPC.event, listener);
-  },
-};
-const comfyBridge: ComfyLocalApi = {
-  setup: setupBridge,
-  getState: () => invokeComfy(COMFY_IPC.getState),
-  snapshot: () => invokeComfy(COMFY_IPC.snapshot),
-  chooseInstallDirectory: () => invokeComfy(COMFY_IPC.chooseInstallDirectory),
-  choosePython: () => invokeComfy(COMFY_IPC.choosePython),
-  chooseOutputDirectory: () => invokeComfy(COMFY_IPC.chooseOutputDirectory),
-  detectInstall: () => invokeComfy(COMFY_IPC.detectInstall),
-  setLaunchOptions: (patch) => invokeComfy(COMFY_IPC.setLaunchOptions, patch),
-  setConnection: (target) => invokeComfy(COMFY_IPC.setConnection, target),
-  start: () => invokeComfy(COMFY_IPC.start),
-  connect: () => invokeComfy(COMFY_IPC.connect),
-  stop: (options) => invokeComfy(COMFY_IPC.stop, options),
-  disconnect: () => invokeComfy(COMFY_IPC.disconnect),
-  openWeb: () => invokeComfy(COMFY_IPC.openWeb),
-  refreshInventory: () => invokeComfy(COMFY_IPC.refreshInventory),
-  importWorkflowFile: () => invokeComfy(COMFY_IPC.importWorkflowFile),
-  importWorkflowJson: (text, name) => invokeComfy(COMFY_IPC.importWorkflowJson, text, name),
-  listWorkflows: () => invokeComfy(COMFY_IPC.listWorkflows),
-  renameWorkflow: (id, name) => invokeComfy(COMFY_IPC.renameWorkflow, id, name),
-  saveWorkflowValues: (id, values) => invokeComfy(COMFY_IPC.saveWorkflowValues, id, values),
-  saveWorkflowAs: (id, name, values) => invokeComfy(COMFY_IPC.saveWorkflowAs, id, name, values),
-  deleteWorkflow: (id) => invokeComfy(COMFY_IPC.deleteWorkflow, id),
-  analyzeWorkflow: (id, values) => invokeComfy(COMFY_IPC.analyzeWorkflow, id, values),
-  run: (request) => invokeComfy(COMFY_IPC.run, request),
-  cancel: (id) => invokeComfy(COMFY_IPC.cancel, id),
-  listResults: () => invokeComfy(COMFY_IPC.listResults),
-  openResult: (id) => invokeComfy(COMFY_IPC.openResult, id),
-  openResultsFolder: () => invokeComfy(COMFY_IPC.openResultsFolder),
-  reuseResult: (id) => invokeComfy(COMFY_IPC.reuseResult, id),
-  onEvent: (callback) => {
-    if (typeof callback !== "function") return () => undefined;
-    const listener = (_event: Electron.IpcRendererEvent, event: ComfyEvent) => callback(event);
-    ipcRenderer.on(COMFY_IPC.event, listener);
-    return () => { ipcRenderer.removeListener(COMFY_IPC.event, listener); };
-  },
-};
-contextBridge.exposeInMainWorld("naiComfy", comfyBridge);

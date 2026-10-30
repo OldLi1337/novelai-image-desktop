@@ -35,7 +35,6 @@ const redrawTool = createPreloadedTool(() => import("./ComicGenerator").then((mo
 const artistLabTool = createPreloadedTool(() => import("./ArtistLab"));
 const promptCodexTool = createPreloadedTool(() => import("./PromptCodex"));
 const v5ArtistRepairTool = createPreloadedTool(() => import("./V5ArtistWeightRepair"));
-const comfyLocalTool = createPreloadedTool(() => import("./ComfyLocalTool"));
 const artistStringDrawTool = createPreloadedTool(() => import("./ArtistStringWeightDraw"));
 
 const TagComicGenerator = comicTool.Component;
@@ -43,10 +42,9 @@ const BatchRedraw = redrawTool.Component;
 const ArtistLab = artistLabTool.Component;
 const PromptCodex = promptCodexTool.Component;
 const V5ArtistWeightRepair = v5ArtistRepairTool.Component;
-const ComfyLocalTool = comfyLocalTool.Component;
 const ArtistStringWeightDraw = artistStringDrawTool.Component;
 
-type ToolId = "hub" | "comic" | "redraw" | "artistLab" | "promptCodex" | "v5ArtistRepair" | "artistStringDraw" | "comfyuiLocal";
+type ToolId = "hub" | "comic" | "redraw" | "artistLab" | "promptCodex" | "v5ArtistRepair" | "artistStringDraw";
 
 const TOOL_ICONS: Record<Exclude<ToolId, "hub">, IconName> = {
   comic: "collections",
@@ -55,7 +53,6 @@ const TOOL_ICONS: Record<Exclude<ToolId, "hub">, IconName> = {
   promptCodex: "code",
   v5ArtistRepair: "restore",
   artistStringDraw: "dice",
-  comfyuiLocal: "code",
 };
 
 const TOOL_LOADERS: Partial<Record<ToolId, () => Promise<void>>> = {
@@ -65,7 +62,6 @@ const TOOL_LOADERS: Partial<Record<ToolId, () => Promise<void>>> = {
   promptCodex: promptCodexTool.preload,
   v5ArtistRepair: v5ArtistRepairTool.preload,
   artistStringDraw: artistStringDrawTool.preload,
-  comfyuiLocal: comfyLocalTool.preload,
 };
 
 function waitForToolWarmSlot() {
@@ -98,10 +94,6 @@ export async function preloadToolScreens() {
 function promptCodexCardText(language: unknown) {
   const text = {
     "zh-CN": ["所长 NovelAI 个人法典", "三套法典离线收录、原章节与统一分类检索、提示词一键复制，并可手动更新。"],
-    "zh-TW": ["所長 NovelAI 個人法典", "三套法典離線收錄、原章節與統一分類搜尋、提示詞一鍵複製，並可手動更新。"],
-    "en-US": ["NovelAI Personal Codex", "Three offline codices with section/category search, one-click copy, and manual updates."],
-    "ja-JP": ["NovelAI 個人プロンプト法典", "3冊をオフライン収録。章・分類検索、ワンクリックコピー、手動更新に対応。"],
-    "ko-KR": ["NovelAI 개인 프롬프트 법전", "세 법전을 오프라인 제공하며 장·분류 검색, 원클릭 복사, 수동 업데이트를 지원합니다."],
   } as const;
   const [title, desc] = text[
     typeof language === "string" && language in text
@@ -131,7 +123,6 @@ export default function ToolsHub() {
   );
   const [activeTool, setActiveTool] = useState<ToolId>(() => {
     const capture = new URLSearchParams(window.location.search).get("uiCapture");
-    if (capture === "comfyui-local" && window.naiComfy) return "comfyuiLocal";
     if (capture === "v5ArtistRepair") return "v5ArtistRepair";
     if (capture === "artistStringDraw") return "artistStringDraw";
     if (capture === "randomArtist") return isWindows ? "artistLab" : "hub";
@@ -166,7 +157,6 @@ export default function ToolsHub() {
     const title = activeTool === "promptCodex" ? codexText.title : text.title;
     return (
       <Suspense fallback={<ToolLoading title={title} />}>
-        {activeTool === "comfyuiLocal" && window.naiComfy ? <ComfyLocalTool onBack={back} /> : null}
         {activeTool === "comic" ? <TagComicGenerator onBack={back} /> : null}
         {activeTool === "redraw" ? <BatchRedraw onBack={back} /> : null}
         {activeTool === "promptCodex" ? <PromptCodex onBack={back} /> : null}
@@ -183,7 +173,6 @@ export default function ToolsHub() {
         <div><span className="eyebrow">{text.eyebrow}</span><h2>{text.title}</h2><p>{text.subtitle}</p></div>
       </section>
       <section className="tool-card-grid">
-        {window.naiComfy ? <button type="button" className="tool-card ready" {...toolCardHandlers("comfyuiLocal")} onClick={() => setActiveTool("comfyuiLocal")}><span className="tool-card-heading"><i><Icon name={TOOL_ICONS.comfyuiLocal} /></i><b>{text.comfyLocalTitle}</b></span><span>{text.comfyLocalDesc}</span><small>{text.ready}</small></button> : null}
         <button type="button" className="tool-card ready" {...toolCardHandlers("comic")} onClick={() => setActiveTool("comic")}><span className="tool-card-heading"><i><Icon name={TOOL_ICONS.comic} /></i><b>{text.comicTitle}</b></span><span>{text.comicDesc}</span><small>{text.ready}</small></button>
         <button type="button" className="tool-card ready" {...toolCardHandlers("promptCodex")} onClick={() => setActiveTool("promptCodex")}><span className="tool-card-heading"><i><Icon name={TOOL_ICONS.promptCodex} /></i><b>{codexText.title}</b></span><span>{codexText.desc}</span><small>{text.ready}</small></button>
         <button type="button" className="tool-card ready" {...toolCardHandlers("redraw")} onClick={() => setActiveTool("redraw")}><span className="tool-card-heading"><i><Icon name={TOOL_ICONS.redraw} /></i><b>{text.batchTitle}</b></span><span>{text.batchDesc}</span><small>{text.ready}</small></button>

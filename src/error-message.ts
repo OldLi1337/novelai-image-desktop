@@ -6,6 +6,9 @@ export interface CompactRemoteErrorOptions {
 }
 
 const ERROR_TEXT_KEYS = ["message", "detail", "error", "title"] as const;
+// A rejected ipcRenderer.invoke reads "Error invoking remote method '<channel>': Error: <message>";
+// String(error) puts one more "Error: " in front.
+const ELECTRON_IPC_ERROR_PREFIX = /^(?:Error: )?Error invoking remote method '[^']*': (?:Error: )?/;
 
 function objectStatus(value: unknown): number | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -111,7 +114,7 @@ export function compactRemoteErrorText(
   const fallback = options.fallback?.trim() || "请求失败，请稍后重试。";
   const service = options.serviceLabel?.trim() || "上游服务";
   const maxLength = Math.max(80, Math.min(2_000, options.maxLength ?? 420));
-  const raw = errorValueText(value).trim();
+  const raw = errorValueText(value).trimStart().replace(ELECTRON_IPC_ERROR_PREFIX, "").trim();
   if (!raw) return fallback;
 
   const status = options.status ?? objectStatus(value) ?? detectedHttpStatus(raw);
@@ -133,4 +136,14 @@ export function compactRemoteErrorText(
     .trim();
   if (!plain) return fallback;
   return plain.length > maxLength ? `${plain.slice(0, maxLength - 1).trimEnd()}…` : plain;
+}
+
+/**
+ * The text a catch block shows: the error's own message, without the English
+ * "Error invoking remote method '<channel>': Error: " that a rejected IPC call
+ * puts in front of the handler's message, or `fallback` when nothing is left.
+ */
+export function errorText(error: unknown, fallback = "操作失败。"): string {
+  const raw = error instanceof Error ? error.message : errorValueText(error);
+  return raw.trimStart().replace(ELECTRON_IPC_ERROR_PREFIX, "").trim() || fallback;
 }

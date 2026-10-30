@@ -6,6 +6,17 @@ export function accountCipherAvailable(cipher: Cipher): boolean {
   try { return cipher.isEncryptionAvailable() && cipher.getSelectedStorageBackend?.() !== 'basic_text'; }
   catch { return false; }
 }
+/** Backup import/export and the startup screen show these verbatim (the account manager shows its own text), so they stay Chinese. */
+export const ACCOUNT_VAULT_ERRORS = {
+  invalidBackup: '备份中的 NovelAI 账户数据无效。',
+  changedDuringImport: '导入期间账户数据发生了变化，已停止导入，请稍后重试。',
+  encryptionUnavailable: '系统凭据加密不可用，无法读取或保存 NovelAI 账户。',
+  tooManyAccounts: '导入后的 NovelAI 账户超过 128 个上限。',
+  unsupportedVault: '账户库文件版本不受支持。',
+  decryptFailed: '无法解密已保存的 NovelAI 账户（凭据可能来自其他电脑或系统账户），请在账户管理中删除该账户后重新添加。',
+} as const;
+/** A problem with this machine's saved accounts, not with a backup archive; shown as is. */
+export class AccountVaultError extends Error {}
 export interface AccountVaultDocument { version: 1; selectedId?: string; legacyMigrated?:boolean; managed?:boolean; accounts: Array<NaiAccountProfile & { encryptedToken: string; accountSummary?: NaiAccountSummary }> }
 
 /** Portable sensitive archive only. Never returned by account IPC list/state. */
@@ -14,7 +25,7 @@ export interface PortableNaiAccounts {
   accounts: Array<NaiAccountProfile & {token: string; accountSummary?: NaiAccountSummary}>;
 }
 export function parsePortableNaiAccounts(value: unknown,allowLegacyForExport=false): PortableNaiAccounts {
-  const fail=()=>{throw Error('Invalid portable NovelAI account backup');};
+  const fail=()=>{throw Error(ACCOUNT_VAULT_ERRORS.invalidBackup);};
   const obj=(v:unknown):v is Record<string,any>=>!!v&&typeof v==='object'&&!Array.isArray(v);
   if(!obj(value)||JSON.stringify(value).length>4*1024*1024||value.version!==1||
     Object.keys(value).some(k=>!['version','selectedId','accounts'].includes(k))||
@@ -38,9 +49,9 @@ export function parsePortableNaiAccounts(value: unknown,allowLegacyForExport=fal
           (u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname))))return fail();}
       }else validateAccountProfile(normalized);
     }catch{return fail();}
-    for(const base of [raw.apiBaseUrl,raw.imageBaseUrl]){
-      if(base.length>4096||base.includes('\\')||new URL(base).pathname.split('/').some(p=>['.','..'].includes(decodeURIComponent(p))))return fail();
-    }
+    // An unparsable address or path segment is an invalid archive, not a raw URL error.
+    const unsafeBase=(base:string)=>{try{return base.length>4096||base.includes('\\')||new URL(base).pathname.split('/').some(p=>['.','..'].includes(decodeURIComponent(p)));}catch{return true;}};
+    if([raw.apiBaseUrl,raw.imageBaseUrl].some(unsafeBase))return fail();
     const summary=raw.accountSummary;
     if(summary!==undefined&&(!obj(summary)||Object.keys(summary).some(k=>!['tierName','tierLevel','anlasBalance','expiresAt','hasActiveSubscription'].includes(k))||
       (summary.tierName!==undefined&&(typeof summary.tierName!=='string'||summary.tierName.length>32))||
@@ -84,13 +95,13 @@ export class NaiAccountsVault {
   }
   /** All verification is completed by the caller before this single durable write. */
   prepareBackupRestore(portable:PortableNaiAccounts,expected:string,verified:Map<string,NaiAccountSummary>){
-    if(this.revision()!==expected||this.leases)throw Error('Account vault changed during backup import');
-    if(!accountCipherAvailable(this.cipher))throw Error('OS credential encryption unavailable');
+    if(this.revision()!==expected||this.leases)throw Error(ACCOUNT_VAULT_ERRORS.changedDuringImport);
+    if(!accountCipherAvailable(this.cipher))throw Error(ACCOUNT_VAULT_ERRORS.encryptionUnavailable);
     const accounts=[...this.document.accounts],mapping=new Map<string,string>();
     const endpoint=(value:string)=>new URL(value.trim()).href.replace(/\/+$/,'');
     for(const incoming of portable.accounts){
       const duplicate=accounts.find(a=>endpoint(a.apiBaseUrl)===endpoint(incoming.apiBaseUrl)&&
-        this.cipher.decryptString(Buffer.from(a.encryptedToken,'base64')).trim()===incoming.token);
+        this.decryptToken(a).trim()===incoming.token);
       const id=duplicate?.id??(accounts.some(a=>a.id===incoming.id)?crypto.randomUUID():incoming.id);
       mapping.set(incoming.id,id);
       const fresh=verified.get(incoming.id)??{},cached=duplicate?.accountSummary??incoming.accountSummary;
@@ -100,19 +111,24 @@ export class NaiAccountsVault {
       const {token,accountSummary:_cached,...profile}=incoming;
       accounts.push({...profile,id,encryptedToken:this.cipher.encryptString(token).toString('base64'),accountSummary});
     }
-    if(accounts.length>128)throw Error('Account backup exceeds saved account limit');
+    if(accounts.length>128)throw Error(ACCOUNT_VAULT_ERRORS.tooManyAccounts);
     const next:AccountVaultDocument={...this.document,managed:true,legacyMigrated:true,accounts,
       selectedId:portable.accounts.length?(portable.selectedId===null?undefined:mapping.get(portable.selectedId)):this.document.selectedId};
     const selected=next.accounts.find(a=>a.id===next.selectedId);
     const snapshot=selected?{id:selected.id,label:selected.label,method:selected.method,apiBaseUrl:selected.apiBaseUrl,imageBaseUrl:selected.imageBaseUrl,
       ...(selected.legacyConfiguration?{legacyConfiguration:selected.legacyConfiguration}:{}),
-      token:this.cipher.decryptString(Buffer.from(selected.encryptedToken,'base64'))}:undefined;
+      token:this.decryptToken(selected)}:undefined;
     return {snapshot,commit:()=>{
-      if(this.revision()!==expected||this.leases)throw Error('Account vault changed during backup import');
+      if(this.revision()!==expected||this.leases)throw Error(ACCOUNT_VAULT_ERRORS.changedDuringImport);
       // Preserve an empty/logged-out archive without clearing saved credentials.
       if(!portable.accounts.length)return;
       this.persist(next);this.document=next;
     }};
+  }
+  /** Ciphertext from another machine or OS account cannot be read; say so in Chinese instead of safeStorage's English. */
+  private decryptToken(account:{encryptedToken:string}):string{
+    try{return this.cipher.decryptString(Buffer.from(account.encryptedToken,'base64'));}
+    catch{throw new AccountVaultError(ACCOUNT_VAULT_ERRORS.decryptFailed);}
   }
   legacyMigrated(){return this.document.legacyMigrated===true;}
   managed(){return this.document.managed===true||this.document.legacyMigrated===true||this.document.accounts.length>0;}
@@ -121,14 +137,15 @@ export class NaiAccountsVault {
     let candidate:ReturnType<typeof normalizeNaiAccountInput>;
     try{candidate=normalizeNaiAccountInput(input);validateAccountProfile(candidate);}
     catch{throw Error('NAI_ACCOUNT_VALIDATION:invalid-input:0');}
-    if(!accountCipherAvailable(this.cipher))throw Error('OS credential encryption unavailable');
+    if(!accountCipherAvailable(this.cipher))throw Error(ACCOUNT_VAULT_ERRORS.encryptionUnavailable);
     const endpoint=(value:string)=>new URL(value.trim()).href.replace(/\/+$/,'');
     const address=endpoint(candidate.apiBaseUrl),key=candidate.token.trim();
     for(const account of this.document.accounts){
       if(endpoint(account.apiBaseUrl)!==address)continue;
       let storedKey:string;
-      try{storedKey=this.cipher.decryptString(Buffer.from(account.encryptedToken,'base64')).trim();}
-      catch{throw Error('Stored account key unavailable');}
+      // An entry this machine cannot decrypt is unusable; it must not block adding the account again.
+      try{storedKey=this.decryptToken(account).trim();}
+      catch{continue;}
       if(storedKey===key)throw Error('NAI_ACCOUNT_DUPLICATE');
     }
   }
@@ -137,7 +154,7 @@ export class NaiAccountsVault {
     if(this.document.legacyMigrated)throw Error('Legacy configuration already migrated');
     if(!input.token.trim()||/[\r\n]/.test(input.token)||input.token.length>16384)throw Error('Invalid legacy token');
     for(const raw of [input.apiBaseUrl,input.imageBaseUrl!]){const url=new URL(raw);if((url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)))||url.username||url.password||url.search||url.hash)throw Error('Invalid legacy endpoint');}
-    if(!accountCipherAvailable(this.cipher))throw Error('OS credential encryption unavailable');
+    if(!accountCipherAvailable(this.cipher))throw Error(ACCOUNT_VAULT_ERRORS.encryptionUnavailable);
     const profile:NaiAccountProfile={id,label:input.label,method:input.method,apiBaseUrl:input.apiBaseUrl,imageBaseUrl:input.imageBaseUrl!,legacyConfiguration:{...configuration}};
     const old=this.document.accounts.find(a=>a.id===id);if(old)throw Error('Duplicate legacy account');
     const account={...profile,encryptedToken:this.cipher.encryptString(input.token.trim()).toString('base64')};
@@ -152,7 +169,7 @@ export class NaiAccountsVault {
     const normalized=normalizeNaiAccountInput(input);
     validateAccountProfile(input);
     if (this.document.accounts.some(a => a.id === id)) throw new Error('Duplicate account id');
-    if (!accountCipherAvailable(this.cipher)) throw new Error('OS credential encryption unavailable');
+    if (!accountCipherAvailable(this.cipher)) throw new Error(ACCOUNT_VAULT_ERRORS.encryptionUnavailable);
     // Recheck at the synchronous write boundary, including concurrent IPC additions.
     this.assertUnique(normalized);
     const token=input.token;
@@ -163,11 +180,11 @@ export class NaiAccountsVault {
     this.persist(next); this.document = next;
     return { ...profile, id };
   }
-  remove(id: string): void {
+  remove(id: string, selectNone=false): void {
     if (this.leases) throw new Error('Account operation in flight');
     if(!this.document.accounts.some(a=>a.id===id))throw Error('Unknown account');
     const accounts=this.document.accounts.filter(a=>a.id!==id);
-    const selectedId=this.document.selectedId===id?accounts[0]?.id:this.document.selectedId;
+    const selectedId=this.document.selectedId===id?(selectNone?undefined:accounts[0]?.id):this.document.selectedId;
     // A durable tombstone prevents deleted credentials from being reimported on restart.
     const next: AccountVaultDocument = { ...this.document, managed:true, legacyMigrated:true, selectedId, accounts };
     this.persist(next); this.document = next;
@@ -181,8 +198,8 @@ export class NaiAccountsVault {
   bind(id: string) {
     const account = this.document.accounts.find(a => a.id === id);
     if (!account) throw new Error('Unknown account');
-    if (!accountCipherAvailable(this.cipher)) throw new Error('OS credential encryption unavailable');
-    const token = this.cipher.decryptString(Buffer.from(account.encryptedToken, 'base64'));
+    if (!accountCipherAvailable(this.cipher)) throw new Error(ACCOUNT_VAULT_ERRORS.encryptionUnavailable);
+    const token = this.decryptToken(account);
     if(!account.legacyConfiguration)validateAccountProfile({ ...account, token });
     else {if(!token.trim()||/[\r\n]/.test(token))throw Error('Invalid legacy token');for(const raw of [account.apiBaseUrl,account.imageBaseUrl]){const url=new URL(raw);if((url.protocol!=='https:'&&!(url.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(url.hostname)))||url.username||url.password||url.search||url.hash)throw Error('Invalid legacy endpoint');}}
     this.leases++; let ended = false;

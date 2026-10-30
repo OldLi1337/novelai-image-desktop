@@ -36,8 +36,6 @@ jobs:
         run: npm run build && npx electron-builder --win portable nsis --x64 --publish never
       - name: Verify packaged native runtime and startup
         run: node scripts/verify-packaged-runtime.mjs
-      - name: Verify packaged Tavern label and preserved defaults
-        run: node scripts/run-packaged-tavern-probe.cjs
       - name: Verify packaged automatic iteration network transport
         run: node scripts/verify-packaged-detective-network.cjs
       - name: Verify packaged font assets and actual Chinese glyphs
@@ -54,8 +52,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: ./scripts/verify-windows-upgrade.ps1
-      - name: Verify real on-demand Agent download, startup and offline reuse
-        run: node scripts/verify-agent-on-demand.cjs release/agent-smoke
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -65,65 +61,9 @@ jobs:
             release/installer-smoke/*.json
             release/upgrade-smoke/*.json
             release/upgrade-smoke/*.jsonl
-            release/agent-smoke/verification.json
       - uses: actions/upload-artifact@v4
         with:
           name: windows-formal-assets
           path: |
             release/*.exe
-            release/latest.yml
           if-no-files-found: error
-  shared-source:
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    steps:
-      - uses: actions/checkout@v5
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.24.0'
-          channel: stable
-          cache: true
-      - name: Install Flutter dependencies
-        working-directory: mobile
-        run: flutter pub get
-      - name: Analyze shared mobile source
-        working-directory: mobile
-        run: flutter analyze --no-pub
-      - name: Test shared mobile source
-        working-directory: mobile
-        run: flutter test --no-pub --concurrency=4
-  publish:
-    needs: [windows, shared-source]
-    if: false
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: write
-      actions: read
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@v5
-        with:
-          node-version: 24
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-formal-assets
-          path: release-assets
-      - uses: actions/download-artifact@v4
-        with:
-          name: windows-formal-evidence
-          path: release-evidence
-      - name: Publish only the verified Windows bytes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_RUN: ${{ github.run_id }}
-        run: node scripts/publish-verified-windows-release.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: windows-publication-evidence
-          path: |
-            release-assets/verification.json
-            release-evidence/published-readback.json

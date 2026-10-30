@@ -1,4 +1,5 @@
 import {useEffect,useRef,useState,useSyncExternalStore} from 'react';
+import {errorText} from '../error-message';
 import {useAppStore} from '../store';
 import {AppPortal,SelectMenu} from './ui';
 import {CompactIconButton} from './CompactPromptControls';
@@ -7,7 +8,7 @@ import {TranslationSession} from '../translation-session';
 
 export function TranslationPreview({currentValue,context,language,onApply,onClose}:{currentValue:string;context:string;language:unknown;onApply:(value:string,expected:string,context:string)=>boolean;onClose:()=>void}) {
  const settings=useAppStore(s=>s.settings),text=translationText(language),editor=translationEditorText(language);
- const preference=normalizeTranslationPreference(settings?.translateTargetLanguage),sourcePreference=normalizeTranslationSource(settings?.translateSourceLanguage),target=resolveTranslationTarget(preference,language);
+ const preference=normalizeTranslationPreference(settings?.translateTargetLanguage),sourcePreference=normalizeTranslationSource(settings?.translateSourceLanguage),target=resolveTranslationTarget(preference);
  const origin=useRef({source:currentValue,context});
  const [session]=useState(()=>new TranslationSession(currentValue,target,(source,to,from)=>window.naiDesktop.translate(source,to,from),settings?.translateRealtime===true,sourcePreference));
  const state=useSyncExternalStore(session.subscribe,()=>session.snapshot,()=>session.snapshot);
@@ -33,13 +34,13 @@ export function TranslationPreview({currentValue,context,language,onApply,onClos
  async function persistLanguages(from:string,to:string){
   setSaving(true);setLocalError('');setNotice('');
   try{await window.naiDesktop.setSetting('translateSourceLanguage',from);await window.naiDesktop.setSetting('translateTargetLanguage',to);await useAppStore.getState().refreshSettings();}
-  catch(e){if(!closed.current){session.setLanguages(sourcePreference,target);setLocalError(e instanceof Error?e.message:text.failed);}}
+  catch(e){if(!closed.current){session.setLanguages(sourcePreference,target);setLocalError(errorText(e,text.failed));}}
   finally{if(!closed.current)setSaving(false);}
  }
  async function changeLive(live:boolean){
   setSaving(true);setLocalError('');setNotice('');
   try{await session.persistLive(live,async value=>{await window.naiDesktop.setSetting('translateRealtime',value);await useAppStore.getState().refreshSettings();});}
-  catch(e){if(!closed.current)setLocalError(e instanceof Error?e.message:text.failed);}
+  catch(e){if(!closed.current)setLocalError(errorText(e,text.failed));}
   finally{if(!closed.current)setSaving(false);}
  }
  async function applyTranslation(){
@@ -57,7 +58,7 @@ export function TranslationPreview({currentValue,context,language,onApply,onClos
    onClose();
   }catch(e){
    try{await window.naiDesktop.setSetting('translateSourceLanguage',previousFrom);await window.naiDesktop.setSetting('translateTargetLanguage',previousTo);await useAppStore.getState().refreshSettings();}catch{/* Surface the original failed save; never write the parent prompt. */}
-   if(!closed.current)setLocalError(e instanceof Error?e.message:text.failed);
+   if(!closed.current)setLocalError(errorText(e,text.failed));
   }finally{if(!closed.current){session.setComposing(false,false);setSaving(false);}}
  }
  async function copy(){
@@ -71,7 +72,7 @@ export function TranslationPreview({currentValue,context,language,onApply,onClos
    <div className="translation-preview-languages">
     <SelectMenu value={state.sourceLanguage} options={[{value:'auto',label:editor.auto},...TRANSLATION_LANGUAGES]} label={editor.sourceLanguage} ariaLabel={editor.sourceLanguage} disabled={saving} onChange={next=>{session.setLanguages(next,state.target);void persistLanguages(next,preference);}}/>
     <button type="button" className="translation-swap-button" aria-label={editor.swap} title={session.canSwap?editor.swap:editor.selectSource} disabled={!session.canSwap||saving} onClick={()=>{edit();if(session.swap())void persistLanguages(session.snapshot.sourceLanguage,session.snapshot.target);}}>⇄</button>
-    <SelectMenu value={state.target===target?preference:state.target} options={[{value:'system',label:text.system},...TRANSLATION_LANGUAGES]} label={text.target} ariaLabel={text.target} disabled={saving} onChange={next=>{session.setLanguages(state.sourceLanguage,resolveTranslationTarget(next,language));void persistLanguages(state.sourceLanguage,normalizeTranslationPreference(next));}}/>
+    <SelectMenu value={state.target===target?preference:state.target} options={[{value:'system',label:text.system},...TRANSLATION_LANGUAGES]} label={text.target} ariaLabel={text.target} disabled={saving} onChange={next=>{session.setLanguages(state.sourceLanguage,resolveTranslationTarget(next));void persistLanguages(state.sourceLanguage,normalizeTranslationPreference(next));}}/>
    </div>
    <div className="translation-preview-options">
     <label className="translation-live-toggle"><span>{editor.live}</span><span className={`toggle ${state.live?'toggle-on':''}`}><input type="checkbox" role="switch" aria-label={editor.live} checked={state.live} disabled={saving} onChange={e=>void changeLive(e.target.checked)}/><span/></span></label>

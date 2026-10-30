@@ -1,5 +1,4 @@
 vi.mock("./store", () => ({ getSettings: () => ({ proxyMode: "direct" }) }));
-vi.mock('./download-request',()=>({downloadRequest:vi.fn()}));
 import os from "node:os";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 

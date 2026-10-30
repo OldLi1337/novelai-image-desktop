@@ -6,15 +6,12 @@ import {retainedPrompts} from './retained-prompts';
 const initial=useAppStore.getState();
 afterEach(()=>{useAppStore.setState(initial);vi.unstubAllGlobals();vi.useRealTimers();});
 function api(settings:Partial<AppSettings>){
- const bridge={getSettings:vi.fn(async()=>settings),onGenerationPreview:vi.fn(),onUpdateEvent:vi.fn(),accountCached:vi.fn(async()=>({hasToken:false})),isFirstRun:vi.fn(async()=>false),getHistoryDates:vi.fn(async()=>[]),getHistoryGroups:vi.fn(async()=>[]),isPortable:vi.fn(async()=>false),getHistory:vi.fn(async()=>[]),setSetting:vi.fn(async()=>undefined)};
+ const bridge={getSettings:vi.fn(async()=>settings),onGenerationPreview:vi.fn(),accountCached:vi.fn(async()=>({hasToken:false})),isFirstRun:vi.fn(async()=>false),getHistoryDates:vi.fn(async()=>[]),getHistoryGroups:vi.fn(async()=>[]),getHistory:vi.fn(async()=>[]),setSetting:vi.fn(async()=>undefined)};
  vi.stubGlobal('window',{naiDesktop:bridge});return bridge;
 }
 it('desktop no longer offers prompt lock buttons',()=>{
  const source=readFileSync('src/App.tsx','utf8');
  expect(source).not.toContain('toggleLock(');expect(source).not.toContain('className={clsx("lock-btn"');
-});
-it('mobile generation and settings no longer offer prompt lock controls',()=>{
- for(const file of ['generate_screen.dart','settings_screen.dart'])expect(readFileSync(`mobile/lib/screens/${file}`,'utf8')).not.toContain('state.setPromptLock(');
 });
 it('restart restores current prompts even with parameter persistence off and stale legacy locks',async()=>{
  api({persistGenerateParams:false,lockStylePrompt:true,lockNegativePrompt:true,savedStylePrompt:'obsolete',savedNegativePrompt:'obsolete',lastGenerationState:{params:{...DEFAULT_PARAMS,stylePrompt:'current',negativePrompt:''}} as any});

@@ -73,7 +73,7 @@ export async function detectiveConfigure(kind: "python" | "assets") {
     assertPortableIdle();
     const latest=config();
     if(alive(latest.pid) || child || starting || clearing || detectiveRuntimeChecking() || detectiveDownloadStatus().busy)throw Error('请等待当前任务或校验完成。');
-    if(latest.selectedVariant!==c.selectedVariant)throw Error('Model selection changed; retry');
+    if(latest.selectedVariant!==c.selectedVariant)throw Error('模型选择已变化，请重试。');
     save(updateDetectiveProfile(latest,c.selectedVariant!,{[kind]:result.filePaths[0]}));
     await verifyUnseenSelection(c.selectedVariant!);
   }
@@ -86,7 +86,7 @@ function safeRecovery(c:Config) {
 }
 function runnerPath() {
   const root=app.getAppPath(),runner=path.join(root.endsWith('.asar')?root+'.unpacked':root,'scripts','artist-detective-live.py');
-  if(!fs.existsSync(runner))throw Error('Artist Detective runner missing');return runner;
+  if(!fs.existsSync(runner))throw Error('缺少 Artist Detective 运行脚本。');return runner;
 }
 function runBinding(c:Config):DetectiveBinding {
   const token=getToken();if(!token)throw Error('请先配置 NovelAI API。');
@@ -173,7 +173,7 @@ export async function detectiveResume(request:DetectiveResumeRequest) {
     if(recovery.requiresPaidReplayConfirmation) {
       if(!recovery.pendingRequestHash)throw Error('未完成请求记录缺失，未重发。');
       const text=detectiveRecoveryLabels(getSetting('language'));
-      const answer=await dialog.showMessageBox({type:'warning',title:text.title,message:text.warning,detail:'Request SHA-256: '+recovery.pendingRequestHash,buttons:[text.cancel,text.confirm],defaultId:0,cancelId:0,noLink:true});
+      const answer=await dialog.showMessageBox({type:'warning',title:text.title,message:text.warning,detail:'请求 SHA-256：'+recovery.pendingRequestHash,buttons:[text.cancel,text.confirm],defaultId:0,cancelId:0,noLink:true});
       if(answer.response!==1)throw Error('已取消恢复；原图片和任务保留。');
       authorization={requestHash:recovery.pendingRequestHash,consentId:randomUUID(),allowUncertainReplay:true};
     }

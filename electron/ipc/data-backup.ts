@@ -5,6 +5,8 @@ import {SENSITIVE_SETTING_KEYS} from "./credential-vault";
 import {imageSettingsStamp} from "./image-settings-events";
 import crypto, { randomUUID } from "node:crypto";
 import {exportNaiAccountsBackup,prepareNaiAccountsBackupRestore} from './nai-accounts';
+import {BackupAccountValidationError} from './nai-accounts-validation';
+import {AccountVaultError} from './nai-accounts-vault';
 import fs from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
@@ -29,13 +31,6 @@ import type {
   StylePromptPreviewImage,
   TextToolHistoryItem,
 } from "../../src/types";
-import type {
-  AgentAttachment,
-  AgentConversation,
-  AgentMessage,
-  AgentToolExecution,
-  AgentWorkspaceData,
-} from "../../src/agent/types";
 import { DEFAULT_AUGMENT_OPTIONS, DEFAULT_I2I_PARAMS, DEFAULT_PARAMS } from "../../src/types";
 import {
   defaultSettings,
@@ -61,11 +56,6 @@ import { toLocalMediaUrl } from "./local-media-protocol";
 import { normalizeCharacterCaptions } from "../../src/character-presets";
 import { positivePromptPresetStorageId } from "../../src/positive-prompt-presets";
 import { mergePromptTags, promptTagField } from "../../src/prompt-library-tags";
-import {
-  agentAttachmentsDirectory,
-  mergeImportedAgentWorkspace,
-  readAgentWorkspace,
-} from "./agent-store";
 
 const FORMAT = "langbai-novelai-studio-backup";
 const FORMAT_VERSION = 1;
@@ -98,18 +88,6 @@ const API_SETTING_KEYS: Array<keyof AppSettings> = [
   "mcpForCapsule",
   "mcpForReverse",
   "mcpForConvert",
-  "agentApiProtocol",
-  "agentApiBaseUrl",
-  "agentApiKey",
-  "agentApiModel",
-  "savedAgentModels",
-  "agentReasoningEffort",
-  "agentProviderName",
-  "agentContextWindow",
-  "agentMaxOutputTokens",
-  "agentAutoCompact",
-  "agentAutoCompactThreshold",
-  "agentVisionEnabled",
   "translateProvider",
   "baiduAppId",
   "baiduSecret",
@@ -157,28 +135,6 @@ type PortableStylePreset = Omit<StylePromptPreset, "previewImages"> & {
 
 type PortablePositivePromptPreset = Omit<PositivePromptPreset, "previewImages"> & {
   previewImages: PortableStylePreview[];
-};
-
-type PortableAgentAttachment = Omit<AgentAttachment, "filePath" | "fileUrl"> & {
-  asset?: AssetReference;
-};
-
-type PortableAgentToolExecution = Omit<AgentToolExecution, "generatedImages"> & {
-  generatedImages?: PortableAgentAttachment[];
-};
-
-type PortableAgentMessage = Omit<AgentMessage, "attachments" | "tools"> & {
-  attachments: PortableAgentAttachment[];
-  tools: PortableAgentToolExecution[];
-};
-
-type PortableAgentConversation = Omit<AgentConversation, "messages" | "draftAttachments"> & {
-  messages: PortableAgentMessage[];
-  draftAttachments: PortableAgentAttachment[];
-};
-
-type PortableAgentWorkspace = Omit<AgentWorkspaceData, "conversations"> & {
-  conversations: PortableAgentConversation[];
 };
 
 type BackupManifest = {
@@ -312,63 +268,6 @@ async function addAsset(
   zip.file(reference.asset, bytes, { binary: true, compression: "STORE" });
   assetByHash.set(digest, reference);
   return reference;
-}
-
-async function portableAgentAttachment(
-  attachment: AgentAttachment,
-  zip: JSZip,
-  assetByHash: Map<string, AssetReference>,
-  includeAssets: boolean,
-): Promise<PortableAgentAttachment> {
-  const { filePath: _filePath, fileUrl: _fileUrl, ...metadata } = cloneJson(attachment);
-  return {
-    ...metadata,
-    asset: attachment.unavailable ? undefined : await addAsset(zip, attachment.filePath, assetByHash, includeAssets),
-  };
-}
-
-async function portableAgentWorkspace(
-  workspace: AgentWorkspaceData,
-  zip: JSZip,
-  assetByHash: Map<string, AssetReference>,
-  includeAssets: boolean,
-): Promise<PortableAgentWorkspace> {
-  const conversations: PortableAgentConversation[] = [];
-  for (const conversation of workspace.conversations) {
-    const messages: PortableAgentMessage[] = [];
-    for (const message of conversation.messages) {
-      const attachments = await Promise.all(message.attachments.map((attachment) =>
-        portableAgentAttachment(attachment, zip, assetByHash, includeAssets)));
-      const tools: PortableAgentToolExecution[] = [];
-      for (const tool of message.tools) {
-        tools.push({
-          ...cloneJson(tool),
-          ...(tool.generatedImages?.length
-            ? {
-                generatedImages: await Promise.all(tool.generatedImages.map((attachment) =>
-                  portableAgentAttachment(attachment, zip, assetByHash, includeAssets))),
-              }
-            : {}),
-        });
-      }
-      messages.push({ ...cloneJson(message), attachments, tools });
-    }
-    conversations.push({
-      ...cloneJson(conversation),
-      // OpenCode session ids are private runtime handles backed by a separate
-      // local database. Imported chats intentionally create a fresh session
-      // and use the stored transcript as handoff context.
-      runtimeSessionId: undefined,
-      messages,
-      draftAttachments: await Promise.all(conversation.draftAttachments.map((attachment) =>
-        portableAgentAttachment(attachment, zip, assetByHash, includeAssets))),
-      status: "idle",
-    });
-  }
-  return {
-    ...cloneJson(workspace),
-    conversations,
-  };
 }
 
 async function portableHistory(
@@ -511,32 +410,6 @@ async function buildArchive(
     summaries.push(summary("apiCredentials", API_SETTING_KEYS.length + (data.token ? 1 : 0)));
   }
 
-  if (selected.has("agentWorkspace")) {
-    const workspace = await portableAgentWorkspace(
-      readAgentWorkspace(),
-      zip,
-      assetByHash,
-      includeAssets,
-    );
-    zip.file("data/agent-workspace.json", JSON.stringify(workspace));
-    const attachments = workspace.conversations.flatMap((conversation) => [
-      ...conversation.draftAttachments,
-      ...conversation.messages.flatMap((message) => [
-        ...message.attachments,
-        ...message.tools.flatMap((tool) => tool.generatedImages ?? []),
-      ]),
-    ]);
-    summaries.push(summary(
-      "agentWorkspace",
-      workspace.conversations.length
-        + workspace.characters.length
-        + workspace.personas.length
-        + workspace.lorebooks.length
-        + workspace.samplerPresets.length,
-      attachments.reduce((total, attachment) => total + (attachment.asset?.bytes ?? 0), 0),
-    ));
-  }
-
   if (selected.has("imageHistory")) {
     const items: PortableHistoryItem[] = [];
     for (const item of data.history) {
@@ -650,7 +523,7 @@ async function buildArchive(
     const mobileStatePath = path.join(app.getPath("userData"), "backup-mobile-state.json");
     try {
       const stat = await fs.stat(mobileStatePath);
-      if (stat.size > MAX_JSON_BYTES) throw new Error("Mobile workspace is too large");
+      if (stat.size > MAX_JSON_BYTES) throw new Error("保留的移动端数据过大，无法写入备份。");
       const mobileState = JSON.parse(await fs.readFile(mobileStatePath, "utf8"));
       if (mobileState && typeof mobileState === "object" && !Array.isArray(mobileState)) {
         zip.file("data/mobile-state.json", JSON.stringify(mobileState));
@@ -800,7 +673,7 @@ export async function inspectDataBackupFile(filePath: string): Promise<DataBacku
     // Discover native payload even in old archives whose manifest hid it under legacy categories.
     const native=await portableSummaries(zip);
     const categories=(Array.isArray(manifest.categories)?manifest.categories:[])
-      .filter(item=>ALL_CATEGORIES.includes(item.category)&&!['tavernAgent','styleLab'].includes(item.category));
+      .filter(item=>ALL_CATEGORIES.includes(item.category)&&item.category!=='styleLab');
     categories.push(...native);
     return {
       ok: true,
@@ -840,116 +713,6 @@ async function readAsset(zip: JSZip, value: unknown) {
     throw new Error(`资源校验失败：${value.originalName || value.asset}`);
   }
   return { bytes, reference: value };
-}
-
-async function restoreAgentAttachment(
-  zip: JSZip,
-  raw: PortableAgentAttachment,
-  restoredByHash: Map<string, { filePath: string; fileUrl: string }>,
-  counters: { count: number; skipped: number; renamed: number },
-): Promise<AgentAttachment | null> {
-  const asset = await readAsset(zip, raw.asset);
-  if (!asset) {
-    counters.skipped += 1;
-    return null;
-  }
-  let restored = restoredByHash.get(asset.reference.sha256);
-  if (!restored) {
-    const directory = path.join(agentAttachmentsDirectory(), "restored");
-    await fs.mkdir(directory, { recursive: true });
-    const extension = /^\.[a-z0-9]{1,8}$/i.test(path.extname(asset.reference.originalName))
-      ? path.extname(asset.reference.originalName).toLowerCase()
-      : ".bin";
-    let filePath = path.join(directory, `${asset.reference.sha256}${extension}`);
-    const existingHash = await sha256File(filePath);
-    if (existingHash !== asset.reference.sha256) {
-      if (existingHash) {
-        const destination = await uniqueDestination(directory, `${asset.reference.sha256}${extension}`);
-        filePath = destination.filePath;
-        if (destination.renamed) counters.renamed += 1;
-      } else {
-        await fs.rm(filePath, { force: true }).catch(() => undefined);
-      }
-      await atomicWrite(filePath, asset.bytes);
-      counters.count += 1;
-    }
-    restored = {
-      filePath,
-      fileUrl: toLocalMediaUrl(filePath),
-    };
-    restoredByHash.set(asset.reference.sha256, restored);
-  }
-  return {
-    id: typeof raw.id === "string" && raw.id ? raw.id : randomUUID(),
-    name: safeFileName(raw.name || asset.reference.originalName, "attachment"),
-    mime: typeof raw.mime === "string" ? raw.mime : "application/octet-stream",
-    size: asset.bytes.length,
-    kind: ["image", "document", "text", "other"].includes(String(raw.kind))
-      ? raw.kind
-      : "other",
-    filePath: restored.filePath,
-    fileUrl: restored.fileUrl,
-    ...(Number.isFinite(Number(raw.width)) ? { width: Math.max(1, Math.trunc(Number(raw.width))) } : {}),
-    ...(Number.isFinite(Number(raw.height)) ? { height: Math.max(1, Math.trunc(Number(raw.height))) } : {}),
-    createdAt: typeof raw.createdAt === "string" ? raw.createdAt : new Date().toISOString(),
-  };
-}
-
-async function restoreAgentWorkspace(
-  zip: JSZip,
-  raw: PortableAgentWorkspace,
-  counters: { count: number; skipped: number; renamed: number },
-) {
-  const restoredByHash = new Map<string, { filePath: string; fileUrl: string }>();
-  const conversations: AgentConversation[] = [];
-  for (const portableConversation of Array.isArray(raw?.conversations) ? raw.conversations : []) {
-    if (!portableConversation || typeof portableConversation.id !== "string") continue;
-    const messages: AgentMessage[] = [];
-    for (const portableMessage of Array.isArray(portableConversation.messages) ? portableConversation.messages : []) {
-      if (!portableMessage || typeof portableMessage.id !== "string") continue;
-      const attachments = (await Promise.all((portableMessage.attachments ?? []).map((attachment) =>
-        restoreAgentAttachment(zip, attachment, restoredByHash, counters))))
-        .filter((attachment): attachment is AgentAttachment => Boolean(attachment));
-      const tools: AgentToolExecution[] = [];
-      for (const portableTool of Array.isArray(portableMessage.tools) ? portableMessage.tools : []) {
-        const generatedImages = (await Promise.all((portableTool.generatedImages ?? []).map((attachment) =>
-          restoreAgentAttachment(zip, attachment, restoredByHash, counters))))
-          .filter((attachment): attachment is AgentAttachment => Boolean(attachment));
-        const { generatedImages: _portableImages, ...tool } = cloneJson(portableTool);
-        tools.push({
-          ...tool,
-          ...(generatedImages.length ? { generatedImages } : {}),
-        } as AgentToolExecution);
-      }
-      const { attachments: _portableAttachments, tools: _portableTools, ...message } = cloneJson(portableMessage);
-      messages.push({ ...message, attachments, tools } as AgentMessage);
-    }
-    const draftAttachments = (await Promise.all((portableConversation.draftAttachments ?? []).map((attachment) =>
-      restoreAgentAttachment(zip, attachment, restoredByHash, counters))))
-      .filter((attachment): attachment is AgentAttachment => Boolean(attachment));
-    const {
-      messages: _portableMessages,
-      draftAttachments: _portableDrafts,
-      runtimeSessionId: _runtimeSessionId,
-      ...conversation
-    } = cloneJson(portableConversation);
-    conversations.push({
-      ...conversation,
-      messages,
-      draftAttachments,
-      status: "idle",
-    } as AgentConversation);
-  }
-  const incoming: AgentWorkspaceData = {
-    ...cloneJson(raw),
-    conversations,
-    skills: Array.isArray(raw?.skills) ? cloneJson(raw.skills) : [],
-    memories: Array.isArray(raw?.memories) ? cloneJson(raw.memories) : [],
-  } as AgentWorkspaceData;
-  const merged = mergeImportedAgentWorkspace(incoming);
-  counters.count += merged.imported;
-  counters.skipped += merged.skipped;
-  counters.renamed += merged.renamed;
 }
 
 async function historyHashIndex(items: HistoryItem[]) {
@@ -1472,7 +1235,9 @@ export async function importDataBackup(
       if(payload.novelAiAccounts!==undefined)accountRestore=await prepareNaiAccountsBackupRestore(payload.novelAiAccounts);
     }
   } catch (error: any) {
-    return { ok: false, message: `无法读取备份：${error?.message ?? String(error)}`, imported: 0, skipped: 0, renamed: 0 };
+    // The archive itself was readable when an account failed live re-validation or this machine's saved accounts cannot be decrypted.
+    const message = error instanceof BackupAccountValidationError || error instanceof AccountVaultError ? error.message : `无法读取备份：${error?.message ?? String(error)}`;
+    return { ok: false, message, imported: 0, skipped: 0, renamed: 0 };
   }
 
   // Import is never allowed to be the first destructive operation. A complete
@@ -1645,18 +1410,6 @@ export async function importDataBackup(
       if (imageBackup) replaceCredentials.push("imageApiKey");
       if (!accountRestore && typeof incoming.token === "string" && incoming.token.trim()) { next.token = incoming.token; replaceCredentials.push("token"); }
       if (incoming.account && typeof incoming.account === "object") next.account = incoming.account;
-    }
-
-    if (selected.has("agentWorkspace")) {
-      const incoming = await readJsonEntry<PortableAgentWorkspace | null>(
-        archive.zip,
-        "data/agent-workspace.json",
-        null,
-      );
-      if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) {
-        throw new Error("备份缺少有效的 Agent 工作区数据。");
-      }
-      await restoreAgentWorkspace(archive.zip, incoming, counters);
     }
 
     next.history.sort((left, right) => right.createdAt.localeCompare(left.createdAt));

@@ -1,8 +1,6 @@
 import {normalizeNegativePromptPresets} from "../../src/negative-prompt-library";
 import {normalizeAutomaticComparison} from "../../src/automatic-comparison";
 import {normalizeTypography,DEFAULT_TYPOGRAPHY} from "../../src/typography";
-import {normalizeSavedAgentModels,agentEffort} from '../../src/agent/model-selections';
-import {normalizeAgentUiPreferences} from '../../src/agent/preferences';
 import {normalizeCompletionSound} from "../../src/completion-sound";
 import {DEFAULT_OPENAI_IMAGE_EDIT,normalizeOpenAIImageEditSettings} from "../../src/openai-image-edit";
 import { currentNaiAccount, getNaiAccountSummary, rememberNaiAccountSummary, naiAccountsBusy, configureLegacyNaiBinding, boundLegacyNaiAccount, legacyNaiBindingAllowed, naiAccountRevision } from './nai-accounts-runtime';
@@ -26,17 +24,6 @@ import { toLocalMediaUrl } from "./local-media-protocol";
 import type { AccountSummary, AppSettings, HistoryGroup, HistoryItem, SettingKey, TextToolHistoryItem } from "../../src/types";
 import { SCOPED_REVERSE_SYSTEM_PROMPTS } from "../../src/data/prompt-templates";
 import { installedAppDir } from "./app-mode";
-import {
-  adaptiveAgentCompactThreshold,
-  clampCompactThreshold,
-  clampContextWindow,
-  DEFAULT_AGENT_COMPACT_THRESHOLD,
-} from "../../src/agent/context";
-import {
-  DEFAULT_AGENT_PROVIDER_PRESET,
-  normalizeAgentApiBaseUrl,
-  normalizeAgentProviderProtocol,
-} from "../../src/agent/provider-catalog";
 import {
   createDefaultImageTaskPromptPreset,
   createDefaultImageTaskPromptPresets,
@@ -68,10 +55,26 @@ function storePath() {
 // plaintext stores are transparently migrated on the next write.
 const credentialVault = new CredentialVault(safeStorage);
 
-const SUPPORTED_LANGUAGES = new Set(["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"]);
+// Settings of the removed Studio Agent, local Agent component and in-app
+// updater. Persisted values, including the agent API key, are dropped instead
+// of carried forward.
+const REMOVED_SETTING_KEYS = [
+  "agentApiProtocol", "agentApiBaseUrl", "agentApiKey", "agentApiModel", "savedAgentModels",
+  "agentReasoningEffort", "agentProviderName", "agentContextWindow", "agentMaxOutputTokens",
+  "agentUiPreferences", "agentAutoCompact", "agentAutoCompactThreshold", "agentVisionEnabled",
+  "agentPromptTemplateMode", "harnessAutoUpdatePlugins", "updateSource",
+];
 
-function normalizeLanguage(value: unknown): AppSettings["language"] {
-  return typeof value === "string" && SUPPORTED_LANGUAGES.has(value) ? (value as AppSettings["language"]) : "zh-CN";
+function withoutRemovedSettings(settings: AppSettings): AppSettings {
+  const result = { ...settings } as Record<string, unknown>;
+  for (const key of REMOVED_SETTING_KEYS) delete result[key];
+  return result as unknown as AppSettings;
+}
+
+// The UI is Simplified Chinese only. The field is kept so settings and backups
+// written by older multi-language versions still load; any stored value becomes zh-CN.
+function normalizeLanguage(_value: unknown): AppSettings["language"] {
+  return "zh-CN";
 }
 
 function encryptForDisk(data: PersistedData, replacements: ReadonlySet<string> = new Set()): PersistedData {
@@ -137,7 +140,7 @@ function isLegacyScopedReverseTemplates(value: unknown): boolean {
 }
 
 // Generated images are user data, not application files. Keeping them beside an
-// installed EXE lets NSIS/electron-updater remove them while replacing the old
+// installed EXE lets the NSIS installer remove them while replacing the old
 // application directory. Always use the OS Pictures folder for every build.
 function defaultOutputDir(): string {
   return path.join(app.getPath("pictures"), "Langbai NovelAI Studio");
@@ -189,7 +192,6 @@ export function defaultSettings(): AppSettings {
     openaiImageEditApiKey: "",
     inpaintEngine: "novelai",
     compatibleImage: { baseUrl: "", model: "", size: "1024x1024", responseFormat: "auto" },
-    harnessAutoUpdatePlugins: true,
     allowCustomEndpoint: true,
     allowCustomEndpointFallback: false,
     proxyMode: "auto",
@@ -199,7 +201,6 @@ export function defaultSettings(): AppSettings {
     proxyForAi: true,
     proxyForUpdate: true,
     proxyForTranslate: true,
-    updateSource: "github",
     uiTypography: {...DEFAULT_TYPOGRAPHY},
     automaticComparison: normalizeAutomaticComparison(null),
     theme: "light",
@@ -255,16 +256,6 @@ export function defaultSettings(): AppSettings {
     convertApiKey: "",
     convertApiModel: "gpt-4o-mini",
     convertSystemPrompt: "",
-    agentApiProtocol: DEFAULT_AGENT_PROVIDER_PRESET.protocol,
-    agentApiBaseUrl: DEFAULT_AGENT_PROVIDER_PRESET.baseUrl,
-    agentApiKey: "",
-    agentApiModel: DEFAULT_AGENT_PROVIDER_PRESET.model,
-    agentProviderName: DEFAULT_AGENT_PROVIDER_PRESET.providerName,
-    agentContextWindow: DEFAULT_AGENT_PROVIDER_PRESET.contextWindow,
-    agentMaxOutputTokens: DEFAULT_AGENT_PROVIDER_PRESET.maxOutputTokens,
-    agentAutoCompact: true,
-    agentAutoCompactThreshold: DEFAULT_AGENT_COMPACT_THRESHOLD,
-    agentVisionEnabled: true,
     convertMode: "tags" as const,
     convertPromptTemplateVersion: "v5" as const,
     convertPromptSkillVersion: "2.0.0" as const,
@@ -316,34 +307,10 @@ export function defaultSettings(): AppSettings {
 function normalize(raw: Partial<PersistedData> | null): PersistedData {
   const defaults = defaultSettings();
   const rawSettings = (raw?.settings ?? {}) as Partial<AppSettings>;
-  const settings = normalizeNovelAiSettings({ ...defaults, ...rawSettings });
+  const settings = normalizeNovelAiSettings(withoutRemovedSettings({ ...defaults, ...rawSettings }));
   settings.uiTypography=normalizeTypography(rawSettings.uiTypography);
   settings.automaticComparison=normalizeAutomaticComparison(rawSettings.automaticComparison);
   settings.copyImageMetadata = rawSettings.copyImageMetadata === true;
-  settings.agentApiProtocol = normalizeAgentProviderProtocol(settings.agentApiProtocol);
-  settings.agentApiBaseUrl = typeof settings.agentApiBaseUrl === "string"
-    ? normalizeAgentApiBaseUrl(settings.agentApiBaseUrl)
-    : defaults.agentApiBaseUrl;
-  settings.agentApiModel = typeof settings.agentApiModel === "string"
-    ? settings.agentApiModel.trim()
-    : defaults.agentApiModel;
-  settings.agentProviderName = typeof settings.agentProviderName === "string" && settings.agentProviderName.trim()
-    ? settings.agentProviderName.trim().slice(0, 80)
-    : defaults.agentProviderName;
-  settings.savedAgentModels = normalizeSavedAgentModels(settings.savedAgentModels);
-  settings.agentReasoningEffort = agentEffort(settings.agentReasoningEffort);
-  settings.agentContextWindow = clampContextWindow(settings.agentContextWindow);
-  settings.agentMaxOutputTokens = Math.max(512, Math.min(
-    settings.agentContextWindow,
-    Math.trunc(Number(settings.agentMaxOutputTokens) || defaults.agentMaxOutputTokens),
-  ));
-  settings.agentUiPreferences = normalizeAgentUiPreferences(settings.agentUiPreferences);
-  settings.agentAutoCompact = settings.agentAutoCompact !== false;
-  // Preserve the explicitly selected threshold; derive only for older stores.
-  settings.agentAutoCompactThreshold = typeof rawSettings.agentAutoCompactThreshold === "number" && Number.isFinite(rawSettings.agentAutoCompactThreshold)
-    ? clampCompactThreshold(rawSettings.agentAutoCompactThreshold)
-    : adaptiveAgentCompactThreshold(settings.agentContextWindow, settings.agentMaxOutputTokens);
-  settings.agentVisionEnabled = settings.agentVisionEnabled !== false;
   // v2.0.2 enabled full-library image archives for every installation. On a
   // large gallery that can consume hundreds of MB and starve both Electron
   // and Flutter shortly after launch. Existing installations are migrated
@@ -366,7 +333,6 @@ function normalize(raw: Partial<PersistedData> | null): PersistedData {
     ? String(rawSettings.reverseConvertPromptPresetId)
     : settings.reverseConvertPromptPresets[0]?.id ?? "";
   Object.assign(settings, imageTaskPresetIds(rawSettings, settings.reverseConvertPromptPresets));
-  settings.updateSource = "github";
   settings.stylePromptPresetGroups = Array.from(
     new Set(
       (Array.isArray(settings.stylePromptPresetGroups)
@@ -672,7 +638,8 @@ export function readStore(): PersistedData {
 export function credentialIssues() { return credentialVault.issues(); }
 
 export function writeStore(next: PersistedData, replaceCredentials: readonly string[] = []) {
-  next={...next,settings:normalizeNovelAiSettings(next.settings)};
+  // Restored backups merge raw configuration; normalize the language here too so no older value reaches the cache.
+  next={...next,settings:{...withoutRemovedSettings(normalizeNovelAiSettings(next.settings)),language:normalizeLanguage(next.settings.language)}};
   const file = storePath();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   rotateBackupsSync(file);
@@ -712,7 +679,7 @@ export function setSetting<K extends SettingKey>(key: K, value: AppSettings[K]):
   const replaceCredential = (SENSITIVE_SETTING_KEYS as readonly string[]).includes(key);
   data.settings = {
     ...data.settings,
-    [key]: key === "negativePromptPresets" ? normalizeNegativePromptPresets(value) : key === "automaticComparison" ? normalizeAutomaticComparison(value) : key === "uiTypography" ? normalizeTypography(value) : key === "agentUiPreferences" ? normalizeAgentUiPreferences(value) : key === "language" ? normalizeLanguage(value) : key === "completionSound" ? normalizeCompletionSound(value) : key === "openaiImageEdit" ? normalizeOpenAIImageEditSettings(value) : key === "inpaintEngine" ? (value === "openai" ? "openai" : "novelai") : value,
+    [key]: key === "negativePromptPresets" ? normalizeNegativePromptPresets(value) : key === "automaticComparison" ? normalizeAutomaticComparison(value) : key === "uiTypography" ? normalizeTypography(value) : key === "language" ? normalizeLanguage(value) : key === "completionSound" ? normalizeCompletionSound(value) : key === "openaiImageEdit" ? normalizeOpenAIImageEditSettings(value) : key === "inpaintEngine" ? (value === "openai" ? "openai" : "novelai") : value,
   };
   writeStore(data, replaceCredential ? [key] : []);
   return data.settings[key];

@@ -4,7 +4,6 @@ const fixture=vi.hoisted(()=>({root:'',store:{settings:{},history:[],historyGrou
 vi.mock('electron',()=>({app:{getPath:()=>fixture.root,getVersion:()=> 'test'},dialog:{showOpenDialog:vi.fn()}}));
 vi.mock('./store',()=>({credentialIssues:()=>[],defaultSettings:{},readStore:()=>fixture.store,writeStore:(value:unknown)=>{fixture.store=value;},ensureOutputDir:()=>fixture.root}));
 vi.mock('./local-media',()=>({imageFileUrl:(p:string)=>p}));
-vi.mock('./agent-store',()=>({readAgentWorkspace:()=>({conversations:[],characters:[],personas:[],lorebooks:[],samplerPresets:[]}),agentAttachmentsDirectory:()=>fixture.root,mergeImportedAgentWorkspace:vi.fn(()=>({imported:0,skipped:0,renamed:0}))}));
 vi.mock('./artist-favorites',()=>({ARTIST_FAVORITE_COLLECTIONS:['random','v5-repair','artist-string-draw'],loadArtistFavoriteLibrary:vi.fn(async()=>({collections:{}})),importArtistFavoriteLibrary:vi.fn()}));
 vi.mock('./reference-presets',()=>({listReferencePresets:async()=>({groups:[],presets:[]}),importReferencePresets:vi.fn()}));
 import {ARTIST_FAVORITE_COLLECTIONS} from './artist-favorites';
@@ -12,7 +11,7 @@ import {exportDataBackup,importDataBackup,inspectDataBackup} from './data-backup
 beforeEach(async()=>{fixture.root=await fs.mkdtemp(path.join(os.tmpdir(),'studio-portable-test-'));fixture.store={settings:{outputDir:fixture.root},history:[],historyGroups:[],reverseHistory:[],convertHistory:[]};const lib=await import('./artist-favorites');vi.mocked(lib.loadArtistFavoriteLibrary).mockResolvedValue({collections:Object.fromEntries(ARTIST_FAVORITE_COLLECTIONS.map(k=>[k,[]]))} as any);});
 afterEach(async()=>{if(path.dirname(fixture.root)!==os.tmpdir()||!path.basename(fixture.root).startsWith('studio-portable-test-'))throw Error('invalid cleanup');await fs.rm(fixture.root,{recursive:true,force:true});});
 
-const capsule=process.env.NATIVE_IMAGE_RECORDS_BACKUP ?? path.resolve('mobile/test/fixtures/native_image_records.naisbackup');
+const capsule=process.env.NATIVE_IMAGE_RECORDS_BACKUP ?? path.resolve('tests/fixtures/native_image_records.naisbackup');
 async function input(change?:(data:any)=>void){
  const zip=await JSZip.loadAsync(await fs.readFile(capsule));
  const data=JSON.parse(await zip.file('data/image-history.json')!.async('string'));

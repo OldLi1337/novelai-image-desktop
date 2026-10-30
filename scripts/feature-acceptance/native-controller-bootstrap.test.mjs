@@ -6,7 +6,6 @@ import path from 'node:path';
 import {runBoundedNativeCommand} from './bounded-native-command.mjs';
 const read = name => fs.readFileSync(new URL(name, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 const system = read('./run-desktop-system-native.mjs');
-const mobile = read('./run-mobile-native.mjs');
 
 test('system controller preserves the native deadline, inventory and failed timeout semantics', () => {
   assert.match(system, /import \{runBoundedNativeCommand\}/);
@@ -15,13 +14,13 @@ test('system controller preserves the native deadline, inventory and failed time
   assert.match(system, /actual\.timedOut\|\|actual\.outputOverflow\|\|actual\.error/);
   assert.match(system, /report\.passed!==expected\.length/);
   assert.match(system, /'accounts','secure-crud-switch'/);
-  assert.match(system, /'updates','profile-preserved-update-boundary'/);
-  assert.match(system, /'agent-components','missing-config-actual-process'/);
+  assert.match(system, /'accounts','invalid-credential-errors-no-leak'/);
+  assert.doesNotMatch(system, /'updates'/);
 });
 
 test('the actual system command adapter records literal streams and force-cleans a real timed-out child', async () => {
   const run = fs.mkdtempSync(path.join(os.tmpdir(), 'system-controller-test-')), ledger = [];
-  const declaration = system.slice(system.indexOf('async function command('), system.indexOf('\nconst harnessSeed'));
+  const declaration = system.slice(system.indexOf('async function command('), system.indexOf('\nconst expected'));
   const command = new Function('fs', 'path', 'run', 'ledger', 'tlsCa', 'runBoundedNativeCommand', 'req', 'startMacNativeStallDiagnostics',
     declaration + ';return command;')(fs, path, run, ledger, path.join(run, 'absent-cert'), runBoundedNativeCommand, () => 'not-electron', () => async () => {});
   const ok = await command([process.execPath, '-e', 'process.stdout.write("SYSTEM_OUT\\n");process.stderr.write("SYSTEM_ERR\\n")']);
@@ -46,17 +45,4 @@ for (const kind of ['generation', 'system']) test(`${kind} bootstrap writes exac
   assert.equal(events.every(event => event.completed === 0), true);
   assert.equal(fs.existsSync(path.join(run, 'PHASE_EVENTS.jsonl')), false, 'bootstrap diagnostics are not accepted scenario events');
   assert(source.indexOf('bootstrapPhase') < source.indexOf('app.whenReady().then'));
-});
-
-test('Android builds one exact APK and prepares OS state before unchanged real Flutter launch and proof', () => {
-  const build = mobile.indexOf("input.flutter,'build','apk'");
-  const install = mobile.indexOf("'install','-r','-t',apk");
-  const grant = mobile.indexOf('grantNotifications:true');
-  const launch = mobile.indexOf('`--use-application-binary=${apk}`');
-  assert(build >= 0 && install > build && grant > install && launch > grant);
-  assert.equal((mobile.match(/input\.flutter,'build','apk'/g) || []).length, 1);
-  assert.match(mobile, /proof\.finish\(\)/);
-  assert.match(mobile, /parsed\.completion\?\.profileSha!==profileSha256/);
-  assert.match(mobile, /!parsed\.passed/);
-  assert.doesNotMatch(mobile, /checks\s*=\s*.*preflight/);
 });

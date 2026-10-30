@@ -40,7 +40,6 @@ import type {PromptEditRequest} from './prompt-assistant';
 import './prompt-editor.css';
 import {CompactIconButton,FurryModeSwitch,ResolutionPicker,CapsuleEditor} from "./components/CompactPromptControls";
 import {useFeatureText} from "./feature-i18n";
-import {localizeStoreMessage} from './store-i18n';
 import {CompletionSoundSettings} from "./components/CompletionSoundSettings";
 import StyleLibrary from "./StyleLibrary";
 import {sortStyles} from "./style-library";
@@ -64,7 +63,7 @@ import { normalizeAppLanguage } from "./i18n";
 import { MetadataApplyPanel } from "./MetadataApplyPanel";
 import { ImageSaveFeedback } from "./components/ImageSaveFeedback";
 import { imagePasteProps } from "./image-paste";
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import clsx from "clsx";
 import { format } from "date-fns";
@@ -74,22 +73,19 @@ import { format } from "date-fns";
 const loadToolsHub = () => import("./ToolsHub");
 const ToolsHub = lazy(loadToolsHub);
 const loadOnlineGalleryPage = () => import("./features/online-gallery/OnlineGalleryPage");
-// The Agent surface is platform-neutral; the old Harness/Tavern data is retained
-// for migration but no longer owns this tab.
-const loadAgentPage = () => import("./PiAgentPage");
 const loadInpaintCanvas = () => import("./InpaintCanvas").then((m) => ({ default: m.InpaintCanvas }));
 const loadMetadataInspector = () => import("./MetadataInspector");
 const OnlineGalleryPage = lazy(loadOnlineGalleryPage);
-const AgentPage = lazy(loadAgentPage);
 const InpaintCanvas = lazy(loadInpaintCanvas);
 const MetadataInspector = lazy(loadMetadataInspector);
 import { useAppStore } from "./store";
 import { relatedTags } from "./related-tags";
 import { applyAutocompleteTag, fmtCount, wordAtCursor, type AutocompleteAnchor } from "./text-utils";
+import { fitAutocompleteList, visibleVerticalRange, type AutocompleteListFit, type VerticalRange } from "./components/autocomplete-placement";
 import { inspectImageMetadata, parseImageMetaAsync } from "./png-meta";
 import { INPAINT_BRUSH_SLIDER_MAX, INPAINT_BRUSH_SLIDER_MIN } from "./inpaint-brush";
 import { droppedImagePath, droppedImagePaths, hasDraggedFiles } from "./drag-drop";
-import { compactRemoteErrorText } from "./error-message";
+import { compactRemoteErrorText, errorText } from "./error-message";
 import { flushArtistFavoritePersistence, hydrateArtistFavoriteLibrary } from "./artist-favorite-library";
 import { BackupRestoreSettings, DataPortabilitySettings } from "./features/settings/DataBackupSettings";
 import ResourceDatabaseSettings from "./features/settings/ResourceDatabaseSettings";
@@ -139,12 +135,10 @@ import {
   selectedImageTaskPromptPreset,
   type ImageTaskPromptPreset,
 } from "./tavern/image-task-preset";
-import { desktopUiFormat, desktopUiText, getGeneratePanelText, getLocalizedTabItems, getSettingsSectionText, getSettingsShellText, getTokenGuideText, localizedDesktopOptionLabel, SUPPORTED_APP_LANGUAGES } from "./i18n";
+import { desktopUiFormat, desktopUiText, getGeneratePanelText, getLocalizedTabItems, getSettingsSectionText, getSettingsShellText, getTokenGuideText, localizedDesktopOptionLabel } from "./i18n";
 import {
   CAT_COLOR,
   CAPSULE_TAXONOMY,
-  localizedCapsuleCategoryName,
-  localizedCapsuleSubgroupName,
   localizedCategoryLabel,
   localizedTagLabel,
   tagDescription,
@@ -152,6 +146,7 @@ import {
 import {
   APP_NAME,
   APP_VERSION,
+  PROJECT_REPOSITORY,
   DEFAULT_PARAMS,
   DIRECTOR_TOOLS,
   EMOTION_OPTIONS,
@@ -209,9 +204,6 @@ const DEFAULT_HTTP_PROXY = "http://127.0.0.1:7890";
 const DEFAULT_SOCKS_PROXY = "socks5://127.0.0.1:10808";
 const appIconUrl = "./icon.png";
 const onboardingHeroUrl = "./onboarding-hero.png";
-const projectGithubUrl = "https://github.com/2786886095/novelai-image-desktop";
-const rewardWechatUrl = "./about/wechat-reward.jpg";
-const rewardAlipayUrl = "./about/alipay-reward.jpg";
 
 function makeStylePresetId() {
   const cryptoId = globalThis.crypto?.randomUUID?.();
@@ -263,7 +255,7 @@ function TagLibrarySettingsSection({ onChanged }: { onChanged?: () => void }) {
         onChanged?.();
       }
     } catch (error) {
-      setToast(f("tagLibrary.downloadFailed", { message: error instanceof Error ? error.message : String(error) }));
+      setToast(f("tagLibrary.downloadFailed", { message: errorText(error) }));
     } finally {
       setBusy(false);
     }
@@ -301,27 +293,14 @@ function TagLibrarySettingsSection({ onChanged }: { onChanged?: () => void }) {
 // substring-seed approach leaked cross-category tags, e.g. cropped_jacket under
 // 构图). SEARCH queries the local Danbooru library for breadth. Browse works
 // offline; search needs the downloaded library.
-function capsuleBrowserText(language: unknown) {
-  switch (language) {
-    case "zh-TW":
-      return { needsLibrary: "搜尋需要本地標籤庫，請先到設定下載。下方分類可離線使用。", empty: "沒有匹配的標籤", loading: "載入中…" };
-    case "en-US":
-      return { needsLibrary: "Search requires the local tag library. Download it in Settings first. Categories below work offline.", empty: "No matching tags", loading: "Loading…" };
-    case "ja-JP":
-      return { needsLibrary: "検索にはローカルタグライブラリが必要です。先に設定でダウンロードしてください。下のカテゴリはオフラインで使えます。", empty: "一致するタグがありません", loading: "読み込み中…" };
-    case "ko-KR":
-      return { needsLibrary: "검색에는 로컬 태그 라이브러리가 필요합니다. 먼저 설정에서 다운로드하세요. 아래 분류는 오프라인으로 사용할 수 있습니다.", empty: "일치하는 태그 없음", loading: "불러오는 중…" };
-    default:
-      return { needsLibrary: "搜索需要本地标签库，请先到设置下载。下方分类可离线使用。", empty: "没有匹配的标签", loading: "加载中…" };
-  }
-}
+const CAPSULE_BROWSER_TEXT = { needsLibrary: "搜索需要本地标签库，请先到设置下载。下方分类可离线使用。", empty: "没有匹配的标签", loading: "加载中…" };
 
 function CapsuleBrowser({ query, onPick, language }: { query: string; onPick: (tag: string) => void; language?: unknown }) {
   const [downloaded, setDownloaded] = useState<boolean | null>(null);
   const [items, setItems] = useState<TagSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
   const q = query.trim();
-  const text = capsuleBrowserText(language);
+  const text = CAPSULE_BROWSER_TEXT;
 
   useEffect(() => {
     void window.naiDesktop.danbooruStatus().then((s) => {
@@ -399,7 +378,7 @@ function CapsuleTaxonomy({ onPick, language }: { onPick: (tag: string) => void; 
               setSubIdx(0);
             }}
           >
-            {localizedCapsuleCategoryName(c.name, language)}
+            {c.name}
           </button>
         ))}
       </div>
@@ -411,7 +390,7 @@ function CapsuleTaxonomy({ onPick, language }: { onPick: (tag: string) => void; 
             className={clsx("capsule-tax-sub", i === subIdx && "active")}
             onClick={() => setSubIdx(i)}
           >
-            {localizedCapsuleSubgroupName(s.name, language)}
+            {s.name}
           </button>
         ))}
       </div>
@@ -471,6 +450,9 @@ function caretCoordinates(el: HTMLTextAreaElement, position: number): { top: num
 }
 
 // ── PromptTextarea: textarea with Danbooru tag autocomplete ───────────────────
+// The suggestion list keeps 8px from the caret line: a 2px offset plus its 6px margin.
+const AC_LINE_GAP = 8;
+
 function PromptTextarea({
   value,
   onChange,
@@ -490,12 +472,14 @@ function PromptTextarea({
 }) {
   const language = useAppStore((state) => state.settings?.language);
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
-  // Only the vertical caret position — the dropdown stays full-width so long tag
-  // text never overflows/clips horizontally.
-  const [acTop, setAcTop] = useState<number | null>(null);
+  // Only the vertical caret line position, relative to the box — the dropdown stays
+  // full-width so long tag text never overflows/clips horizontally.
+  const [acLine, setAcLine] = useState<VerticalRange | null>(null);
+  // Below the caret line, or above it when the panel shows more of the list there.
+  const [acFit, setAcFit] = useState<AutocompleteListFit>({ above: false });
   const [activeIdx, setActiveIdx] = useState(0);
   const composingRef = useRef(false);
-  const wrapRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const taRef = useRef<HTMLTextAreaElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // The word the suggestions belong to. Choosing a tag replaces this word even
@@ -515,13 +499,35 @@ function PromptTextarea({
     anchorRef.current = null;
     if (timerRef.current) clearTimeout(timerRef.current);
     setSuggestions([]);
-    setAcTop(null);
+    setAcLine(null);
   }
+
+  // Measured after the list renders and before it paints: a scrolling panel or dialog
+  // body must not cut it off.
+  useLayoutEffect(() => {
+    const list = dropdownRef.current;
+    const wrap = list?.parentElement;
+    if (!list || !wrap || !acLine) return;
+    // A new list starts at its first row, like the highlight.
+    list.scrollTop = 0;
+    const place = () => {
+      const top = wrap.getBoundingClientRect().top + wrap.clientTop;
+      const height = list.scrollHeight + list.offsetHeight - list.clientHeight;
+      const line = { top: top + acLine.top, bottom: top + acLine.bottom };
+      const next = fitAutocompleteList(line, visibleVerticalRange(list), height, AC_LINE_GAP);
+      setAcFit((current) => current.above === next.above && current.maxHeight === next.maxHeight ? current : next);
+    };
+    place();
+    window.addEventListener("resize", place);
+    return () => window.removeEventListener("resize", place);
+  }, [suggestions, acLine]);
 
   useEffect(() => {
     if (!open) return;
+    // Any press outside the list ends the session, including one in the prompt box
+    // itself: a click that leaves the caret where it was fires no select event.
     const outside = (event: PointerEvent) => {
-      if (!wrapRef.current?.contains(event.target as Node)) clearSuggestions();
+      if (!dropdownRef.current?.contains(event.target as Node)) clearSuggestions();
     };
     document.addEventListener("pointerdown", outside, true);
     return () => document.removeEventListener("pointerdown", outside, true);
@@ -533,7 +539,9 @@ function PromptTextarea({
     const text = e.target.value;
     const cursor = e.target.selectionStart ?? text.length;
     onChange(text);
+    // Typing resets the highlight to the first row; show that row too.
     setActiveIdx(0);
+    if (dropdownRef.current) dropdownRef.current.scrollTop = 0;
     if (!enabled || composingRef.current) {
       clearSuggestions();
       return;
@@ -557,10 +565,13 @@ function PromptTextarea({
         if (request !== requestRef.current || !ta || document.activeElement !== ta
           || ta.selectionStart !== cursor || ta.selectionEnd !== cursor) return;
         setSuggestions(res.slice(0, 8));
+        // Arrow keys pressed on the previous list must not point past this one.
+        setActiveIdx(0);
         if (res.length > 0) {
           const c = caretCoordinates(ta, cursor);
-          // Anchor just below the caret line (vertical only); full-width horizontally.
-          setAcTop(c.top - ta.scrollTop + c.height + 2);
+          // Anchor to the caret line (vertical only); full-width horizontally.
+          const top = c.top - ta.scrollTop;
+          setAcLine({ top, bottom: top + c.height });
         }
       } catch {
         if (request === requestRef.current) setSuggestions([]);
@@ -581,15 +592,25 @@ function PromptTextarea({
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.nativeEvent.isComposing || composingRef.current) return;
     if (!suggestions.length) return;
-    if (e.key === "ArrowDown") { e.preventDefault(); setActiveIdx((i) => Math.min(i + 1, suggestions.length - 1)); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); setActiveIdx((i) => Math.max(i - 1, 0)); }
-    else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); applyTag(suggestions[activeIdx].tag); }
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const current = Math.min(activeIdx, suggestions.length - 1);
+      const next = e.key === "ArrowDown" ? Math.min(current + 1, suggestions.length - 1) : Math.max(current - 1, 0);
+      setActiveIdx(next);
+      // The list scrolls past about five rows; keep the highlighted one in view so Enter never inserts a hidden tag.
+      dropdownRef.current?.children[next]?.scrollIntoView({ block: "nearest" });
+    }
+    else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      const pick = suggestions[Math.min(activeIdx, suggestions.length - 1)];
+      if (pick) applyTag(pick.tag);
+    }
     // Close only the list; the surrounding dialog or popover stays open.
     else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); clearSuggestions(); }
   }
 
   return (
-    <div className="prompt-ac-wrap" ref={wrapRef}>
+    <div className="prompt-ac-wrap">
       <textarea readOnly={readOnly}
         ref={taRef}
         className={clsx("prompt-box", className)}
@@ -615,15 +636,22 @@ function PromptTextarea({
       />
       {suggestions.length > 0 && (
         <div
-          className={clsx("ac-dropdown", acTop != null && "ac-dropdown-caret")}
-          style={acTop != null ? { top: acTop } : undefined}
+          ref={dropdownRef}
+          className={clsx("ac-dropdown", acLine && "ac-dropdown-caret", acLine && acFit.above && "ac-dropdown-above")}
+          // Above the line it is bottom-anchored, so it grows upward from the caret.
+          style={acLine ? {
+            ...(acFit.above ? { bottom: `calc(100% - ${acLine.top - 2}px)` } : { top: acLine.bottom + 2 }),
+            maxHeight: acFit.maxHeight,
+          } : undefined}
         >
           {suggestions.map((s, i) => (
             <button
               key={s.tag}
               className={clsx("ac-item", i === activeIdx && "ac-active")}
               onMouseDown={(e) => { e.preventDefault(); applyTag(s.tag); }}
-              onMouseEnter={() => setActiveIdx(i)}
+              // Only real pointer movement picks a row: a list that opens under a
+              // resting pointer keeps the first suggestion for Enter and Tab.
+              onMouseMove={() => setActiveIdx(i)}
             >
               <span className="ac-dot" style={{ background: CAT_COLOR[s.category] ?? "#94a3b8" }} />
               <span className="ac-main">
@@ -937,13 +965,13 @@ export function VibeTransferModal({ onClose }: { onClose: () => void }) {
 
   async function importVibeFile(file: File) {
     try {
-      if (file.size > 50 * 1024 * 1024) throw new Error("Vibe file exceeds 50 MB.");
+      if (file.size > 50 * 1024 * 1024) throw new Error("Vibe 文件超过 50 MB。");
       const refs = parseVibeFile(await file.text());
       const state = useAppStore.getState();
-      if (state.vibeImages.length + refs.length > 16) throw new Error("Vibe: maximum 16 references.");
+      if (state.vibeImages.length + refs.length > 16) throw new Error("Vibe 参考最多 16 个。");
       useAppStore.setState({vibeImages:[...state.vibeImages,...refs.map(ref=>({...ref,id:crypto.randomUUID()}))]});
       setToast(`${vf.loaded} · ${refs.length}`);
-    } catch(error) { setToast(String(error instanceof Error ? error.message : error)); }
+    } catch(error) { setToast(errorText(error)); }
   }
   function exportVibes() {
     const url=URL.createObjectURL(new Blob([exportVibeFile(vibeImages)],{type:"application/json"}));
@@ -1845,7 +1873,7 @@ export function PromptAndParams({
         await refreshSettings();
         setStyleNamePrompt(null);
         setToast(f("prompt.stylePresetSaved", { name }));
-      } catch (error) { setToast(String(error)); }
+      } catch (error) { setToast(errorText(error)); }
       return;
     }
     const preset: StylePromptPreset = {
@@ -2100,7 +2128,7 @@ export function PromptAndParams({
     <>
       {includeModel && (
         <div className="field">
-          <div className="compact-model-label"><span>{generateText.prompt.model}</span><FurryModeSwitch checked={modelMode === "furry"} label={generateText.prompt.furryMode} onChange={checked=>switchModelMode(checked?"furry":"anime").catch(error=>setToast(String(error)))}/></div>
+          <div className="compact-model-label"><span>{generateText.prompt.model}</span><FurryModeSwitch checked={modelMode === "furry"} label={generateText.prompt.furryMode} onChange={checked=>switchModelMode(checked?"furry":"anime").catch(error=>setToast(errorText(error)))}/></div>
           <SelectMenuCompat value={params.model} onChange={(e) => setParam("model", e.target.value as GenerateParams["model"])}>
             {NAI_MODELS.filter((m) => supportsNAIModelMode(m.value, modelMode)).map((m) => (
               <option value={m.value} key={m.value}>{localizedDesktopOptionLabel(settings?.language, m.value, m.label)}</option>
@@ -2202,7 +2230,7 @@ export function PromptAndParams({
                       <button type="button" className="style-preset-more" title={t("prompt.styleMove")} aria-label={f("prompt.styleMoveTo", { name: preset.name })} onClick={() => setStylePresetActionId((current) => current === preset.id ? "" : preset.id)}><Icon name="moreHorizontal" /></button>
                       {stylePresetActionId === preset.id && (
                         <div className="style-preset-item-popover">
-                          <button type="button" onClick={() => {setStylePresetActionId(""); setStyleNamePrompt({stylePrompt: preset.prompt, fallbackName: preset.name, presetId: preset.id});}}>{({'zh-CN':'编辑名称与评分','zh-TW':'編輯名稱與評分','en-US':'Edit name and rating','ja-JP':'名前・評価を編集','ko-KR':'이름 및 평점 편집'}[settings?.language ?? 'zh-CN'])}</button>
+                          <button type="button" onClick={() => {setStylePresetActionId(""); setStyleNamePrompt({stylePrompt: preset.prompt, fallbackName: preset.name, presetId: preset.id});}}>编辑名称与评分</button>
                           <strong>{t("prompt.styleMove")}</strong>
                           {stylePromptPresetGroups.map((group) => (
                             <button type="button" key={group} disabled={(preset.group || "Default") === group} onClick={() => void moveStylePromptPreset(preset.id, group)}>
@@ -2240,7 +2268,7 @@ export function PromptAndParams({
           label={generateText.prompt.stylePresetNamePrompt}
           initial={styleNamePrompt.fallbackName}
           initialRating={stylePromptPresets.find(p => p.id === styleNamePrompt.presetId)?.rating ?? 0}
-          onConfirm={(value, rating) => void confirmSaveStylePromptPreset(value, rating).catch(error => setToast(String(error)))}
+          onConfirm={(value, rating) => void confirmSaveStylePromptPreset(value, rating).catch(error => setToast(errorText(error)))}
           onClose={() => setStyleNamePrompt(null)}
         />
       )}
@@ -3081,11 +3109,11 @@ function LogSettingsSection({
 
   const setDir = async (dir: string) => {
     try { await window.naiDesktop.setSetting("logDir", dir); await refreshSettings(); return true; }
-    catch (error) { setToast(error instanceof Error ? error.message : String(error)); return false; }
+    catch (error) { setToast(errorText(error)); return false; }
   };
   const choose = async () => {
     try { const dir = await window.naiDesktop.selectLogDir(); if (dir && await setDir(dir)) setToast(t("log.updatedPath")); }
-    catch (error) { setToast(error instanceof Error ? error.message : String(error)); }
+    catch (error) { setToast(errorText(error)); }
   };
   const openFile = async () => {
     const r = await window.naiDesktop.openLogFile();
@@ -3730,7 +3758,7 @@ function EnhancePanel({ openSettings }: { openSettings: () => void }) {
       : officialMax ? maxNAIEnhanceSize(inputSize.width, inputSize.height) : adaptiveNAIImageSize(workbenchImage.width * (isMax ? 2 : enhanceScale), workbenchImage.height * (isMax ? 2 : enhanceScale), params)
     : null;
   const outputLimitReason = outputTooLarge && target
-    ? f("enhance.outputLimit", { size: `${target.width}×${target.height}`, pixels: (target.width * target.height).toLocaleString(), limit: NAI_MAX_PIXEL_AREA.toLocaleString() })
+    ? f("enhance.outputLimit", { size: `${target.width}×${target.height}`, pixels: (target.width * target.height).toLocaleString("zh-CN"), limit: NAI_MAX_PIXEL_AREA.toLocaleString("zh-CN") })
     : "";
   return (
     <>
@@ -4146,7 +4174,7 @@ function ReversePanel() {
 
         {hasImage && metadataReport && <MetadataApplyPanel report={metadataReport} language={normalizeAppLanguage(language)} />}
 
-        <PromptSkillControls model={reverseTemplateVersion} edition={skillVersionForModel(settings?.reversePromptSkillVersion,reverseTemplateVersion)} language={language} disabled={reverseBusy} onChange={(model,edition)=>void setReverseTemplateVersion(model,edition).catch(error=>setToast(String(error)))}/>
+        <PromptSkillControls model={reverseTemplateVersion} edition={skillVersionForModel(settings?.reversePromptSkillVersion,reverseTemplateVersion)} language={language} disabled={reverseBusy} onChange={(model,edition)=>void setReverseTemplateVersion(model,edition).catch(error=>setToast(errorText(error)))}/>
 
         <div className="mode-selector">
           {modes.map(([val, label, tip]) => (
@@ -4419,7 +4447,7 @@ function PromptConverterPanel() {
           />
         </label>
 
-        <PromptSkillControls model={convertTemplateVersion} edition={skillVersionForModel(settings?.convertPromptSkillVersion,convertTemplateVersion)} language={language} disabled={convertBusy} onChange={(model,edition)=>void setConvertTemplateVersion(model,edition).catch(error=>setToast(String(error)))}/>
+        <PromptSkillControls model={convertTemplateVersion} edition={skillVersionForModel(settings?.convertPromptSkillVersion,convertTemplateVersion)} language={language} disabled={convertBusy} onChange={(model,edition)=>void setConvertTemplateVersion(model,edition).catch(error=>setToast(errorText(error)))}/>
 
         <div className="mode-selector">
           {([
@@ -5821,11 +5849,11 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
   };
   const selectDir = async () => {
     try { await window.naiDesktop.selectOutputDir(); await refreshSettings(); }
-    catch (error) { useAppStore.getState().setToast(error instanceof Error ? error.message : String(error)); }
+    catch (error) { useAppStore.getState().setToast(errorText(error)); }
   };
   const selectGalleryDir = async () => {
     try { await window.naiDesktop.selectOnlineGalleryDownloadDir(); await refreshSettings(); }
-    catch (error) { useAppStore.getState().setToast(error instanceof Error ? error.message : String(error)); }
+    catch (error) { useAppStore.getState().setToast(errorText(error)); }
   };
   const clearAitagCache = async () => {
     setAitagCacheBusy(true);
@@ -5892,7 +5920,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
     ["convert-api", settingsShellText.nav["convert-api"], "translate"],
     ["templates", settingsShellText.nav.templates, "template"],
     ["prompt", settingsShellText.nav.prompt, "wand"],
-    ["language", settingsShellText.nav.language, "globe"],
     ["sound", ft("提示音"), "volume"],
     ["appearance", settingsShellText.nav.appearance, "palette"],
     ["performance", settingsShellText.nav.performance, "speed"],
@@ -6173,7 +6200,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                     <span>{f("settings.aboutVersion", { version: APP_VERSION })}</span>
                   </div>
                 </div>
-                <div className="field"><span>{t("settings.updateSource")}</span><strong>GitHub</strong></div>
                 <div className="about-block">
                   <div>
                     <strong>{t("settings.aboutProjectTitle")}</strong>
@@ -6182,39 +6208,15 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   <button
                     type="button"
                     className="about-link"
-                    onClick={() => window.naiDesktop.openExternal(projectGithubUrl)}
+                    onClick={() => window.naiDesktop.openExternal(PROJECT_REPOSITORY)}
                   >
-                    {projectGithubUrl}
+                    {PROJECT_REPOSITORY}
                   </button>
                 </div>
                 <div className="about-block">
                   <div>
-                    <strong>{t("settings.aboutAuthorTitle")}</strong>
-                    <span>{t("settings.aboutAuthorDesc")}</span>
-                  </div>
-                  <div className="about-copyline">
-                    <span>{t("settings.aboutAuthorQq")}</span>
-                    <strong>2786886095</strong>
-                  </div>
-                  <div className="about-copyline">
-                    <span>{t("settings.aboutNovelAiGroup")}</span>
-                    <strong>921985070</strong>
-                  </div>
-                </div>
-                <div className="about-block">
-                  <div>
-                    <strong>{t("settings.aboutSupportTitle")}</strong>
-                    <span>{t("settings.aboutSupportMessage")}</span>
-                  </div>
-                  <div className="reward-grid">
-                    <figure>
-                      <img src={rewardWechatUrl} alt={t("settings.aboutWechatReward")} />
-                      <figcaption>{t("settings.aboutWechatReward")}</figcaption>
-                    </figure>
-                    <figure>
-                      <img src={rewardAlipayUrl} alt={t("settings.aboutAlipayReward")} />
-                      <figcaption>{t("settings.aboutAlipayReward")}</figcaption>
-                    </figure>
+                    <strong>{t("settings.aboutLicenseTitle")}</strong>
+                    <span>{t("settings.aboutLicenseDesc")}</span>
                   </div>
                 </div>
               </div>
@@ -6247,21 +6249,6 @@ export function SettingsModal({ onClose }: { onClose: () => void }) {
                   </div>
                   <p className="field-hint">{settingsSectionText.appearance.workspaceHint}</p>
                 </div>
-              </div>
-            )}
-            {section === "language" && (
-              <div className="settings-form">
-                <label className="field">
-                  <span>{settingsSectionText.language.language}</span>
-                  <SelectMenuCompat value={settings.language} onChange={(e) => void update("language", e.target.value as AppSettings["language"])}>
-                    {SUPPORTED_APP_LANGUAGES.map((language) => (
-                      <option value={language.code} key={language.code}>
-                        {language.menuLabel}
-                      </option>
-                    ))}
-                  </SelectMenuCompat>
-                  <small className="settings-hint">{settingsSectionText.language.hint}</small>
-                </label>
               </div>
             )}
             {section === "backup" && (
@@ -6724,20 +6711,10 @@ function OnboardingWizard() {
                   <div><strong>{t("onboarding.tagsTitle")}</strong><span>{t("onboarding.tagsDesc")}</span></div>
                 </div>
                 <div className="row-actions">
-                  <Button onClick={() => window.naiDesktop.openExternal("https://github.com/2786886095/novelai-image-desktop")}>
+                  <Button onClick={() => window.naiDesktop.openExternal(PROJECT_REPOSITORY)}>
                     <IconText icon="↗">{t("onboarding.github")}</IconText>
                   </Button>
                 </div>
-                <label className="field wide">
-                  <span>{t("onboarding.language")}</span>
-                  <SelectMenuCompat defaultValue={settings?.language ?? "zh-CN"} onChange={(e) => window.naiDesktop.setSetting("language", e.target.value as AppSettings["language"])}>
-                    {SUPPORTED_APP_LANGUAGES.map((language) => (
-                      <option value={language.code} key={language.code}>
-                        {language.menuLabel}
-                      </option>
-                    ))}
-                  </SelectMenuCompat>
-                </label>
               </div>
             )}
             {step === 1 && (
@@ -6828,7 +6805,7 @@ function OnboardingWizard() {
                     try {
                       const selected = await window.naiDesktop.selectOutputDir();
                       if (selected) { await refreshSettings(); setShowOnboarding(true); }
-                    } catch (error) { useAppStore.getState().setToast(error instanceof Error ? error.message : String(error)); }
+                    } catch (error) { useAppStore.getState().setToast(errorText(error)); }
                   }}
                 >
                   <IconText icon={<Icon name="folder" />}>{t("settings.browse")}</IconText>
@@ -6873,69 +6850,6 @@ function OnboardingWizard() {
       {showTokenGuide && <TokenGuideModal onClose={() => setShowTokenGuide(false)} />}
     </AppPortal>
   );
-}
-
-// ── Update banner ─────────────────────────────────────────────────────────────
-function UpdateBanner() {
-  const updateInfo = useAppStore((state) => state.updateInfo);
-  const dismissUpdate = useAppStore((state) => state.dismissUpdate);
-  const updateProgress = useAppStore((state) => state.updateProgress);
-  const downloadUpdate = useAppStore((state) => state.downloadUpdate);
-  const language = useAppStore((state) => state.settings?.language);
-  const t = useCallback((key: string) => desktopUiText(language, key), [language]);
-  const f = useCallback((key: string, values: Record<string, unknown>) => desktopUiFormat(language, key, values), [language]);
-  // Always render an element so .app-shell keeps a stable 6-row grid; the empty
-  // slot collapses to 0 height when there's no update.
-  if (!updateInfo?.hasUpdate) return <div className="update-banner-slot" />;
-
-  // Windows downloads a verified Setup.exe from Gitee (GitHub fallback), so
-  // both installed and portable builds share the same update experience.
-  const manualOnly = window.naiDesktop.platform !== "win32";
-  const busy = updateProgress?.kind === "checking" || updateProgress?.kind === "progress";
-  const downloaded = updateProgress?.kind === "downloaded";
-  const failed = updateProgress?.kind === "error";
-
-  return <>
-    <div className="update-banner">
-      <span>
-        <Icon name="upgrade" /> {f("update.newVersion", { latest: updateInfo.latestVersion, current: updateInfo.currentVersion })}
-        {failed && <> · {updateProgress.message}</>}
-      </span>
-      <div className="update-banner-actions">
-        {manualOnly ? (
-          <button
-            className="btn btn-primary"
-            onClick={() => updateInfo.releaseUrl && void window.naiDesktop.openExternal(updateInfo.releaseUrl)}
-          >
-            {t("update.download")}
-          </button>
-        ) : downloaded ? (
-          <button className="btn btn-primary" disabled>
-            {t("update.autoRestarting")}
-          </button>
-        ) : (
-          <button className="btn btn-primary" disabled={busy} onClick={() => void downloadUpdate()}>
-            {updateProgress?.kind === "progress"
-              ? f("update.downloading", { percent: updateProgress.percent })
-              : busy
-                ? t("update.checking")
-                : t("update.downloadInApp")}
-          </button>
-        )}
-        {!busy && !downloaded ? <button className="btn btn-ghost" onClick={dismissUpdate}>{t("update.later")}</button> : null}
-      </div>
-    </div>
-    {(busy || downloaded) ? <AppPortal>
-      <div className="update-install-overlay" role="status" aria-live="polite">
-        <section className="update-install-panel">
-          <span className="update-install-spinner" aria-hidden="true" />
-          <h2>{downloaded ? t("update.autoRestarting") : updateProgress?.kind === "progress" ? f("update.downloading", { percent: updateProgress.percent }) : t("update.checking")}</h2>
-          <p>{f("update.newVersion", { latest: updateInfo.latestVersion, current: updateInfo.currentVersion })}</p>
-          <div className="update-install-progress"><i style={{ width: `${updateProgress?.kind === "progress" ? Math.max(2, Math.min(100, updateProgress.percent)) : downloaded ? 100 : 12}%` }} /></div>
-        </section>
-      </div>
-    </AppPortal> : null}
-  </>;
 }
 
 function VersionedModeTemplateEditor({
@@ -6984,38 +6898,6 @@ const V5_MIGRATION_NOTICE_TEXT = {
     keep: "保持当前模型",
     go: "前往模型选择",
   },
-  "zh-TW": {
-    eyebrow: "模型更新提醒",
-    title: "NovelAI V5 Full 已上線",
-    body: "為避免改變舊專案的重現結果，升級軟體不會強制覆蓋已儲存的模型。舊使用者若仍顯示 V4 / V4.5，請在生成頁的模型清單中手動選擇 NAI Diffusion V5 Full；新建預設已使用 V5 Full。",
-    risk: "V5 的訓練分佈與舊模型不同，V4 / V4.5 時期的畫師標籤或畫師串可能減弱、失效或呈現不同效果。需要重現舊結果時請保留舊模型，並在切換後重新測試畫師串。",
-    keep: "保留目前模型",
-    go: "前往模型選擇",
-  },
-  "en-US": {
-    eyebrow: "Model update",
-    title: "NovelAI V5 Full is available",
-    body: "Upgrades intentionally preserve the model saved in existing projects so their results remain reproducible. If an older installation still shows V4 or V4.5, choose NAI Diffusion V5 Full manually on Generate. New default configurations already use V5 Full.",
-    risk: "V5 has a different training distribution. Artist tags or artist strings tuned for V4/V4.5 may become weaker, stop working, or look different. Keep the legacy model for reproducibility and retest strings after switching.",
-    keep: "Keep current model",
-    go: "Open model selector",
-  },
-  "ja-JP": {
-    eyebrow: "モデル更新のお知らせ",
-    title: "NovelAI V5 Full が利用できます",
-    body: "既存プロジェクトの再現性を守るため、更新時に保存済みモデルを強制変更しません。旧環境で V4 / V4.5 のままの場合は、生成画面のモデル一覧から NAI Diffusion V5 Full を手動で選択してください。新規既定値は V5 Full です。",
-    risk: "V5 は旧モデルと学習分布が異なるため、V4 / V4.5 向けの画家タグや画家列が弱くなる、効かなくなる、または違う結果になる場合があります。再現には旧モデルを残し、切替後に再検証してください。",
-    keep: "現在のモデルを維持",
-    go: "モデル選択へ",
-  },
-  "ko-KR": {
-    eyebrow: "모델 업데이트 안내",
-    title: "NovelAI V5 Full을 사용할 수 있습니다",
-    body: "기존 프로젝트의 재현 결과를 보호하기 위해 업데이트가 저장된 모델을 강제로 변경하지 않습니다. 이전 설치에서 V4 / V4.5가 계속 표시되면 생성 화면의 모델 목록에서 NAI Diffusion V5 Full을 직접 선택하세요. 새 기본 구성은 V5 Full입니다.",
-    risk: "V5는 이전 모델과 학습 분포가 달라 V4/V4.5용 작가 태그나 작가 문자열이 약해지거나 작동하지 않거나 다른 결과를 낼 수 있습니다. 재현이 필요하면 이전 모델을 유지하고 전환 후 다시 테스트하세요.",
-    keep: "현재 모델 유지",
-    go: "모델 선택으로 이동",
-  },
 } as const;
 
 function V5MigrationNotice() {
@@ -7058,35 +6940,6 @@ function V5MigrationNotice() {
       </div>
     </AppPortal>
   );
-}
-
-function WorkspaceMigrationNotice() {
-  const language = useAppStore((s) => s.settings?.language);
-  const [location, setLocation] = useState<Awaited<ReturnType<typeof window.naiDesktop.getAgentWorkspaceLocation>> | null>(null);
-  useEffect(() => {
-    let alive = true;
-    void window.naiDesktop.getAgentWorkspaceLocation().then((result) => {
-      if (alive && result.migrationId && localStorage.getItem(`workspace-migration:${result.migrationId}`) !== "seen") setLocation(result);
-    }).catch((error) => { if (alive) useAppStore.getState().setToast(error instanceof Error ? error.message : String(error)); });
-    return () => { alive = false; };
-  }, []);
-  if (!location) return null;
-  const copy = language === "en-US"
-    ? ["Tavern data migrated and verified. Conversations and attachments are preserved; an original backup is retained.", "Open data folder", "Got it"]
-    : language === "ja-JP"
-    ? ["酒場データの移行と検証が完了しました。会話・添付ファイルと元のバックアップを保持しています。", "保存先を開く", "確認"]
-    : language === "ko-KR"
-    ? ["대화와 첨부 파일의 이전 및 검증을 완료했습니다. 원본 백업도 보관됩니다.", "저장 폴더 열기", "확인"]
-    : language === "zh-TW"
-    ? ["酒館資料已遷移並校驗，對話與附件已保留，原始備份仍在。", "開啟資料目錄", "知道了"]
-    : ["酒馆数据已迁移并校验，对话与附件已保留，原始备份仍在。", "打开数据目录", "知道了"];
-  return <div className="update-banner" role="status">
-    <span>{copy[0]}</span>
-    <div className="update-banner-actions">
-      <Button onClick={() => { void window.naiDesktop.openAgentWorkspaceDirectory().then((r) => { if (!r.ok) useAppStore.getState().setToast(r.message ?? "打开目录失败"); }).catch((e) => useAppStore.getState().setToast(String(e))); }}>{copy[1]}</Button>
-      <Button onClick={() => { localStorage.setItem(`workspace-migration:${location.migrationId}`, "seen"); setLocation(null); }}>{copy[2]}</Button>
-    </div>
-  </div>;
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
@@ -7215,12 +7068,12 @@ function MainPage() {
   // Final render-boundary guard: even if a future IPC path forgets to sanitize
   // an upstream HTML error page, it can never expand across the application.
   const displayStatusText = useMemo(
-    () => statusText ? compactRemoteErrorText(localizeStoreMessage(language,statusText), { serviceLabel: "NovelAI API", maxLength: 240 }) : "",
-    [statusText,language],
+    () => statusText ? compactRemoteErrorText(statusText, { serviceLabel: "NovelAI API", maxLength: 240 }) : "",
+    [statusText],
   );
   const displayToast = useMemo(
-    () => toast ? compactRemoteErrorText(localizeStoreMessage(language,toast), { serviceLabel: "NovelAI API", maxLength: 360 }) : "",
-    [toast,language],
+    () => toast ? compactRemoteErrorText(toast, { serviceLabel: "NovelAI API", maxLength: 360 }) : "",
+    [toast],
   );
   const workbenchActive = activeTab === "generate"
     || activeTab === "inpaint"
@@ -7253,7 +7106,7 @@ function MainPage() {
       useAppStore.getState().setActiveTab(captureSurface);
     } else if (captureSurface === "aitag") {
       useAppStore.getState().setActiveTab("onlineGallery");
-    } else if (captureSurface === "randomArtist" || captureSurface === "v5ArtistRepair" || captureSurface === "artistStringDraw" || captureSurface === "comfyui-local") {
+    } else if (captureSurface === "randomArtist" || captureSurface === "v5ArtistRepair" || captureSurface === "artistStringDraw") {
       useAppStore.getState().setActiveTab("tools");
     } else if (captureSurface === "settings") {
       useAppStore.getState().setShowSettings(true);
@@ -7286,10 +7139,6 @@ function MainPage() {
     return () => document.documentElement.classList.remove("motion-reduced");
   }, [settings?.reduceMotion]);
 
-  useEffect(() => {
-    document.documentElement.lang = settings?.language ?? "zh-CN";
-  }, [settings?.language]);
-
   // Auto-dismiss toast
   useEffect(() => {
     if (!toast) return;
@@ -7300,10 +7149,6 @@ function MainPage() {
   return (
     <div className="app-shell">
       <AppTitleBar />
-      <div className="app-notice-slot">
-        <UpdateBanner />
-        <WorkspaceMigrationNotice />
-      </div>
       <V5MigrationNotice />
       <AppMenuBar openSettings={() => setShowSettings(true)}>
         <NaiAccountManager />
@@ -7357,11 +7202,6 @@ function MainPage() {
             <OnlineGalleryPage />
           </Suspense>
         </PersistentTabView>
-        <PersistentTabView active={activeTab === "agent"} scope="tab:agent">
-          <Suspense fallback={<div className="lazy-tool-loading">{t("tool.loadingTools")}</div>}>
-            <AgentPage active={activeTab === "agent"} />
-          </Suspense>
-        </PersistentTabView>
         <PersistentTabView active={activeTab === "referencePresets"} scope="tab:referencePresets">
           <ReferencePresetManager onBack={() => useAppStore.getState().setActiveTab("tools")} />
         </PersistentTabView>
@@ -7393,7 +7233,6 @@ export default function App() {
   const [splash, setSplash] = useState(true);
   const bootDone = useAppStore((state) => state.bootDone);
   const load = useAppStore((state) => state.load);
-  const checkUpdate = useAppStore((state) => state.checkUpdate);
 
   useEffect(() => {
     let cancelled = false;
@@ -7412,7 +7251,6 @@ export default function App() {
       const [tools] = await Promise.allSettled([
         loadToolsHub(),
         loadOnlineGalleryPage(),
-        loadAgentPage(),
         loadMetadataInspector(),
       ]);
       if (!cancelled && tools.status === "fulfilled") tools.value.preloadToolScreens();
@@ -7432,7 +7270,6 @@ export default function App() {
       deferredWarmTimer = window.setTimeout(() => void warmDeferredScreens(), 600);
     }
     void load();
-    void checkUpdate();
     // Favorites are mirrored to a filesystem sidecar and random-gacha history.
     // Merge every available source at boot before a profile rename can make a
     // still-existing collection appear empty.
@@ -7469,11 +7306,6 @@ export default function App() {
     window.addEventListener("keydown", markInteraction);
     window.addEventListener("wheel", markInteraction, { passive: true });
     automaticBackupTimer = window.setTimeout(attemptAutomaticBackup, 60_000);
-    // A release may appear while the app is already open, and a transient
-    // network/proxy failure at boot should not suppress updates for the whole
-    // session. Retry once shortly after launch, then poll at a low frequency.
-    const updateRetryTimer = window.setTimeout(() => void checkUpdate(), 30_000);
-    const updatePollTimer = window.setInterval(() => void checkUpdate(), 30 * 60_000);
     return () => {
       cancelled = true;
       if (deferredWarmTimer !== undefined) window.clearTimeout(deferredWarmTimer);
@@ -7482,10 +7314,8 @@ export default function App() {
       window.removeEventListener("pointerdown", markInteraction);
       window.removeEventListener("keydown", markInteraction);
       window.removeEventListener("wheel", markInteraction);
-      window.clearTimeout(updateRetryTimer);
-      window.clearInterval(updatePollTimer);
     };
-  }, [load, checkUpdate]);
+  }, [load]);
 
   const shouldShowSplash = useMemo(() => splash || !bootDone, [splash, bootDone]);
   return shouldShowSplash ? <SplashPage /> : <MainPage />;

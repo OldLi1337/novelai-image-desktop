@@ -1,4 +1,5 @@
 import {Icon} from './icons';
+import {errorText} from '../error-message';
 import {useEffect,useRef,useState} from 'react';
 import {useAppStore} from '../store';
 import type {ImageFavorite} from '../favorites-types';
@@ -22,13 +23,12 @@ function subscribe(refresh:()=>void){
 export function ImageFavoriteButton({src,compact=false,menuItem=false}:{src:string;compact?:boolean;menuItem?:boolean}) {
  const [item,setItem]=useState<ImageFavorite|null>(null),[busy,setBusy]=useState(false),[checking,setChecking]=useState(true),[error,setError]=useState('');
  const revision=useRef(0),pending=useRef(false);
- const language=useAppStore(s=>s.settings?.language),zh=String(language??'zh-CN').startsWith('zh');
  useEffect(()=>{
   const token=++revision.current;let read=0;setItem(null);setBusy(false);pending.current=false;setError('');
-  const refresh=()=>{const current=++read;setChecking(true);void status(src).then(result=>{if(token===revision.current&&current===read)setItem(result);}).catch(e=>{if(token===revision.current&&current===read)setError(String(e));}).finally(()=>{if(token===revision.current&&current===read)setChecking(false);});};
+  const refresh=()=>{const current=++read;setChecking(true);void status(src).then(result=>{if(token===revision.current&&current===read)setItem(result);}).catch(e=>{if(token===revision.current&&current===read)setError(errorText(e));}).finally(()=>{if(token===revision.current&&current===read)setChecking(false);});};
   const unsubscribe=subscribe(refresh);refresh();return()=>{revision.current++;unsubscribe();};
  },[src]);
- const saved=!!item,label=busy?(zh?'处理中…':'Updating…'):saved?(zh?'取消收藏':'Remove from favorites'):(zh?'收藏图片':'Save to favorites');
+ const saved=!!item,label=busy?'处理中…':saved?'取消收藏':'收藏图片';
  async function toggle(){
   if(pending.current||mutations.has(src)||checking)return;
   pending.current=true;mutations.add(src);setBusy(true);setError('');const token=revision.current;
@@ -38,7 +38,7 @@ export function ImageFavoriteButton({src,compact=false,menuItem=false}:{src:stri
    const next=current?(await window.naiDesktop.favoritesRemove(current.id),null):(await window.naiDesktop.favoritesAdd(src)).item;
    if(token===revision.current)setItem(next);
    window.dispatchEvent(new Event('studio:favorites-changed'));
-  }catch(e){const message=e instanceof Error?e.message:String(e);if(token===revision.current)setError(message);useAppStore.getState().setToast(message);window.dispatchEvent(new Event('studio:favorites-changed'));}
+  }catch(e){const message=errorText(e);if(token===revision.current)setError(message);useAppStore.getState().setToast(message);window.dispatchEvent(new Event('studio:favorites-changed'));}
   finally{mutations.delete(src);if(token===revision.current){pending.current=false;setBusy(false);}}
  }
  return <button type="button" className={`image-favorite-action${compact?' is-compact':''}`} role={menuItem?"menuitemcheckbox":undefined} aria-checked={menuItem?saved:undefined} aria-label={label} title={error||label} aria-pressed={menuItem?undefined:saved} disabled={!src||checking||busy} aria-busy={busy||checking} onClick={e=>{e.stopPropagation();void toggle();}}><Icon name={saved?'check':'star'}/>{!compact&&label}</button>;

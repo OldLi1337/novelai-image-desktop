@@ -1,4 +1,5 @@
 import { isInsideInpaintSurface } from "./inpaint-pointer";
+import { errorText } from "./error-message";
 import {useResultComparison} from "./use-result-comparison";
 import {normalizeAutomaticComparison} from './automatic-comparison';
 import {workflowText} from './workflow-text';
@@ -132,9 +133,9 @@ export function InpaintCanvas() {
     if (editRestore) {
       if (hydratedRestoreRef.current === editRestore.revision) return;
       try {
-        if (!ctx) throw new Error("Canvas context unavailable.");
+        if (!ctx) throw new Error("画布不可用。");
         if (editRestore.sourceFilePath !== workbenchImage.filePath || editRestore.width !== workbenchImage.width || editRestore.height !== workbenchImage.height) {
-          throw new Error("The editing source changed during restoration.");
+          throw new Error("恢复期间编辑原图发生了变化。");
         }
         // Prepare the entire restored raster before resizing/clearing the visible canvas.
         let restored: ImageData | null = null;
@@ -164,7 +165,7 @@ export function InpaintCanvas() {
         if (!editRestore.rollback) setCompareEnabled(false);
         acknowledgeEditRestore(editRestore.revision, true);
       } catch (error) {
-        acknowledgeEditRestore(editRestore.revision, false, String(error));
+        acknowledgeEditRestore(editRestore.revision, false, errorText(error));
       }
       return;
     }
@@ -859,7 +860,7 @@ export function InpaintCanvas() {
             drawSamples(coalesced?.length ? coalesced : [native]);
           }}
           onPointerEnter={(event) => updateCursor(event.clientX, event.clientY)}
-          onPointerUp={(event) => {if(selectingRegion&&regionStart.current){try{if(draftRegion && (openaiEngine || (draftRegion.width >= 32 && draftRegion.height >= 32)))setRegion(openaiEngine ? clipInpaintRegion(draftRegion,workbenchImage.width,workbenchImage.height) : draftRegion);}catch(e){useAppStore.getState().setToast(String(e));}regionStart.current=null;setDraftRegion(null);setSelectingRegion(false);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);return;}finishPointer(event);}}
+          onPointerUp={(event) => {if(selectingRegion&&regionStart.current){try{if(draftRegion && (openaiEngine || (draftRegion.width >= 32 && draftRegion.height >= 32)))setRegion(openaiEngine ? clipInpaintRegion(draftRegion,workbenchImage.width,workbenchImage.height) : draftRegion);}catch(e){useAppStore.getState().setToast(errorText(e));}regionStart.current=null;setDraftRegion(null);setSelectingRegion(false);if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);return;}finishPointer(event);}}
           onPointerCancel={(event) => {regionStart.current=null;setDraftRegion(null);finishPointer(event, true);}}
           onLostPointerCapture={(event) => {
             regionStart.current = null;

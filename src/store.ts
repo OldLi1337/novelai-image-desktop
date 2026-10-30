@@ -42,19 +42,17 @@ import type {
   ReversePromptScope,
   TextToolHistoryItem,
   TextToolJob,
-  UpdateInfo,
-  UpdateProgressEvent,
   UpscaleScale,
   VibeTransferImage,
   PreciseReferenceImage,
   WorkingImage,
 } from "./types";
 import { createDefaultBatchRedraw, DEFAULT_AUGMENT_OPTIONS, DEFAULT_I2I_PARAMS, DEFAULT_PARAMS, DIRECTOR_TOOLS, EMOTION_OPTIONS, isNAIV5Model, maxNAICharacterPrompts, NAI_INPAINT_MODELS, normalizeGenerateParams, normalizeNAIBaseModel, seedForBatch } from "./types";
-import { normalizeAppLanguage } from "./i18n";
+import { normalizeAppLanguage, withAppLanguage } from "./i18n";
 import { expandWildcards } from "./wildcards";
 import { adaptiveNAIImageSize } from "./nai-dimensions";
 import { normalizeInpaintBrushSize } from "./inpaint-brush";
-import { compactRemoteErrorText } from "./error-message";
+import { compactRemoteErrorText, errorText } from "./error-message";
 import type { ActiveTab } from "./app/navigation";
 
 type PromptTab = "positive" | "negative";
@@ -87,7 +85,6 @@ const storeIpcListenerRegistryKey = "__langbaiNovelAiStoreIpcListeners";
 type StoreIpcListenerRegistry = {
   owner: object;
   removeGenerationPreview?: () => void;
-  removeUpdateEvent?: () => void;
   removeImageServiceChanged?: () => void;
 };
 
@@ -284,9 +281,6 @@ interface AppState {
   statusText: string;
   lastError: string;
   toast: string;
-  updateInfo: UpdateInfo | null;
-  isPortable: boolean;
-  updateProgress: UpdateProgressEvent | null;
 
   load: () => Promise<void>;
   setShowOnboarding: (value: boolean) => void;
@@ -307,10 +301,6 @@ interface AppState {
     captions: CharCaptionItem[],
     options?: MetadataRestoreOptions,
   ) => void;
-  checkUpdate: () => Promise<void>;
-  dismissUpdate: () => void;
-  downloadUpdate: () => Promise<void>;
-  installUpdate: () => void;
   setSelectedDate: (date: string) => Promise<void>;
   setSelectedGroupId: (groupId: string) => Promise<void>;
   setGenerationGroupId: (groupId: string) => Promise<void>;
@@ -586,10 +576,10 @@ function submittedInpaintEdit(state: AppState, source: WorkingImage, engine: Inp
 function validateSavedInpaintRegion(session: InpaintEditSession) {
   const r = session.region;
   if (!r) return;
-  if (![r.x, r.y, r.width, r.height].every(Number.isInteger) || r.x < 0 || r.y < 0 || r.width < 8 || r.height < 8 || r.x + r.width > session.source.width || r.y + r.height > session.source.height) throw Error("The saved editing region is outside its original image.");
+  if (![r.x, r.y, r.width, r.height].every(Number.isInteger) || r.x < 0 || r.y < 0 || r.width < 8 || r.height < 8 || r.x + r.width > session.source.width || r.y + r.height > session.source.height) throw Error("保存的编辑选区超出了原图范围。");
   if (session.engine === "novelai") {
     const clamped = clampFocusedInpaintRegion(r, session.source.width, session.source.height);
-    if (Object.keys(r).some(k => r[k as keyof InpaintRegion] !== clamped[k as keyof InpaintRegion])) throw Error("The saved editing region no longer meets the inpaint limits.");
+    if (Object.keys(r).some(k => r[k as keyof InpaintRegion] !== clamped[k as keyof InpaintRegion])) throw Error("保存的编辑选区已不符合重绘限制。");
   }
 }
 
@@ -1007,16 +997,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   statusText: storeText(null, "status.ready"),
   lastError: "",
   toast: "",
-  updateInfo: null,
-  isPortable: false,
-  updateProgress: null,
 
   async load() {
     const listenerHost = window as typeof window & Record<string, unknown>;
     const listenerRegistry = listenerHost[storeIpcListenerRegistryKey] as StoreIpcListenerRegistry | undefined;
     if (listenerRegistry?.owner !== storeIpcListenerOwner) {
       listenerRegistry?.removeGenerationPreview?.();
-      listenerRegistry?.removeUpdateEvent?.();
       listenerRegistry?.removeImageServiceChanged?.();
       const removeGenerationPreview = window.naiDesktop.onGenerationPreview((event) => {
         const state = get();
@@ -1030,18 +1016,16 @@ export const useAppStore = create<AppState>((set, get) => ({
           });
         }
       });
-      const removeUpdateEvent = window.naiDesktop.onUpdateEvent((event) => set({ updateProgress: event }));
       const removeImageServiceChanged = window.naiDesktop.onImageServiceChanged?.(() => {
         void window.naiDesktop.getSettings().then((incoming) => {
           if ((listenerHost[storeIpcListenerRegistryKey] as StoreIpcListenerRegistry | undefined)?.owner !== storeIpcListenerOwner) return;
-          set((state) => ({ settings: mergeImageSettings(state.settings, incoming) }));
+          set((state) => ({ settings: mergeImageSettings(state.settings, withAppLanguage(incoming)) }));
         }).catch(() => { /* A failed refresh leaves drafts intact; host CAS still rejects stale writes. */ });
       });
       listenerHost[storeIpcListenerRegistryKey] = {
         owner: storeIpcListenerOwner,
         removeImageServiceChanged: typeof removeImageServiceChanged === "function" ? removeImageServiceChanged : undefined,
         removeGenerationPreview: typeof removeGenerationPreview === "function" ? removeGenerationPreview : undefined,
-        removeUpdateEvent: typeof removeUpdateEvent === "function" ? removeUpdateEvent : undefined,
       } satisfies StoreIpcListenerRegistry;
     }
 
@@ -1050,9 +1034,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     // retriable error instead of the other reads' fire-and-forget defaults.
     let settings: AppSettings;
     try {
-      settings = await window.naiDesktop.getSettings();
+      settings = withAppLanguage(await window.naiDesktop.getSettings());
     } catch (error: any) {
-      set({ bootError: error?.message || "读取设置失败，请重试。" });
+      set({ bootError: errorText(error, "读取设置失败，请重试。") });
       return;
     }
     set({ bootError: null });
@@ -1061,19 +1045,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     // network drive) without blocking boot — a single Promise.all would let
     // any one rejection permanently strand the splash screen with bootDone
     // never set. Each gets a safe default instead.
-    const [accountResult, firstRunResult, datesResult, groupsResult, portableResult] = await Promise.allSettled([
+    const [accountResult, firstRunResult, datesResult, groupsResult] = await Promise.allSettled([
       window.naiDesktop.accountCached(),
       window.naiDesktop.isFirstRun(),
       window.naiDesktop.getHistoryDates(),
       window.naiDesktop.getHistoryGroups(),
-      window.naiDesktop.isPortable(),
     ]);
     const account: AccountSummary = accountResult.status === "fulfilled" ? accountResult.value : { hasToken: false };
     const firstRun = firstRunResult.status === "fulfilled" ? firstRunResult.value : false;
     const dates = datesResult.status === "fulfilled" ? datesResult.value : [];
     const groups = groupsResult.status === "fulfilled" ? groupsResult.value : [];
-    const isPortable = portableResult.status === "fulfilled" ? portableResult.value : false;
-    set({ isPortable });
 
     const selectedDate = dates[0] ?? "";
     const selectedGroupId = settings.activeHistoryGroupId ?? "";
@@ -1266,29 +1247,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     persistGenerationState(get);
   },
 
-  async checkUpdate() {
-    try {
-      const info = await window.naiDesktop.checkUpdate();
-      set({ updateInfo: info });
-    } catch {
-      // silent — update check is best-effort
-    }
-  },
-
-  dismissUpdate() {
-    set({ updateInfo: null });
-  },
-
-  async downloadUpdate() {
-    set({ updateProgress: { kind: "checking" } });
-    const result = await window.naiDesktop.downloadUpdate();
-    if (!result.ok) set({ updateProgress: { kind: "error", message: result.message }, toast: result.message });
-  },
-
-  installUpdate() {
-    void window.naiDesktop.installUpdate();
-  },
-
   async setSelectedDate(date) {
     const history = await window.naiDesktop.getHistory(date || undefined, get().selectedGroupId || undefined);
     set({ selectedDate: date, history, currentImage: history[0] ?? get().currentImage });
@@ -1382,7 +1340,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         set((state) => ({
           history: state.history.map((item) => item.id === id ? previous : item),
           currentImage: state.currentImage?.id === id ? previous : state.currentImage,
-          toast: error?.message ?? String(error),
+          toast: errorText(error),
         }));
       }
     }
@@ -1401,7 +1359,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   async refreshSettings() {
-    const settings = await window.naiDesktop.getSettings();
+    const settings = withAppLanguage(await window.naiDesktop.getSettings());
     set((state) => {
       const nextSettings = mergeFullSettings(state.settings, settings);
       let inpaintRegion = state.inpaintRegion;
@@ -1583,16 +1541,16 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (!session || state.isGenerating || state.isRestoringInpaintEditSession) return false;
     const failure = (message: string) => `${inpaintEditText(get().settings?.language).failed}: ${message}`;
     const engine = state.settings?.inpaintEngine === "openai" ? "openai" : "novelai";
-    if (engine !== session.engine) { set({ toast: failure("Switch back to the engine used for this inpaint first.") }); return false; }
+    if (engine !== session.engine) { set({ toast: failure("请先切换回这次重绘使用的引擎。") }); return false; }
     const previous = inpaintEditorState(state), revision = ++inpaintEditRestoreRevision;
     const loadRevision = ++workbenchLoadRevision, settlement = generationSettlementRevision;
     let loadedMainSource = false, committed = false;
     set({ isRestoringInpaintEditSession: true });
     try {
       const result = await window.naiDesktop.loadImageFromPath(session.source.filePath);
-      if (!result.ok || !result.image) throw Error(result.message || "The original image could not be loaded.");
+      if (!result.ok || !result.image) throw Error(result.message || "无法载入原图。");
       loadedMainSource = true;
-      if (result.image.width !== session.source.width || result.image.height !== session.source.height) throw Error("The original image dimensions have changed since inpainting.");
+      if (result.image.width !== session.source.width || result.image.height !== session.source.height) throw Error("原图尺寸在重绘后已改变。");
       await validateInpaintEditSource(result.image);
       const maskRgba = await decodeInpaintEditMask(session.maskBase64, result.image.width, result.image.height);
       validateSavedInpaintRegion(session);
@@ -1611,7 +1569,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       committed = true;
       return true;
     } catch (error) {
-      if (revision === inpaintEditRestoreRevision) { const message = failure((error as Error).message); set({ toast: message, statusText: message }); }
+      if (revision === inpaintEditRestoreRevision) { const message = failure(errorText(error)); set({ toast: message, statusText: message }); }
       return false;
     } finally {
       if (!committed) {
@@ -1634,7 +1592,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       set({ inpaintEditRestore: null, isRestoringInpaintEditSession: false });
       return;
     }
-    const failed = `${inpaintEditText(state.settings?.language).failed}: ${message || "Canvas hydration failed."}`;
+    const failed = `${inpaintEditText(state.settings?.language).failed}: ${message || "画布恢复失败。"}`;
     if (payload.rollback) {
       pendingInpaintEditRestore = null;
       set({ inpaintEditRestore: null, isRestoringInpaintEditSession: false, toast: failed, statusText: failed });
@@ -1648,7 +1606,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const maskRgba = source ? await decodeInpaintEditMask(previous.inpaintMask, source.width, source.height) : null;
         if (source) {
           const reloaded = await window.naiDesktop.loadImageFromPath(source.filePath);
-          if (!reloaded.ok || !reloaded.image || reloaded.image.width !== source.width || reloaded.image.height !== source.height) throw Error("The previous editing image could not be reloaded.");
+          if (!reloaded.ok || !reloaded.image || reloaded.image.width !== source.width || reloaded.image.height !== source.height) throw Error("无法重新载入之前的编辑图片。");
           await validateInpaintEditSource(reloaded.image);
         }
         if (pendingInpaintEditRestore?.revision !== rollbackRevision || get().inpaintEditRestore?.revision !== revision) return;
@@ -1663,7 +1621,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         if (pendingInpaintEditRestore?.revision !== rollbackRevision) return;
         pendingInpaintEditRestore = null;
         set({ ...previous, maskRevision: get().maskRevision + 1, inpaintEditRestore: null,
-          isRestoringInpaintEditSession: false, toast: `${failed} ${(error as Error).message}`, statusText: failed });
+          isRestoringInpaintEditSession: false, toast: `${failed} ${errorText(error)}`, statusText: failed });
       }
     })();
   },
@@ -2242,7 +2200,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         lastError: "",
       }));
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      const message = errorText(error);
       set((current) => {
         const stillQueued = current.generationQueue.some((job) => job.id === jobId);
         return {

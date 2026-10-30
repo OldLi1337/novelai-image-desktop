@@ -1,6 +1,12 @@
 import {describe,it,expect} from 'vitest';
-import {NAI_ACCOUNT_LOCALES,naiAccountText} from './nai-accounts-locales';
-describe('account UI five-language text',()=>{
- for(const [key,row] of Object.entries(NAI_ACCOUNT_LOCALES))it(key,()=>{expect(row).toHaveLength(5);for(const text of row)expect(text.trim()).not.toBe('');expect(row[2]).not.toMatch(/[\u3400-\u9fff]/);});
- it('selects all supported languages',()=>{expect(naiAccountText('en-US','manage')).toBe('Manage accounts');expect(naiAccountText('zh-TW','remove')).toBe('刪除');expect(naiAccountText('ja-JP','remove')).toBe('削除');expect(naiAccountText('ko-KR','remove')).toBe('삭제');});
+import fs from 'node:fs';
+import {NAI_ACCOUNT_TEXT,naiAccountText} from './nai-accounts-locales';
+describe('account UI text',()=>{
+ for(const [key,text] of Object.entries(NAI_ACCOUNT_TEXT))it(key,()=>{expect(text.trim()).not.toBe('');});
+ it('renders the Chinese text whatever language is passed',()=>{expect(naiAccountText('zh-CN','manage')).toBe('账户管理');expect(naiAccountText(undefined,'remove')).toBe('删除');});
+ it('tells the account manager when the last selected account could not be read on this machine',()=>{
+  expect(NAI_ACCOUNT_TEXT.selectionUnreadable).toContain('删除该账户后重新添加');
+  const manager=fs.readFileSync('src/components/NaiAccountManager.tsx','utf8');
+  expect(manager).toContain("else if(state.selectionUnreadable)setMessage(current=>current||'selectionUnreadable');");
+ });
 });
