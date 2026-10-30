@@ -1,7 +1,7 @@
 # 贡献指南 / Contributing
 
 感谢你对 Langbai NovelAI Studio 的兴趣！本项目是一个 **API-only** 的 NovelAI
-桌面客户端（Electron + React + TypeScript），支持 Windows 与 macOS。
+客户端：桌面端（Electron + React + TypeScript）支持 Windows 与 macOS，iOS 端（Flutter）位于 `mobile/`。
 
 ## 开发环境
 
@@ -22,6 +22,8 @@ npm run build      # 生产构建
 ```
 
 CI 会在推送到 main 或版本标签时对 Windows / macOS 跑上述检查并打包。
+
+改动 `mobile/` 时，在 `mobile/` 目录用 Flutter 3.24.0 运行 `flutter analyze` 与 `flutter test`；PR 会自动检查，版本标签上会构建未签名 IPA。
 
 ## 代码结构
 

@@ -9,6 +9,12 @@ function read(relativePath: string): string {
   return fs.readFileSync(path.join(root, relativePath), "utf8");
 }
 
+// The iOS client came back after desktop 2.7.0 had shipped without it, still
+// carrying the 2.6.7+187 it was restored with. That is the only accepted
+// mismatch: the next release gives mobile/pubspec.yaml and appVersion the
+// package.json version and raises the build number, as every release did.
+const restoredMobile = { desktop: "2.7.0", version: "2.6.7", build: 187 };
+
 describe("release version consistency", () => {
   it("keeps desktop user-facing versions aligned with package.json", () => {
     const packageVersion = JSON.parse(read("package.json")).version as string;
@@ -16,6 +22,28 @@ describe("release version consistency", () => {
 
     expect(APP_VERSION).toBe(packageVersion);
     expect(mcpClient).toContain(`version: "${packageVersion}"`);
+  });
+
+  it("keeps the iOS version aligned with package.json from the next release on", () => {
+    const packageVersion = JSON.parse(read("package.json")).version as string;
+    const pubspec = read("mobile/pubspec.yaml").match(/^version:\s*(\d+\.\d+\.\d+)\+(\d+)\s*$/m);
+    const appVersion = read("mobile/lib/models/nai_models.dart")
+      .match(/^const appVersion = '([^']+)';\s*$/m)?.[1];
+    const infoPlist = read("mobile/ios/Runner/Info.plist");
+
+    expect(pubspec).not.toBeNull();
+    const mobile = { version: pubspec![1], build: Number(pubspec![2]) };
+    // The app shows appVersion; the IPA takes its version and build number from pubspec.yaml.
+    expect(appVersion).toBe(mobile.version);
+    expect(infoPlist).toMatch(/<key>CFBundleShortVersionString<\/key>\s*<string>\$\(FLUTTER_BUILD_NAME\)<\/string>/);
+    expect(infoPlist).toMatch(/<key>CFBundleVersion<\/key>\s*<string>\$\(FLUTTER_BUILD_NUMBER\)<\/string>/);
+
+    if (packageVersion === restoredMobile.desktop && mobile.version !== packageVersion) {
+      expect(mobile).toEqual({ version: restoredMobile.version, build: restoredMobile.build });
+    } else {
+      expect(mobile.version).toBe(packageVersion);
+      expect(mobile.build).toBeGreaterThan(restoredMobile.build);
+    }
   });
 
   it("derives the desktop display version instead of hard-coding it", () => {

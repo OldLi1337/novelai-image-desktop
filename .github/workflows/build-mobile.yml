@@ -1,0 +1,207 @@
+name: Build iOS
+
+on:
+  push:
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - 'shared/**'
+      - 'tests/fixtures/**'
+      - 'src/data/**'
+      - 'src/official-metadata-worker.ts'
+      - 'src/png-metadata-codecs.ts'
+      - 'src/image-metadata-pixels.ts'
+      - 'public/ui-fonts/**'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'LICENSE'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'scripts/verify-mobile-version.py'
+      - 'scripts/build-mobile-metadata-runtime.mjs'
+      - 'scripts/sync-mobile-prompt-templates.mjs'
+      - '.github/workflows/build-mobile.yml'
+  workflow_dispatch:
+    inputs:
+      candidate_build_only:
+        description: Build a private unsigned IPA candidate only; skip analyze/test and never attach it to a release
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Force bundled JS actions onto Node 24 (silences the Node 20 deprecation notice).
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  test:
+    if: ${{ !inputs.candidate_build_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Preserve exact source bytes before checkout
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked tooling for the asset checks (no install scripts)
+        working-directory: .
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      # The app bundles the desktop metadata worker and prompt templates; a
+      # release must not ship copies that are older than the desktop sources.
+      - name: Check the desktop assets bundled in the iOS app
+        working-directory: .
+        run: |
+          node scripts/build-mobile-metadata-runtime.mjs --check
+          node scripts/sync-mobile-prompt-templates.mjs --check
+
+      # Releases need one version everywhere; other runs only warn, because a
+      # candidate keeps the current version until the next release bumps it.
+      - name: Check the iOS version against package.json
+        working-directory: .
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          if [ "$RELEASE_TAG" = "true" ]; then
+            expected="v$(python3 -c 'import json; print(json.load(open("package.json"))["version"])')"
+            if [ "$GITHUB_REF_NAME" != "$expected" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match the package.json version ($expected)."
+              exit 1
+            fi
+          fi
+          if python3 scripts/verify-mobile-version.py; then
+            exit 0
+          fi
+          if [ "$RELEASE_TAG" = "true" ]; then
+            echo "::error::package.json, package-lock.json, mobile/pubspec.yaml and appVersion in mobile/lib/models/nai_models.dart must carry the release version."
+            exit 1
+          fi
+          echo "::warning::The iOS version differs from package.json; the next release must bump mobile/pubspec.yaml (version and build number) and appVersion."
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze --no-pub
+
+      - name: Test
+        run: flutter test --no-pub
+
+  ios:
+    needs: test
+    # Candidate builds skip the test job but still build; pull requests only test.
+    if: ${{ !cancelled() && github.event_name != 'pull_request' && (needs.test.result == 'success' || (inputs.candidate_build_only && needs.test.result == 'skipped')) }}
+    runs-on: macos-latest
+    timeout-minutes: 45
+    # Needed for softprops/action-gh-release to attach the IPA to the release on v* tags.
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Preserve exact source bytes before checkout
+        shell: bash
+        working-directory: ${{ github.workspace }}
+        run: git config --global core.autocrlf false
+
+      - uses: actions/checkout@v5
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Name the IPA after the app version
+        id: ipa
+        run: |
+          version=$(sed -nE 's/^version:[[:space:]]*([0-9]+\.[0-9]+\.[0-9]+)\+[0-9]+[[:space:]]*$/\1/p' pubspec.yaml)
+          test -n "$version"
+          echo "name=Langbai-NovelAI-Studio-$version-ios-unsigned.ipa" >> "$GITHUB_OUTPUT"
+
+      # No Apple certificate in CI: the app is compiled without code signing and
+      # packaged as an unsigned IPA that users sign themselves before installing.
+      - name: Build iOS (no codesign)
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned IPA
+        env:
+          IPA_NAME: ${{ steps.ipa.outputs.name }}
+        run: |
+          cd build/ios/iphoneos
+          rm -rf Payload
+          mkdir Payload
+          cp -R Runner.app Payload/
+          zip -qr "../../../$IPA_NAME" Payload
+          ls -lh "../../../$IPA_NAME"
+
+      - name: Check the unsigned IPA
+        env:
+          IPA_NAME: ${{ steps.ipa.outputs.name }}
+        run: |
+          python3 - <<'PY'
+          import hashlib, os, pathlib, plistlib, re, zipfile
+          asset = pathlib.Path(os.environ['IPA_NAME'])
+          spec = re.search(r'^version:\s*([^\s+]+)\+(\d+)\s*$', pathlib.Path('pubspec.yaml').read_text(encoding='utf-8'), re.M)
+          assert spec, 'pubspec.yaml has no version+build line'
+          with zipfile.ZipFile(asset) as archive:
+              names = archive.namelist()
+              plists = [name for name in names if re.fullmatch(r'Payload/[^/]+\.app/Info\.plist', name)]
+              assert len(plists) == 1 and len(names) == len(set(names)), 'expected exactly one app in Payload/'
+              app = plists[0][:-len('Info.plist')]
+              info = plistlib.loads(archive.read(plists[0]))
+              executable = info['CFBundleExecutable']
+              assert re.fullmatch(r'[A-Za-z0-9_.-]+', executable) and executable not in ('.', '..'), 'invalid CFBundleExecutable'
+              assert archive.getinfo(app + executable).file_size > 0, 'the app executable is empty'
+              assert str(info['CFBundleShortVersionString']) == spec[1], 'CFBundleShortVersionString differs from pubspec.yaml'
+              assert str(info['CFBundleVersion']) == spec[2], 'CFBundleVersion differs from pubspec.yaml'
+              assert app + 'embedded.mobileprovision' not in names, 'the IPA carries a provisioning profile'
+              assert not any(name.startswith(app + '_CodeSignature/') for name in names), 'the app is signed'
+              assert archive.testzip() is None, 'ZIP CRC check failed'
+          digest = hashlib.sha256(asset.read_bytes()).hexdigest()
+          summary = f"{asset.name}: {info['CFBundleIdentifier']} {spec[1]} ({spec[2]}), unsigned, {asset.stat().st_size} bytes, SHA-256 {digest}"
+          print(summary)
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as out:
+              out.write(summary + '\n')
+          PY
+
+      - name: Upload unsigned IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-unsigned-ipa
+          path: mobile/${{ steps.ipa.outputs.name }}
+          if-no-files-found: error
+
+      # The desktop jobs write the release notes; this step only adds the IPA,
+      # so it never overwrites notes edited on the release page in the meantime.
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v') && !inputs.candidate_build_only
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          files: mobile/${{ steps.ipa.outputs.name }}

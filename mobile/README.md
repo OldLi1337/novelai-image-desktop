@@ -1,6 +1,6 @@
 # NovelAI Studio — 移动端（Flutter）
 
-桌面端 Electron 应用的 **Android / iOS 移植版**,使用 Flutter (Dart) 重写。
+桌面端 Electron 应用的 **iOS 版**,使用 Flutter (Dart) 重写。
 与桌面端共享同一个 NovelAI 官方 API,但 UI 和原生桥接层是独立实现。
 
 > ⚠️ 这是一个**渐进式移植**。下面标 ✅ 的功能已实现并经构建验证;标 ⬜ 的在后续阶段补齐。真机行为仍需在设备上实测迭代。
@@ -47,22 +47,21 @@ flutter analyze        # 静态检查
 flutter test           # 单元测试
 ```
 
-桌面端灵感胶囊数据发生变化后，同步 Android 资源：
+桌面端灵感胶囊、原数据解析或提示词模板发生变化后，在仓库根目录同步移动端资源：
 
 ```bash
 node scripts/sync-mobile-capsules.mjs
+node scripts/build-mobile-metadata-runtime.mjs
+node scripts/sync-mobile-prompt-templates.mjs
 ```
 
 ## 构建
 
 ```bash
-flutter build apk --release            # Android APK
-flutter build ios --release --no-codesign   # iOS（无签名，仅测试/归档）
+flutter build ios --release --no-codesign   # iOS（无签名，需要 macOS + Xcode）
 ```
 
-CI(`.github/workflows/build-mobile.yml`)会自动产出:
-- **Android APK**(可直接安装)
-- **未签名 IPA**(无 Apple 开发者证书,**无法直接装真机**,仅作归档 / 自行侧载)
+CI(`.github/workflows/build-mobile.yml`)在版本标签和手动运行时产出**未签名 IPA**(无 Apple 开发者证书,**不能直接安装到普通 iPhone**,需自行签名后安装),版本标签上会附加到 Release;改动 `mobile/` 的 PR 只做检查(含 `flutter analyze` 与 `flutter test`),不构建 IPA。
 
 ## 目录
 

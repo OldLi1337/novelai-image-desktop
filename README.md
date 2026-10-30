@@ -8,7 +8,7 @@
 
 ### 从一句灵感，到一组作品。
 
-NovelAI 图像创作工作台，Windows / macOS 桌面版，界面为简体中文；第三方诊断日志保留原文。
+NovelAI 图像创作工作台，提供 Windows / macOS 桌面版与 iOS 版（iOS 为未签名 IPA，需自行签名安装），界面为简体中文；第三方诊断日志保留原文。
 
 ![芙宁娜主题宣传插画，软件界面为视觉示意](./docs/assets/readme/furina-workbench.png)
 
@@ -35,10 +35,11 @@ NovelAI 图像创作工作台，Windows / macOS 桌面版，界面为简体中�
 - **提示词联想修复**：在输入框内任意位置点击、移动光标、按 Esc、点击外部或失去焦点时联想列表都会关闭；选中的标签总是替换触发联想的那个词；回车选择当前高亮的项，列表在静止的鼠标下弹出或滚动时不会误选；列表不会被面板遮挡；补全多词标签和带权重的写法时不再重复已输入的词。
 - **账户无法解密时仍可启动**：上次使用的账户在本机无法解密时（例如从其他电脑复制了设置），软件会取消选择该账户并正常启动，不再停在启动页。
 - **其他修正**：下拉菜单中长名称的排版；几处直接显示内部键名的文字；在线参考目录无法访问时改读安装包内置的目录；错误提示去掉英文的 “Error invoking remote method” 前缀；备份恢复时账户验证失败或凭据无法解密会给出中文原因。
+- **iOS 版**：保留原项目的 iOS 客户端并按桌面版同样精简：删除生图智能体及依附于它的「对外 MCP 服务」（Tag / MCP 标签检索保留）、软件内更新与其他界面语言，关于页也和桌面版一样修改。上面的增强倍率（iOS 在「图像后期 → 增强」）、提示词库常驻与正面追加、提示词标签和联想修复都已同步到 iOS，iOS 也新增了自定义提词；标签和自定义提词会随 `.naisbackup` 在桌面与 iOS 之间互通。iOS 版只提供未签名 IPA，需要自行签名后安装。
 
 ### 精简
 
-- **只保留桌面端**：删除 Android、iOS 与 Linux 客户端及其构建配置，只提供 Windows 与 macOS 安装包。
+- **删除 Android 与 Linux 客户端**：删除 Android 和 Linux 客户端及其构建配置，提供 Windows、macOS 安装包和 iOS 的未签名 IPA。
 - **删除生图智能体**：移除「生图智能体」标签页（聊天式生图助手及其模型服务商配置、对话记录）。设置中的「本地 MCP 服务」保留，Claude Code、Codex 等外部智能体仍可通过 MCP 调用本软件。
 - **删除本地 Agent 组件**：移除仅 Windows 的本地 Agent（Studio Harness）组件及其插件、组件下载与更新。
 - **删除本地 ComfyUI**：移除本地 ComfyUI 工作台、环境引导与相关设置；读取 ComfyUI / SD 图片中的生成参数不受影响。
@@ -53,12 +54,13 @@ NovelAI 图像创作工作台，Windows / macOS 桌面版，界面为简体中�
 - 已删除功能的数据会被忽略（例如生图智能体和本地 ComfyUI 里保存的内容），界面语言统一为简体中文。
 - 换装前建议先在原版「设置 → 备份与恢复」导出一份备份。装了本版后不要再用原版打开同一份数据：原版不认识本版新增的标签，重新保存时会把标签丢掉。
 - 原版的软件内更新只会检查原项目的发行版，不会推送本版本；本版本也没有软件内更新，以后的新版本请到 Latest 手动下载。
+- **iOS**：用同一个侧载工具和 Apple ID 安装本版 IPA 时，通常会直接替换原版 iOS 应用并保留数据；换了工具或 Apple ID 则可能装成另一个应用。保险起见，先在原版「设置 → 数据导入、导出与自动备份」导出 `.naisbackup`，装好本版后再导入。
 
 <a id="quick-start"></a>
 ## 先完成你的第一张图
 
-1. **下载客户端**：从[下载区](#download)选择适合系统的安装包。普通使用者不需要安装 Node.js，也不需要运行源码命令。
-2. **连接账号**：打开「设置 → API 配置」，按软件内图文教程获取并填写 Token，点击「保存账号」完成验证，再用「刷新积分」确认余额。
+1. **下载客户端**：从[下载区](#download)选择适合系统的安装包。普通使用者不需要安装 Node.js，也不需要运行源码命令。iPhone / iPad 需要先用自己的 Apple ID 签名才能安装，见 [iOS 安装](./docs/guide/GETTING_STARTED.md#ios)。
+2. **连接账号**：打开「设置 → API 配置」，按软件内图文教程获取并填写 Token，点击「保存账号」完成验证，再用「刷新积分」确认余额。iOS 版在「设置」顶部的账号栏点「管理」添加。
 3. **开始创作**：进入「生成」，选择账号可用模型，输入提示词，检查尺寸、张数与预计费用，然后生成。结果会保存到输出目录并进入历史与素材。
 
 第一次使用可以从一段简单的英文提示词开始，其余参数先保留默认值：
@@ -114,12 +116,15 @@ NovelAI 图像创作工作台，Windows / macOS 桌面版，界面为简体中�
 | Windows x64 · 安装版 | [安装版](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) | 文件名含 Setup 的 EXE；安装前备份设置与作品 |
 | Windows x64 · 便携版 | [便携版](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) | 不含 Setup 的便携 EXE；下载新包替换，便携版不等于零痕迹 |
 | macOS · Intel / Apple Silicon | [Universal DMG](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) / [ZIP](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) | 通用 DMG 或 ZIP；签名 / 公证状态以 Latest 说明为准 |
+| iOS · iPhone / iPad | [未签名 IPA](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) | 文件名含 `ios-unsigned` 的 IPA；**不能直接安装到普通 iPhone**，需用 AltStore、Sideloadly 等工具以自己的 Apple ID 签名后安装 |
 
 附件的 SHA256 以 [Latest](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) 发行页各附件显示的摘要为准，签名和安装限制见 Latest 的说明；首页不写死发行版本、日期标签、校验文件名或带版本的安装包名。
 
 **请手动下载安装。** 软件内不提供更新检查或自动更新；新版本请从 Latest 下载对应平台的安装包。
 
-安装包未在 Windows / Mac 真机上做安装验收；Windows 包未做代码签名，macOS 包未签名、未公证，详见 [Latest](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) 的说明。
+安装包未在 Windows / Mac / iPhone 真机上做安装验收；Windows 包未做代码签名，macOS 包未签名、未公证，iOS 包是未签名 IPA，详见 [Latest](https://github.com/OldLi1337/novelai-image-desktop/releases/latest) 的说明。
+
+**iOS 版需要自行签名。** 本仓库没有 Apple 开发者证书，IPA 不带签名，不能直接安装到普通 iPhone / iPad。请用 AltStore、Sideloadly 等工具以自己的 Apple ID 签名后安装：免费 Apple ID 的签名 7 天后过期，过期后应用无法打开，重新签名即可继续使用，数据保留；iOS 16 及以上还需打开「开发者模式」。步骤见 [iOS 安装](./docs/guide/GETTING_STARTED.md#ios)。
 
 Windows 便携版与安装版共享本机用户数据目录 `%APPDATA%\novelai-image-desktop\`。**便携版不等于零痕迹，也不是所有数据都写在程序旁边。** 更换包前建议备份设置和作品。
 
@@ -155,7 +160,7 @@ Windows 便携版与安装版共享本机用户数据目录 `%APPDATA%\novelai-i
 ## 数据与连接方式
 
 - 客户端通过 API 连接 NovelAI，不依赖网页登录自动化、Cookie 抓取或浏览器点击。
-- 桌面端由 Electron 主进程处理 NovelAI 请求，渲染进程不直接持有 Token；凭据与设置保存在本机配置中。
+- 桌面端由 Electron 主进程处理 NovelAI 请求，渲染进程不直接持有 Token；凭据与设置保存在本机配置中。iOS 端的 Token 与 API Key 保存在系统钥匙串中。
 - 生成会将提示词与所需参考图片发送给 NovelAI；使用反推或转换时，相应输入会发送到你配置的模型服务。在线画廊、参考目录和 Tag/MCP 服务各自访问对应数据源。
 - 原数据读取在本地完成，不调用生图接口、不消耗 Anlas；部分离线词库和已保存的参考预设也可离线查看。**离线查看不代表离线生图。**
 - 提交 Issue 前请移除 Token、API Key、私人对话与敏感图片。
@@ -163,7 +168,7 @@ Windows 便携版与安装版共享本机用户数据目录 `%APPDATA%\novelai-i
 <a id="development"></a>
 ## 给开发者
 
-桌面端：Electron + React + TypeScript。
+桌面端：Electron + React + TypeScript；iOS 端：Flutter（`mobile/`）。
 
 [源码运行与构建](./docs/guide/DEVELOPMENT.md) · [贡献指南](./CONTRIBUTING.md) · [第三方声明](./THIRD_PARTY_NOTICES.md) · [MIT 代码许可证](./LICENSE)
 
