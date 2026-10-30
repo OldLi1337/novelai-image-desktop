@@ -85,7 +85,7 @@ const _runtimeText = <String, Map<String, String>>{
     'status.upscaleOutputTooLarge':
         '超分后尺寸将达到 {width}x{height}，超过允许的最大尺寸 {max}x{max}，已取消请求。请改用 2x 或换用更小的原图。',
     'status.enhanceOutputTooLarge':
-        '增强并放大后的目标尺寸 {width}x{height}（{pixels} 像素）超过 NovelAI 允许的 {max} 像素上限，未发送请求。请选择 1x 或换用更小的原图。',
+        '增强并放大后的目标尺寸 {width}×{height}（{pixels} 像素）超过 NovelAI 允许的 {max} 像素上限。请选择 1×、MAX 或换用更小的原图；未发送请求。',
     'status.directorPreparedRunning': '原图已安全缩至 {width}x{height}，正在后期处理...',
     'status.directorRunning': '正在后期处理，生成前报价 {amount} Anlas...',
     'status.directorRestoreNote': '；已恢复为 {width}x{height}',

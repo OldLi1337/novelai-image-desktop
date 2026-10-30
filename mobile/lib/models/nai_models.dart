@@ -349,8 +349,9 @@ const naiMinDimension = 64;
 const naiMaxPixelArea = 3145728;
 const naiMaxDimension = naiMaxPixelArea ~/ naiMinDimension;
 
-int snapNaiDimension(int value, [int fallback = 1024]) {
-  final source = value > 0 ? value : (fallback > 0 ? fallback : 1024);
+int snapNaiDimension(num value, [int fallback = 1024]) {
+  final source =
+      value.isFinite && value > 0 ? value : (fallback > 0 ? fallback : 1024);
   return ((source / naiDimensionStep).round() * naiDimensionStep)
       .clamp(naiMinDimension, naiMaxDimension)
       .toInt();
@@ -376,8 +377,8 @@ int snapNaiDimensionWithinArea(
 }
 
 (int, int) fitNaiImageSize(
-  int width,
-  int height, {
+  num width,
+  num height, {
   int fallbackWidth = 832,
   int fallbackHeight = 1216,
 }) {
@@ -402,8 +403,8 @@ int snapNaiDimensionWithinArea(
 }
 
 (int, int) adaptiveNaiImageSize(
-  int width,
-  int height, {
+  num width,
+  num height, {
   int fallbackWidth = 832,
   int fallbackHeight = 1216,
 }) =>
@@ -414,14 +415,16 @@ int snapNaiDimensionWithinArea(
       fallbackHeight: fallbackHeight,
     );
 
+/// Resolves the requested Enhance output without silently shrinking it, so an
+/// oversized 1.5x request can be stopped locally.
 ({int width, int height, bool exceedsLimit}) resolveNaiEnhanceOutputSize(
   int width,
   int height,
-  int scale, {
+  num scale, {
   int fallbackWidth = 832,
   int fallbackHeight = 1216,
 }) {
-  final safeScale = math.max(1, scale);
+  final safeScale = scale.isFinite ? math.max<num>(1, scale) : 1;
   final outputWidth = snapNaiDimension(width * safeScale, fallbackWidth);
   final outputHeight = snapNaiDimension(height * safeScale, fallbackHeight);
   return (

@@ -47,6 +47,14 @@ void main() {
     expect(oversized, (width: 1664, height: 2432, exceedsLimit: true));
   });
 
+  test('Enhance 1.5x is sized on the 64-pixel grid like the official client', () {
+    // NovelAI's web client sends an 832x1216 image at 1.5x as 1280x1856.
+    expect(resolveNaiEnhanceOutputSize(832, 1216, 1.5),
+        (width: 1280, height: 1856, exceedsLimit: false));
+    expect(resolveNaiEnhanceOutputSize(1024, 1536, 1.5),
+        (width: 1536, height: 2304, exceedsLimit: true));
+  });
+
   test('Light and transparent background are normalized to V5 only', () {
     final legacy = GenerateParams(
       model: 'nai-diffusion-4-5-full',

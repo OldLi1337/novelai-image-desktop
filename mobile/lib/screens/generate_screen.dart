@@ -23,6 +23,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderAbstractViewport;
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,6 +37,7 @@ import '../ui/effort_control.dart';
 import '../i18n/app_locales.dart';
 import '../models/nai_models.dart';
 import '../prompts/capsule_data.dart';
+import '../prompts/prompt_autocomplete.dart';
 import '../prompts/prompt_tools.dart';
 import '../references/reference_catalog.dart';
 import '../references/reference_presets.dart';
@@ -471,22 +473,37 @@ class PromptEditor extends StatefulWidget {
 
 class PromptEditorState extends State<PromptEditor> {
   late final TextEditingController controller;
+  final _focusNode = FocusNode();
+  final _suggestionScroll = ScrollController();
+  final _suggestionListKey = GlobalKey();
+  final _suggestionRows = List.generate(8, (_) => GlobalKey());
   bool translating = false;
   String? translationBackup;
-  Timer? suggestionTimer;
-  int suggestionRequest = 0;
-  List<TagSuggestion> suggestions = const [];
+  Timer? _suggestionTimer;
+  int _suggestionRequest = 0;
+  List<TagSuggestion> _suggestions = const [];
+  int _activeSuggestion = 0;
+  // The word the suggestions belong to. Choosing a tag replaces this word even
+  // if the caret moved; a newer request makes older responses stale.
+  AutocompleteAnchor? _anchor;
+  late TextEditingValue _lastValue;
 
   @override
   void initState() {
     super.initState();
     controller = TextEditingController(text: widget.value);
+    _lastValue = controller.value;
+    controller.addListener(_handleValueChange);
+    _focusNode.addListener(() {
+      if (!_focusNode.hasFocus) _clearSuggestions();
+    });
   }
 
   @override
   void didUpdateWidget(covariant PromptEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (controller.text == widget.value) return;
+    _clearSuggestions();
     controller.value = TextEditingValue(
       text: widget.value,
       selection: TextSelection.collapsed(offset: widget.value.length),
@@ -495,18 +512,20 @@ class PromptEditorState extends State<PromptEditor> {
 
   @override
   void dispose() {
-    suggestionTimer?.cancel();
+    _suggestionTimer?.cancel();
     controller.dispose();
+    _focusNode.dispose();
+    _suggestionScroll.dispose();
     super.dispose();
   }
 
   void _apply(String value) {
+    _clearSuggestions();
     controller.value = TextEditingValue(
       text: value,
       selection: TextSelection.collapsed(offset: value.length),
     );
     widget.onChanged(value);
-    _scheduleSuggestions(value);
   }
 
     Future<void> _openAssistant(String kind) async {
@@ -523,41 +542,259 @@ class PromptEditorState extends State<PromptEditor> {
       _apply(result);
     }
 
-  void _scheduleSuggestions(String value) {
-    suggestionTimer?.cancel();
+  static bool _composing(TextEditingValue value) =>
+      value.composing.isValid && !value.composing.isCollapsed;
+
+  void _clearSuggestions() {
+    _suggestionRequest++;
+    _anchor = null;
+    _suggestionTimer?.cancel();
+    if (_suggestions.isNotEmpty && mounted) {
+      setState(() => _suggestions = const []);
+    }
+  }
+
+  // Typing is handled by onChanged. This sees the rest: caret moves, which end
+  // the session, and an input method composing or committing text unchanged.
+  void _handleValueChange() {
+    final value = controller.value;
+    final previous = _lastValue;
+    _lastValue = value;
+    if (value.text != previous.text) return;
+    if (_composing(value) != _composing(previous)) {
+      _composing(value) ? _clearSuggestions() : _handleTyping(value);
+      return;
+    }
+    final anchor = _anchor;
+    if (anchor != null &&
+        (!value.selection.isCollapsed ||
+            value.selection.baseOffset != anchor.cursor)) {
+      _clearSuggestions();
+    }
+  }
+
+  void _handleTyping(TextEditingValue value) {
+    // Typing resets the highlight to the first row; show that row too.
+    if (_activeSuggestion != 0) setState(() => _activeSuggestion = 0);
+    if (_suggestionScroll.hasClients) _suggestionScroll.jumpTo(0);
     final state = context.read<AppState>();
-    if (!state.settings.autoComplete) {
-      if (suggestions.isNotEmpty && mounted) setState(() => suggestions = []);
+    final selection = value.selection;
+    // Pinyin and other compositions are not prompt text yet.
+    if (!state.settings.autoComplete ||
+        _composing(value) ||
+        !selection.isValid ||
+        !selection.isCollapsed) {
+      _clearSuggestions();
       return;
     }
-    final token = _lastPromptToken(value);
-    if (token.length < 2) {
-      if (suggestions.isNotEmpty && mounted) setState(() => suggestions = []);
+    final cursor = selection.baseOffset;
+    final (:word, :start) = wordAtCursor(value.text, cursor);
+    if (word.length < 2) {
+      _clearSuggestions();
       return;
     }
-    final request = ++suggestionRequest;
-    suggestionTimer = Timer(const Duration(milliseconds: 320), () async {
-      final result = await state.suggestTags(token);
-      if (!mounted || request != suggestionRequest) return;
-      setState(() => suggestions = result.take(8).toList());
+    _suggestionTimer?.cancel();
+    final request = ++_suggestionRequest;
+    _anchor = (start: start, cursor: cursor, word: word);
+    _suggestionTimer = Timer(const Duration(milliseconds: 320), () async {
+      final List<TagSuggestion> result;
+      try {
+        result = await state.suggestTags(word);
+      } catch (_) {
+        if (mounted && request == _suggestionRequest) _clearSuggestions();
+        return;
+      }
+      // A response that arrives after more typing, a caret move or focus loss
+      // belongs to a word the user has left; showing it would strand the list.
+      if (!mounted || request != _suggestionRequest) return;
+      final current = controller.value;
+      if (!_focusNode.hasFocus ||
+          _composing(current) ||
+          !current.selection.isCollapsed ||
+          current.selection.baseOffset != cursor) {
+        return;
+      }
+      if (result.isEmpty) {
+        _clearSuggestions();
+        return;
+      }
+      setState(() {
+        _suggestions = result.take(_suggestionRows.length).toList();
+        // Arrow keys pressed on the previous list must not point past this one.
+        _activeSuggestion = 0;
+      });
+      // A new list starts at its first row, like the highlight.
+      if (_suggestionScroll.hasClients) _suggestionScroll.jumpTo(0);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Below the box the list may sit under the keyboard; scrolling the
+        // page by hand would close it.
+        final list = _suggestionListKey.currentContext;
+        if (list != null && list.mounted) {
+          Scrollable.ensureVisible(list,
+              alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd);
+        }
+      });
     });
   }
 
-  String _lastPromptToken(String value) {
-    final comma = value.lastIndexOf(',');
-    final line = value.lastIndexOf('\n');
-    return value.substring((comma > line ? comma : line) + 1).trim();
+  void _applySuggestion(String tag) {
+    final anchor = _anchor;
+    final current = controller.value;
+    final next = anchor == null || _composing(current)
+        ? null
+        : applyAutocompleteTag(current.text, anchor, tag);
+    _clearSuggestions();
+    if (next == null) return;
+    controller.value = TextEditingValue(
+      text: next.value,
+      selection: TextSelection.collapsed(offset: next.caret),
+    );
+    widget.onChanged(next.value);
+    if (!_focusNode.hasFocus) _focusNode.requestFocus();
   }
 
-  void _applySuggestion(TagSuggestion suggestion) {
-    final value = controller.text;
-    final comma = value.lastIndexOf(',');
-    final line = value.lastIndexOf('\n');
-    final split = comma > line ? comma : line;
-    final prefix = split < 0 ? '' : value.substring(0, split + 1);
-    final spacing = prefix.isEmpty || prefix.endsWith('\n') ? '' : ' ';
-    _apply('$prefix$spacing${suggestion.tag}, ');
-    setState(() => suggestions = []);
+  KeyEventResult _handleSuggestionKey(FocusNode node, KeyEvent event) {
+    if (event is KeyUpEvent ||
+        _suggestions.isEmpty ||
+        _composing(controller.value) ||
+        !context.read<AppState>().settings.autoComplete) {
+      return KeyEventResult.ignored;
+    }
+    final key = event.logicalKey;
+    if (key == LogicalKeyboardKey.arrowDown ||
+        key == LogicalKeyboardKey.arrowUp) {
+      final current = min(_activeSuggestion, _suggestions.length - 1);
+      final next = key == LogicalKeyboardKey.arrowDown
+          ? min(current + 1, _suggestions.length - 1)
+          : max(current - 1, 0);
+      setState(() => _activeSuggestion = next);
+      _revealSuggestion(next);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.enter ||
+        key == LogicalKeyboardKey.numpadEnter ||
+        key == LogicalKeyboardKey.tab) {
+      _applySuggestion(
+          _suggestions[min(_activeSuggestion, _suggestions.length - 1)].tag);
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.escape) {
+      // Close only the list; the surrounding page or dialog stays open.
+      _clearSuggestions();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  // The list scrolls past about four rows; keep the highlighted one in view so
+  // Enter never inserts a hidden tag.
+  void _revealSuggestion(int index) {
+    final row = _suggestionRows[index].currentContext?.findRenderObject();
+    if (row == null || !_suggestionScroll.hasClients) return;
+    final viewport = RenderAbstractViewport.of(row);
+    final position = _suggestionScroll.position;
+    final top = viewport.getOffsetToReveal(row, 0).offset;
+    final bottom = viewport.getOffsetToReveal(row, 1).offset;
+    if (position.pixels > top) {
+      position.jumpTo(top);
+    } else if (position.pixels < bottom) {
+      position.jumpTo(bottom);
+    }
+  }
+
+  Widget _buildSuggestionList(BuildContext context, Object? language) {
+    final theme = Theme.of(context);
+    final active = min(_activeSuggestion, _suggestions.length - 1);
+    // Back closes the open list before it leaves the page.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _clearSuggestions();
+      },
+      // Taps on the list count as taps in the text field, so a mouse click
+      // does not take the focus away first; any press elsewhere, in the prompt
+      // box too, ends the session.
+      child: TextFieldTapRegion(
+        child: TapRegion(
+          onTapOutside: (_) => _clearSuggestions(),
+          child: Card(
+            key: _suggestionListKey,
+            margin: EdgeInsets.zero,
+            clipBehavior: Clip.antiAlias,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 220),
+              child: SingleChildScrollView(
+                controller: _suggestionScroll,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < _suggestions.length; i++)
+                      MouseRegion(
+                        key: _suggestionRows[i],
+                        // Only real pointer movement picks a row: a list that
+                        // opens under a resting pointer keeps the first row
+                        // for Enter and Tab.
+                        onHover: (_) {
+                          if (_activeSuggestion != i) {
+                            setState(() => _activeSuggestion = i);
+                          }
+                        },
+                        child: InkWell(
+                          hoverColor: Colors.transparent,
+                          onTap: () => _applySuggestion(_suggestions[i].tag),
+                          child: Ink(
+                            color: i == active
+                                ? theme.colorScheme.secondaryContainer
+                                : null,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _suggestions[i].tag,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.w600),
+                                      ),
+                                      Text(
+                                        localizedTagLabel(
+                                          language,
+                                          _suggestions[i].tag,
+                                          sourceLabel:
+                                              _suggestions[i].description,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (_suggestions[i].count > 0) ...[
+                                  const SizedBox(width: 8),
+                                  Text(formatTagCount(_suggestions[i].count),
+                                      style: theme.textTheme.bodySmall),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _translate() async {
@@ -868,39 +1105,28 @@ class PromptEditorState extends State<PromptEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(
-          controller: controller,
-          maxLines: widget.maxLines,
-          decoration: InputDecoration(
-            labelText: widget.label,
-            hintText: widget.hintText,
-            border: const OutlineInputBorder(),
+        Focus(
+          canRequestFocus: false,
+          skipTraversal: true,
+          onKeyEvent: _handleSuggestionKey,
+          child: TextField(
+            controller: controller,
+            focusNode: _focusNode,
+            maxLines: widget.maxLines,
+            decoration: InputDecoration(
+              labelText: widget.label,
+              hintText: widget.hintText,
+              border: const OutlineInputBorder(),
+            ),
+            onChanged: (value) {
+              widget.onChanged(value);
+              _handleTyping(controller.value);
+            },
           ),
-          onChanged: (value) {
-            widget.onChanged(value);
-            _scheduleSuggestions(value);
-          },
         ),
-        if (state.settings.autoComplete && suggestions.isNotEmpty) ...[
+        if (state.settings.autoComplete && _suggestions.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: suggestions
-                .map(
-                  (suggestion) => ActionChip(
-                    label: Text(
-                      '${suggestion.tag} · ${localizedTagLabel(
-                        language,
-                        suggestion.tag,
-                        sourceLabel: suggestion.description,
-                      )}',
-                    ),
-                    onPressed: () => _applySuggestion(suggestion),
-                  ),
-                )
-                .toList(),
-          ),
+          _buildSuggestionList(context, language),
         ],
         const SizedBox(height: 6),
         Wrap(

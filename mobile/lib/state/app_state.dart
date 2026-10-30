@@ -20,6 +20,7 @@ import '../i18n/compatible_image_text.dart';
 import '../services/openai_images.dart';
 import '../services/completion_sound.dart';
 import '../images/style_prompt_restore.dart';
+import '../images/enhance_plan.dart';
 import '../images/upscale_plan.dart';
 import '../inpaint/inpaint_size.dart';
 import '../inpaint/inpaint_mask.dart';
@@ -404,7 +405,8 @@ class AppState extends ChangeNotifier {
   String inpaintPositivePrompt = '';
   int upscaleScale = 2;
   int enhanceMagnitude = 5;
-  int enhanceScale = 1;
+  // NovelAI's official amounts: 1, 1.5 or 0 for MAX (see planEnhance).
+  double enhanceScale = 1;
   String directorTool = 'bg-removal';
   ReversePromptMode reverseMode = ReversePromptMode.tags;
   ReversePromptMode convertMode = ReversePromptMode.natural;
@@ -1978,6 +1980,55 @@ class AppState extends ChangeNotifier {
         language: settings.language,
       ));
 
+  EnhancePlan? get enhancePlan {
+    final source = workbenchImage;
+    return source == null
+        ? null
+        : planEnhance(source.width, source.height, enhanceScale, params.model);
+  }
+
+  double get _enhanceStrength =>
+      min(0.82, 0.18 + enhanceMagnitude.clamp(1, 10) * 0.064);
+
+  /// Why an Enhance target is not sent: it exceeds NovelAI's pixel area.
+  String enhanceLimitReason(EnhancePlan plan) {
+    String digits(int value) => '$value'.replaceAllMapped(
+        RegExp(r'\B(?=(\d{3})+$)'), (_) => ',');
+    return _rf('status.enhanceOutputTooLarge', {
+      'width': plan.outputWidth,
+      'height': plan.outputHeight,
+      'pixels': digits(plan.outputWidth * plan.outputHeight),
+      'max': digits(naiMaxPixelArea),
+    });
+  }
+
+  /// Quotes the size and options an Enhance run sends, like generateI2I does.
+  AnlasQuote get enhanceAnlasQuote {
+    final plan = enhancePlan;
+    if (plan == null || plan.exceedsLimit) {
+      return AnlasQuote(
+          ok: false,
+          source: AnlasQuoteSource.unavailable,
+          message: plan == null
+              ? _rt('error.workbenchRequired')
+              : enhanceLimitReason(plan));
+    }
+    return _billingPreview(calculateImageGenerationAnlas(
+      params: params.copy()
+        ..width = plan.width
+        ..height = plan.height,
+      account: account,
+      extras: extras,
+      batchCount: batchCount.clamp(1, 999),
+      imageToImage: true,
+      upscaledEnhance: plan.upscaledEnhance,
+      strength: _enhanceStrength,
+      alreadyEncodedVibes: api.countCachedVibes(params.model, extras),
+      preciseReferenceCount: extras.preciseReferences.length,
+      language: settings.language,
+    ));
+  }
+
   void _scheduleGenerationQuote() {
     if (!booted) return;
     _quoteTimer?.cancel();
@@ -2819,22 +2870,10 @@ class AppState extends ChangeNotifier {
     if (_naiChanging) throw StateError('账号正在切换，未提交请求');
     _naiOperationCount++;
     try {
-    if (busy || workbenchImage == null) return;
-    final source = workbenchImage!;
-    final requestedTarget = resolveNaiEnhanceOutputSize(
-      source.width,
-      source.height,
-      enhanceScale == 0 ? 1 : enhanceScale.clamp(1, 2),
-      fallbackWidth: source.width,
-      fallbackHeight: source.height,
-    );
-    if (enhanceScale > 1 && requestedTarget.exceedsLimit) {
-      status = _rf('status.enhanceOutputTooLarge', {
-        'width': requestedTarget.width,
-        'height': requestedTarget.height,
-        'pixels': requestedTarget.width * requestedTarget.height,
-        'max': naiMaxPixelArea,
-      });
+    final plan = enhancePlan;
+    if (busy || plan == null) return;
+    if (plan.exceedsLimit) {
+      status = enhanceLimitReason(plan);
       notifyListeners();
       return;
     }
@@ -2845,32 +2884,14 @@ class AppState extends ChangeNotifier {
     final previousSizeMode = i2iSizeMode;
     final previousSourceMode = i2iSourceMode;
     i2iSourceMode = 'latest';
-    final officialMax =
-        enhanceScale == 0 && params.model.startsWith('nai-diffusion-5-');
     final previousMax = i2i.upscaledEnhance;
-    i2i.upscaledEnhance = officialMax;
-    final target = adaptiveNaiImageSize(
-      source.width *
-          (officialMax
-              ? 1
-              : enhanceScale == 0
-                  ? 2
-                  : enhanceScale.clamp(1, 2)),
-      source.height *
-          (officialMax
-              ? 1
-              : enhanceScale == 0
-                  ? 2
-                  : enhanceScale.clamp(1, 2)),
-      fallbackWidth: source.width,
-      fallbackHeight: source.height,
-    );
+    i2i.upscaledEnhance = plan.upscaledEnhance;
     params
-      ..width = target.$1
-      ..height = target.$2;
+      ..width = plan.width
+      ..height = plan.height;
     i2iSizeMode = 'custom';
     i2i
-      ..strength = min(0.82, 0.18 + enhanceMagnitude.clamp(1, 10) * 0.064)
+      ..strength = _enhanceStrength
       ..noise = min(0.5, enhanceMagnitude.clamp(1, 10) * 0.045);
     notifyListeners();
     try {

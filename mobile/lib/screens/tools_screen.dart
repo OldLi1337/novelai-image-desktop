@@ -15,7 +15,6 @@ import 'package:provider/provider.dart';
 import '../billing/anlas.dart';
 import '../i18n/anlas_billing_text.dart';
 import '../i18n/app_locales.dart';
-import '../i18n/runtime_text.dart';
 import '../i18n/inpaint_parity_text.dart';
 import '../inpaint/inpaint_mask.dart';
 import '../models/nai_models.dart';
@@ -777,7 +776,7 @@ class _UpscalePanel extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(children: [
           const AutomaticComparisonControl(surface:'postprocess:upscale'),
-          Text('超分只扩大输出并补足清晰度，不进行第二次创意扩散；画面变化通常小于“增强”。2×/4×会改变分辨率。',
+          Text('超分只扩大输出并补足清晰度，不进行第二次创意扩散；画面变化通常小于“增强”。2×/4×会改变分辨率。NovelAI 官方超分每次固定放大 2×（4× 与 MAX 由多次 2× 组成）；需要官方的 1.5× 放大请使用「增强 → 1.5×」。',
               style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 12),
           SegmentedButton<int>(
@@ -856,47 +855,10 @@ class _EnhancePanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     final source = s.workbenchImage;
-    final isMax = s.enhanceScale == 0;
-    final officialMax = isMax && s.params.model.startsWith('nai-diffusion-5-');
-    final requestedTarget = source == null
-        ? null
-        : resolveNaiEnhanceOutputSize(
-            source.width,
-            source.height,
-            isMax ? 1 : s.enhanceScale,
-            fallbackWidth: source.width,
-            fallbackHeight: source.height,
-          );
-    final outputTooLarge =
-        s.enhanceScale > 1 && (requestedTarget?.exceedsLimit ?? false);
-    final normal = source == null || requestedTarget == null
-        ? null
-        : outputTooLarge
-            ? (requestedTarget.width, requestedTarget.height)
-            : adaptiveNaiImageSize(
-                source.width * (isMax ? 2 : s.enhanceScale),
-                source.height * (isMax ? 2 : s.enhanceScale),
-                fallbackWidth: source.width,
-                fallbackHeight: source.height,
-              );
-    final inputSize = source == null
-        ? null
-        : adaptiveNaiImageSize(source.width, source.height);
-    final maxSize = inputSize == null
-        ? null
-        : maxNaiEnhanceSize(inputSize.$1, inputSize.$2);
-    final target = officialMax && maxSize != null
-        ? (maxSize.width, maxSize.height)
-        : normal;
-    final outputLimitReason = outputTooLarge && target != null
-        ? runtimeFormatFor(
-            s.settings.language, 'status.enhanceOutputTooLarge', {
-            'width': target.$1,
-            'height': target.$2,
-            'pixels': target.$1 * target.$2,
-            'max': naiMaxPixelArea,
-          })
-        : '';
+    final plan = s.enhancePlan;
+    final scale = s.enhanceScale;
+    final amount =
+        scale == 0 ? 'MAX' : '${scale % 1 == 0 ? scale.toInt() : scale}×';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -917,38 +879,45 @@ class _EnhancePanel extends StatelessWidget {
               s.markChanged();
             },
           ),
-          SegmentedButton<int>(
+          SegmentedButton<double>(
             segments: const [
               ButtonSegment(value: 1, label: Text('1× 保持分辨率')),
-              ButtonSegment(value: 2, label: Text('2× 同时放大')),
+              ButtonSegment(value: 1.5, label: Text('1.5× 同时放大')),
               ButtonSegment(value: 0, label: Text('MAX')),
             ],
-            selected: {s.enhanceScale},
+            selected: {scale},
             onSelectionChanged: (value) {
               s.enhanceScale = value.first;
               s.markChanged();
             },
           ),
-          if (source != null && target != null) ...[
+          if (source != null && plan != null) ...[
             const SizedBox(height: 8),
-            Text('${source.width}×${source.height} → ${target.$1}×${target.$2}',
+            Text(
+                '${source.width}×${source.height} → ${plan.outputWidth}×${plan.outputHeight}',
                 style: Theme.of(context).textTheme.bodySmall),
-            if (outputTooLarge) ...[
-              const SizedBox(height: 6),
-              Text(
-                outputLimitReason,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-              ),
+            const SizedBox(height: 6),
+            Text(
+              plan.exceedsLimit
+                  ? s.enhanceLimitReason(plan)
+                  : '1× 只做二次扩散增强；1.5× 与 MAX 会同时提高分辨率。尺寸会按 NovelAI 支持范围自动对齐。',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: plan.exceedsLimit
+                        ? Theme.of(context).colorScheme.error
+                        : null,
+                  ),
+            ),
+            if (!plan.exceedsLimit) ...[
+              const SizedBox(height: 8),
+              _ToolQuoteBar(quote: s.enhanceAnlasQuote),
             ],
           ],
           const SizedBox(height: 12),
           FilledButton.icon(
             onPressed:
-                s.busy || source == null || outputTooLarge ? null : s.enhance,
+                s.busy || plan == null || plan.exceedsLimit ? null : s.enhance,
             icon: const Icon(Icons.auto_awesome),
-            label: Text(isMax ? '增强图像 MAX' : '增强图像 ${s.enhanceScale}×'),
+            label: Text('增强图像 $amount'),
           ),
         ]),
       ),

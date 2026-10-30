@@ -99,7 +99,7 @@ Future<void> _run()async{
     require(submitted()==beforeInvalid&&digest(await source.readAsBytes())==sourceHash,'Invalid I2I mutated source/submitted');
     suite.check('image-to-image','invalid-image-no-mutation',{'invalidBytesRejectedBeforePost':true,'sourceHashUnchanged':true});
 
-    await reset();app.enhanceScale=2;app.enhanceMagnitude=4;
+    await reset();app.enhanceScale=1.5;app.enhanceMagnitude=4;
     final oldSize=[app.params.width,app.params.height],oldStrength=app.i2i.strength;
     await app.enhance();final enhanced=app.history.first;
     require(enhanced.width==128&&enhanced.height==128&&im.decodeImage(await File(enhanced.filePath).readAsBytes())!.width==128,'Enhance scale output');
@@ -108,7 +108,7 @@ Future<void> _run()async{
     final beforeEnhance=submitted();app.workbenchImage=WorkingImage(filePath:source.path,width:2048,height:2048);await app.enhance();
     require(submitted()==beforeEnhance,'Overlarge enhance submitted');
     suite.check('enhance','boundary-invalid',{'overlargeOutputRejectedBeforePost':true,'sourceBytesUnchanged':digest(await source.readAsBytes())==sourceHash});
-    await reset();app.enhanceScale=2;final enhanceHistory=app.history.length;
+    await reset();app.enhanceScale=1.5;final enhanceHistory=app.history.length;
     generationStatus=400;await app.enhance();generationStatus=200;
     await reset();entered=Completer<void>();release=Completer<void>();final cancelEnhance=app.enhance();
     await entered!.future.timeout(const Duration(seconds:30));app.cancelGeneration();release!.complete();await cancelEnhance.timeout(const Duration(seconds:30));entered=null;release=null;

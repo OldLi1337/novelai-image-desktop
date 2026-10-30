@@ -125,6 +125,6 @@ void main(){
  });
  test('all tool previews retain numeric budgets and relay marker',()async{
   final f=await fixture();addTearDown(f.dispose);f.state.workbenchImage=const WorkingImage(filePath:'synthetic-only.png',width:1408,height:704);
-  for(final q in [f.state.inpaintAnlasQuote,f.state.upscaleAnlasQuote,f.state.directorAnlasQuote]){expect(q.amount,isNotNull);expect(reference(q),isTrue);}
+  for(final q in [f.state.inpaintAnlasQuote,f.state.upscaleAnlasQuote,f.state.directorAnlasQuote,f.state.enhanceAnlasQuote]){expect(q.amount,isNotNull);expect(reference(q),isTrue);}
  });
 }
