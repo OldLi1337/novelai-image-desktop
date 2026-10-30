@@ -28,7 +28,7 @@ Map<String, String> _backupText(Object? language) {
       'coverage':
           "画风结果在移动端仅保管归档，导回桌面再恢复。模型、运行环境与符号链接不迁移。自动轻量备份不含画风结果，请使用完整备份。",
       'title': '数据导入、导出与自动备份',
-      'desc': '桌面、Android 与 iOS 共用 .naisbackup。默认全选，也可以排除任意数据。',
+      'desc': '桌面与 iOS 共用 .naisbackup。默认全选，也可以排除任意数据。',
       'sensitive': 'API Token 与第三方密钥会按你的选择直接写入备份，请只交给可信设备。',
       'selectAll': '全选',
       'clear': '清空',

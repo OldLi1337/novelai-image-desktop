@@ -11,7 +11,7 @@ const _all = '__all__';
 const _copy = <String, Map<String, String>>{
   'zh-CN': {
     'title': '在线角色精准参考库',
-    'hint': '从 Gitee 中国大陆线路读取，只下载每个角色与形态的最佳精准参考图。',
+    'hint': '从 GitHub 读取在线目录，只下载每个角色与形态的最佳精准参考图。',
     'load': '读取在线目录',
     'refresh': '刷新目录',
     'loading': '正在读取…',

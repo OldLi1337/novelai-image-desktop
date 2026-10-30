@@ -42,7 +42,7 @@ const _accountText = <String, String>{
   'accountNotDeleted': '未删除账号',
   'accountDeleteFailed': '任务进行中或系统凭据库写入失败。',
   'accountSecurityHint':
-      'API Token 由 Android / iOS 系统安全存储加密保存，可查看／复制。任务执行期间账号与接口地址固定。',
+      'API Token 由 iOS 钥匙串加密保存，可查看／复制。任务执行期间账号与接口地址固定。',
   'accountAdd': '添加账号',
   'accountOfficialShort': '官方 Token',
   'accountEmailShort': '邮箱密码',
