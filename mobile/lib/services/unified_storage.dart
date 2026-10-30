@@ -11,13 +11,11 @@ import 'storage_permission.dart';
 /// remain in app-private storage. The private pointer commits last.
 class UnifiedStorage {
   static const channel = MethodChannel('langbai.novelai/storage');
-  static const agentChannel = MethodChannel('langbai.novelai/local_agent');
   static Directory? active;
   static String? candidate;
   static Future<void>? _loading;
   static bool migrating = false;
   static const dataKeys = {
-    'agent_workspace_v1': 'data/conversations-and-characters.json',
     'gen_params': 'data/generation-parameters.json',
     'history_index_v2': 'data/image-history.json',
     'history_groups': 'data/image-groups.json',
@@ -48,7 +46,6 @@ class UnifiedStorage {
   ];
   static const folders = [
     'images',
-    'LangbaiWorkspace',
     'style-prompt-previews',
     'reference-presets',
     'backups',
@@ -56,12 +53,6 @@ class UnifiedStorage {
     'comic-projects',
     'portable-project-capsules'
   ];
-  static const agentFolders = [
-    'roleplay',
-    'sessions',
-    'mindspace-session-memory'
-  ];
-
   static Future<void> initialize() => !Platform.isAndroid
       ? Future.value()
       : _loading ??= _load().catchError((Object error, StackTrace stack) {
@@ -104,9 +95,7 @@ class UnifiedStorage {
       throw StateError('请先授予存储访问权限，然后点击迁移');
     }
     migrating = true;
-    Map<String, dynamic>? lock;
     try {
-      lock = await agentChannel.invokeMapMethod<String, dynamic>('lockData');
       final info = (await channel
           .invokeMapMethod<String, dynamic>('unifiedStorageInfo'))!;
       if ((info['activeRoot'] as String?)?.isNotEmpty == true) {
@@ -118,11 +107,10 @@ class UnifiedStorage {
       final snapshot = {for (final key in prefs.getKeys()) key: prefs.get(key)};
       final docs = await getApplicationDocumentsDirectory();
       final target = Directory(info['target'] as String);
-      final agent = Directory(info['agentRoot'] as String);
       await UnifiedPreferences.flushWrites();
       final available = info['availableBytes'] as int?;
       if (available != null) {
-        final required = await estimateCopyBytes(docs, agent);
+        final required = await estimateCopyBytes(docs);
         if (available < required + 16 * 1024 * 1024) {
           throw FileSystemException(
               '可用空间不足；复制需要约 ${((required + 16 * 1024 * 1024) / 1048576).ceil()} MiB，原数据未移动。',
@@ -132,7 +120,6 @@ class UnifiedStorage {
       final result = await migrateFiles(
           documents: docs,
           target: target,
-          agentRoot: agent,
           preferences: snapshot,
           progress: progress);
       // Fail before activation if app data changed while copying. Old files and
@@ -151,26 +138,14 @@ class UnifiedStorage {
       _loading = Future.value();
       return {...result, 'privateBackup': privateBackup.path};
     } finally {
-      try {
-        if (lock != null) {
-          await agentChannel
-              .invokeMethod('unlockData', {'token': lock['token']});
-        }
-      } finally {
-        migrating = false;
-      }
+      migrating = false;
     }
   }
 
-  static Future<int> estimateCopyBytes(
-      Directory documents, Directory agentRoot) async {
+  static Future<int> estimateCopyBytes(Directory documents) async {
     var total = 0;
     final roots = [
       for (final folder in folders) Directory(p.join(documents.path, folder)),
-      for (final folder in agentFolders)
-        Directory(p.join(agentRoot.path, 'user-home', folder)),
-      for (final folder in ['backups', 'workspace', 'downloads'])
-        Directory(p.join(agentRoot.path, folder)),
     ];
     for (final root in roots) {
       if (!await root.exists()) continue;
@@ -183,18 +158,10 @@ class UnifiedStorage {
   }
 
   static Future<void> rollback() async {
-    final lock =
-        await agentChannel.invokeMapMethod<String, dynamic>('lockData');
-    try {
-      await channel.invokeMethod('deactivateUnifiedStorage');
-      active = null;
-      _loading = null;
-      await initialize();
-    } finally {
-      if (lock != null) {
-        await agentChannel.invokeMethod('unlockData', {'token': lock['token']});
-      }
-    }
+    await channel.invokeMethod('deactivateUnifiedStorage');
+    active = null;
+    _loading = null;
+    await initialize();
   }
 
   /// Pure filesystem transaction, exercised on temporary directories in tests.
@@ -202,7 +169,6 @@ class UnifiedStorage {
   static Future<Map<String, dynamic>> migrateFiles(
       {required Directory documents,
       required Directory target,
-      required Directory agentRoot,
       required Map<String, dynamic> preferences,
       void Function(String)? progress}) async {
     if (p.isWithin(documents.path, target.path) ||
@@ -257,16 +223,6 @@ class UnifiedStorage {
     for (final folder in folders) {
       await copyTree(Directory(p.join(documents.path, folder)), folder);
     }
-    for (final folder in agentFolders) {
-      await copyTree(Directory(p.join(agentRoot.path, 'user-home', folder)),
-          p.join('TavernAgent', 'data', folder));
-    }
-    await copyTree(
-        Directory(p.join(agentRoot.path, 'backups')), 'backups/agent');
-    await copyTree(Directory(p.join(agentRoot.path, 'workspace')),
-        'TavernAgent/workspace');
-    await copyTree(Directory(p.join(agentRoot.path, 'downloads')),
-        'models/agent-downloads');
     dynamic rebase(dynamic value) {
       if (value is String) {
         for (final entry in replacements.entries) {
@@ -302,15 +258,7 @@ class UnifiedStorage {
       for (final key in presetKeys)
         if (settings.containsKey(key)) key: settings[key]
     });
-    for (final dir in [
-      'images',
-      'models',
-      'backups',
-      'presets',
-      'data',
-      'TavernAgent/workspace',
-      ...agentFolders.map((s) => 'TavernAgent/data/$s')
-    ]) {
+    for (final dir in ['images', 'backups', 'presets', 'data']) {
       await Directory(p.join(stage.path, dir)).create(recursive: true);
     }
     // A second complete verification catches interruptions before the pointer
@@ -339,7 +287,7 @@ class UnifiedStorage {
     await File(p.join(stage.path, 'storage-manifest.json'))
         .writeAsString(jsonEncode(manifest), flush: true);
     await File(p.join(stage.path, 'README.txt')).writeAsString(
-        'Langbai Studio 用户数据目录\nimages：图片；presets：提示词预设；data：对话、角色、历史与参数；models：下载的模型/运行包；backups：备份；TavernAgent/data：新版酒馆对话与角色库。\n密钥、插件代码与可执行运行环境仍在应用私有目录。\n旧资料未删除。设置→数据与存储可查看迁移状态。完整恢复请使用 .naisbackup 或酒馆备份入口，勿在程序运行中手工覆盖文件。\n',
+        'Langbai Studio 用户数据目录\nimages：图片；presets：提示词预设；data：历史记录、参数与工程；backups：备份。\n密钥仍在应用私有目录。\n旧资料未删除。设置→数据与存储可查看迁移状态。完整恢复请使用 .naisbackup，勿在程序运行中手工覆盖文件。\n',
         flush: true);
     await stage.rename(target.path);
     return {

@@ -8,13 +8,10 @@ import '../prompts/negative_prompt_library.dart';
 import 'ui_typography.dart';
 import '../prompts/translation.dart';
 
-import '../agent/model_selections.dart';
 import 'dart:math' as math;
 import 'completion_sound.dart';
 
-import '../agent/agent_models.dart';
-import '../agent/agent_context.dart';
-import '../agent/agent_provider_catalog.dart';
+import '../tavern/tavern_models.dart';
 import '../prompts/ig5_image_prompts.dart';
 import '../i18n/app_locales.dart';
 
@@ -927,19 +924,6 @@ class AppSettings {
   String visionApiModel;
   String convertApiUrl;
   String convertApiModel;
-  // Character Tavern provider configuration. The secret key is kept in secure
-  // storage; desktop and mobile both call the selected provider directly.
-  String agentApiProtocol;
-  String agentApiBaseUrl;
-  String agentApiModel;
-  List<Map<String, dynamic>> savedAgentModels;
-  String agentReasoningEffort;
-  String agentProviderName;
-  int agentContextWindow;
-  int agentMaxOutputTokens;
-  bool agentAutoCompact;
-  double agentAutoCompactThreshold;
-  bool agentVisionEnabled;
   bool autoComplete;
   String tagServerUrl;
   String tagServerType;
@@ -962,7 +946,6 @@ class AppSettings {
   bool proxyForAi;
   bool proxyForUpdate;
   bool proxyForTranslate;
-  String updateSource;
   String translateProvider;
   String translateTargetLanguage;
   String translateSourceLanguage;
@@ -1008,7 +991,6 @@ class AppSettings {
   Map<String, String> convertPromptTemplatesV45;
   Map<String, String> comicAnalyzePromptTemplates;
   String convertPromptTemplateVersion;
-  String agentPromptTemplateMode;
   Map<String, String> convertPromptTemplates;
   String promptAssistantMode;
   String promptOptimizeTemplate;
@@ -1072,17 +1054,6 @@ class AppSettings {
     this.visionApiModel = 'gpt-4o',
     this.convertApiUrl = 'https://api.openai.com/v1',
     this.convertApiModel = 'gpt-4o-mini',
-    this.agentApiProtocol = 'openai-responses',
-    this.agentApiBaseUrl = 'https://api.deepseek.com',
-    this.agentApiModel = 'deepseek-v4-flash',
-    this.savedAgentModels = const [],
-    this.agentReasoningEffort = 'auto',
-    this.agentProviderName = 'DeepSeek',
-    this.agentContextWindow = defaultAgentContextWindow,
-    this.agentMaxOutputTokens = defaultAgentMaxOutputTokens,
-    this.agentAutoCompact = true,
-    this.agentAutoCompactThreshold = defaultAgentCompactThreshold,
-    this.agentVisionEnabled = true,
     this.autoComplete = true,
     this.tagServerUrl = '',
     this.tagServerType = 'rest',
@@ -1105,7 +1076,6 @@ class AppSettings {
     this.proxyForAi = true,
     this.proxyForUpdate = true,
     this.proxyForTranslate = true,
-    this.updateSource = 'github',
     this.translateProvider = 'google',
     this.translateTargetLanguage = 'system',
     this.translateSourceLanguage = 'auto',
@@ -1147,7 +1117,6 @@ class AppSettings {
     Map<String, String>? convertPromptTemplatesV45,
     Map<String, String>? comicAnalyzePromptTemplates,
     this.convertPromptTemplateVersion = 'v5',
-    this.agentPromptTemplateMode = 'mixed',
     Map<String, String>? convertPromptTemplates,
     this.promptAssistantMode = 'mixed',
     this.promptOptimizeTemplate = '',
@@ -1230,17 +1199,6 @@ class AppSettings {
         'visionApiModel': visionApiModel,
         'convertApiUrl': convertApiUrl,
         'convertApiModel': convertApiModel,
-        'agentApiProtocol': agentApiProtocol,
-        'agentApiBaseUrl': agentApiBaseUrl,
-        'agentApiModel': agentApiModel,
-        'savedAgentModels': savedAgentModels,
-        'agentReasoningEffort': agentReasoningEffort,
-        'agentProviderName': agentProviderName,
-        'agentContextWindow': agentContextWindow,
-        'agentMaxOutputTokens': agentMaxOutputTokens,
-        'agentAutoCompact': agentAutoCompact,
-        'agentAutoCompactThreshold': agentAutoCompactThreshold,
-        'agentVisionEnabled': agentVisionEnabled,
         'autoComplete': autoComplete,
         'tagServerUrl': tagServerUrl,
         'tagServerType': tagServerType,
@@ -1263,7 +1221,6 @@ class AppSettings {
         'proxyForAi': proxyForAi,
         'proxyForUpdate': proxyForUpdate,
         'proxyForTranslate': proxyForTranslate,
-        'updateSource': updateSource,
         'translateProvider': translateProvider,
         'translateTargetLanguage': translateTargetLanguage,
         'translateSourceLanguage': translateSourceLanguage,
@@ -1308,7 +1265,6 @@ class AppSettings {
         'convertPromptTemplatesV45': convertPromptTemplatesV45,
         'comicAnalyzePromptTemplates': comicAnalyzePromptTemplates,
         'convertPromptTemplateVersion': convertPromptTemplateVersion,
-        'agentPromptTemplateMode': agentPromptTemplateMode,
         'convertPromptTemplates': convertPromptTemplates,
         'promptAssistantMode': promptAssistantMode,
         'promptOptimizeTemplate': promptOptimizeTemplate,
@@ -1368,27 +1324,6 @@ class AppSettings {
         visionApiModel: j['visionApiModel'] ?? 'gpt-4o',
         convertApiUrl: j['convertApiUrl'] ?? 'https://api.openai.com/v1',
         convertApiModel: j['convertApiModel'] ?? 'gpt-4o-mini',
-        agentApiProtocol: normalizeAgentProtocol(j['agentApiProtocol']),
-        agentApiBaseUrl:
-            _stringValue(j['agentApiBaseUrl'], 'https://api.deepseek.com'),
-        agentApiModel: _stringValue(j['agentApiModel'], 'deepseek-v4-flash'),
-        savedAgentModels: normalizeSavedAgentModels(j['savedAgentModels']),
-        agentReasoningEffort: agentEffort(j['agentReasoningEffort']),
-        agentProviderName: _stringValue(j['agentProviderName'], 'DeepSeek'),
-        agentContextWindow: _intValue(
-          j['agentContextWindow'],
-          defaultAgentContextWindow,
-        ).clamp(8192, 2000000).toInt(),
-        agentMaxOutputTokens: _intValue(
-          j['agentMaxOutputTokens'],
-          defaultAgentMaxOutputTokens,
-        ).clamp(256, 131072).toInt(),
-        agentAutoCompact: j['agentAutoCompact'] ?? true,
-        agentAutoCompactThreshold: adaptiveAgentCompactThreshold(
-          j['agentContextWindow'] ?? defaultAgentContextWindow,
-          j['agentMaxOutputTokens'] ?? defaultAgentMaxOutputTokens,
-        ),
-        agentVisionEnabled: j['agentVisionEnabled'] ?? true,
         autoComplete: j['autoComplete'] ?? true,
         tagServerUrl: j['tagServerUrl'] ?? '',
         tagServerType: j['tagServerType'] ?? 'rest',
@@ -1412,7 +1347,6 @@ class AppSettings {
         proxyForAi: j['proxyForAi'] ?? true,
         proxyForUpdate: j['proxyForUpdate'] ?? true,
         proxyForTranslate: j['proxyForTranslate'] ?? true,
-        updateSource: 'github',
         translateProvider: j['translateProvider'] ?? 'google',
         translateTargetLanguage:
             normalizeTranslationPreference(j['translateTargetLanguage']),
@@ -1484,10 +1418,6 @@ class AppSettings {
             _stringMap(j['comicAnalyzePromptTemplates']),
         convertPromptTemplateVersion:
             j['convertPromptTemplateVersion'] == 'v4.5' ? 'v4.5' : 'v5',
-        agentPromptTemplateMode:
-            ['mixed', 'tags', 'natural'].contains(j['agentPromptTemplateMode'])
-                ? j['agentPromptTemplateMode']
-                : 'mixed',
         convertPromptTemplates: _stringMap(j['convertPromptTemplates']),
         promptAssistantMode: j['promptAssistantMode'] is String &&
                 ['mixed', 'tags', 'natural'].contains(j['promptAssistantMode'])

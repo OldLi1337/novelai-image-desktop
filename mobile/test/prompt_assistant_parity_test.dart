@@ -4,12 +4,10 @@ import 'package:novelai_mobile/screens/prompt_assistant_dialog.dart';
 import 'package:novelai_mobile/services/nai_api.dart';
 
 void main() {
-  test('prompt assistant has localized optimize/custom/apply labels', () {
-    for (final language in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      final labels = promptAssistantLabels(language);
-      for (final key in ['optimize', 'custom', 'instruction', 'preview', 'apply', 'stale']) {
-        expect(labels[key], isNotEmpty);
-      }
+  test('prompt assistant has optimize/custom/apply labels', () {
+    final labels = promptAssistantLabels('zh-CN');
+    for (final key in ['optimize', 'custom', 'instruction', 'preview', 'apply', 'stale']) {
+      expect(labels[key], isNotEmpty);
     }
   });
 

@@ -29,8 +29,6 @@ class _NoCredentialsStorage extends Storage {
 }
 class _QuietState extends AppState {
   _QuietState() : super(storage: _NoCredentialsStorage(), offlineTags: _QuietTags());
-  @override
-  Future<void> checkUpdate({bool manual = false}) async {}
 }
 class _QuietTags extends OfflineTagStore {
   @override

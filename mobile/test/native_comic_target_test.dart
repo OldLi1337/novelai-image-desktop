@@ -103,7 +103,6 @@ Future<void> _backToHub(WidgetTester tester) async {
 
 AppState _app() => AppState()
   ..settings = AppSettings(
-      language: 'en-US',
       proxyMode: 'custom',
       proxyUrl: 'http://127.0.0.1:1',
       proxyForNai: true,
@@ -214,7 +213,7 @@ void main() {
       'retained scroll makes old first open Batch; same fixture helper '
       'uniquely reveals and hit-tests Comic', (tester) async {
     tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(360, 620);
+    tester.view.physicalSize = const Size(360, 380);
     addTearDown(tester.view.reset);
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     final app = _app();
@@ -227,7 +226,7 @@ void main() {
       final retained = scroll.position.pixels;
       expect(retained, greaterThan(0));
       final oldTarget = _tiles().first;
-      expect(_title(oldTarget), 'Batch Img2Img');
+      expect(_title(oldTarget), '批量图生图');
       await _drive(tester, nativeUiTap(oldTarget));
       await _drive(
           tester,
@@ -238,12 +237,12 @@ void main() {
       expect(nativeUiElements((widget) => widget is ComicScreen), isEmpty);
       // ignore: avoid_print
       print('HOST_COMIC_BASELINE retainedScroll=$retained '
-          'oldFirst=Batch Img2Img route=BatchRedrawScreen; host-only');
+          'oldFirst=批量图生图 route=BatchRedrawScreen; host-only');
       await _backToHub(tester);
       final sameScroll = _hubScroll();
       sameScroll.position.jumpTo(sameScroll.position.maxScrollExtent);
       await tester.pump(const Duration(milliseconds: 50));
-      expect(_title(_tiles().first), 'Batch Img2Img');
+      expect(_title(_tiles().first), '批量图生图');
       // This is the exact exported helper used by the real ui9 fixture.
       await _drive(tester, openNativeComicFromTools(app));
       await _drive(
@@ -258,7 +257,7 @@ void main() {
       expect(sameScroll.position.pixels, sameScroll.position.minScrollExtent);
       expect(app.params.positivePrompt, 'HOST_COMIC_DRAFT_UNCHANGED');
       // ignore: avoid_print
-      print('HOST_COMIC_MODIFIED target=Comic Generator '
+      print('HOST_COMIC_MODIFIED target=漫画生成器 '
           'route=ComicScreen scroll=min; host-only, not-native-certification');
       expect(tester.takeException(), isNull);
     } finally {

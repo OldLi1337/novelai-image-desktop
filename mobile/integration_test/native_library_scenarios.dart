@@ -34,7 +34,8 @@ Future<void> _run() async {
     await app.setSettings((s){s.theme='dark';s.language='ja-JP';s.proxyForAi=false;
       s.proxyForNai=false;s.proxyForMcp=true;s.proxyForTranslate=false;});
     final reopened=await Storage().getSettings();
-    require(reopened.theme=='dark'&&reopened.language=='ja-JP'&&!reopened.proxyForAi&&reopened.proxyForMcp,'Settings did not reopen');
+    // The UI is Simplified Chinese only; another stored language reopens as zh-CN.
+    require(reopened.theme=='dark'&&reopened.language=='zh-CN'&&!reopened.proxyForAi&&reopened.proxyForMcp,'Settings did not reopen');
     suite.check('settings','persist-and-reopen',{'nativePreferenceReopen':true,'language':reopened.language,'theme':reopened.theme});
     final server=await HttpServer.bind(InternetAddress.loopbackIPv4,0);
     var requests=0;
@@ -51,7 +52,6 @@ Future<void> _run() async {
     require(jsonEncode((await storage.getSettings()).toJson())==savedSettings,'Validation destroyed saved settings');
     suite.check('settings','invalid-change-no-destruction',{'savedSettingsUnchanged':true,'boundary':'production proxy parser; settings dialog not driven'},complete:false);
 
-    await app.setSettings((s)=>s.language='en-US');
     await app.addStylePromptPresetGroup('Native Group');
     var style=await app.addStylePromptPreset(name:'Native style',prompt:r'1.2::artist:synthetic::, \(test\)',group:'Native Group');
     await app.renameStylePromptPreset(style.id,'Native renamed');
@@ -265,14 +265,12 @@ Future<void> _run() async {
     require(uiFontLoaded(custom.id)&&digest(await repository.read(custom.id))==digest(fontBytes),'Font engine/import integrity');
     await app.setUiTypography(const UiTypography());await repository.remove(custom.id);
     suite.check('typography','all-font-controls',{'builtInAndGenericFonts':fonts.length,'importedEngineFontVerified':true,'removedAndReset':true,'nativePickerDriven':false});
-    for(final language in ['zh-CN','zh-TW','en-US','ja-JP','ko-KR']){
-      await app.setSettings((s)=>s.language=language);
-      await mount(app,const Scaffold(body:SingleChildScrollView(padding:EdgeInsets.all(8),child:TypographySettings())));
-      final samples=elements((w)=>w.key==const ValueKey('typography-current-sample'));
-      require(samples.length==1&&(samples.single.widget as Text).data!.isNotEmpty,'Localized font sample missing');
-    }
-    require((await Storage().getSettings()).language=='ko-KR','Typography language did not reopen');
-    suite.check('typography','localized-samples-reopen',{'renderedLanguages':5,'actualTypographyWidget':true,'savedLanguageReopened':true});
+    await app.setSettings((s)=>s.language='ko-KR');
+    await mount(app,const Scaffold(body:SingleChildScrollView(padding:EdgeInsets.all(8),child:TypographySettings())));
+    final samples=elements((w)=>w.key==const ValueKey('typography-current-sample'));
+    require(samples.length==1&&(samples.single.widget as Text).data!.isNotEmpty,'Font sample missing');
+    require((await Storage().getSettings()).language=='zh-CN','Stored language did not reopen as Simplified Chinese');
+    suite.check('typography','localized-samples-reopen',{'renderedLanguages':1,'actualTypographyWidget':true,'storedLanguage':'zh-CN'});
     await app.setUiTypography(UiTypography.fromJson({'font':'invalid-font','scale':900}));
     require(app.settings.uiTypography.font=='default'&&app.settings.uiTypography.scale==200,'Typography bound normalize');
     await mount(app,const Scaffold(body:SingleChildScrollView(padding:EdgeInsets.all(8),child:TypographySettings())));

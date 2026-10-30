@@ -60,10 +60,6 @@ Future<Fixture> fixture({String language='zh-CN',bool relay=true}) async {
 bool reference(AnlasQuote q){try{return (q as dynamic).referenceOnly==true;}catch(_){return false;}}
 const messages={
  'zh-CN':('中转实际扣费：未知','官方无订阅优惠参考：29 Anlas（估算，非中转账单）'),
- 'zh-TW':('中轉實際扣費：未知','官方無訂閱優惠參考：29 Anlas（估算，非中轉帳單）'),
- 'en-US':('Relay actual charge: unknown','Official no-subscription-discount reference: 29 Anlas (estimate, not a relay bill)'),
- 'ja-JP':('中継の実際の請求：不明','公式のサブスク割引なし参考：29 Anlas（推定、中継の請求額ではありません）'),
- 'ko-KR':('중계 실제 청구: 알 수 없음','공식 구독 할인 없는 참고: 29 Anlas (추정, 중계 청구액 아님)'),
 };
 void main(){
  setUp(()=>SharedPreferences.setMockInitialValues({}));

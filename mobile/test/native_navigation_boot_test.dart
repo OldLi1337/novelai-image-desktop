@@ -27,7 +27,6 @@ AppSettings _closedSettings() => AppSettings(
     imageBaseUrl: 'http://127.0.0.1:1',
     allowCustomEndpoint: true,
     allowCustomEndpointFallback: false,
-    language: 'en-US',
     reduceMotion: true);
 
 class _NavigationStorage extends Storage {
@@ -159,21 +158,16 @@ void main() {
     expect(find.byType(StudioAdaptiveShell), findsOneWidget);
     final shell =
         tester.widget<StudioAdaptiveShell>(find.byType(StudioAdaptiveShell));
-    expect(shell.destinations.length, 15);
+    expect(shell.destinations.length, 14);
     expect(app.params.positivePrompt, 'NATIVE_NAV_PROMPT');
     expect(app.convertInput, 'NATIVE_NAV_CONVERT');
     expect(app.settings.proxyUrl, 'http://127.0.0.1:1');
     expect(app.settings.proxyForUpdate, isTrue);
     // ignore: avoid_print
     print(
-        'HOST_NAV_MODIFIED booted=true spinner=false destinations=15 real-AppState.load=true; not-native-certification');
+        'HOST_NAV_MODIFIED booted=true spinner=false destinations=14 real-AppState.load=true; not-native-certification');
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
-    // Drain only already-started read-only update retries; no token can quote
-    // or generate. Widget tests do not certify the native TLS/socket path.
-    for (var i = 0; i < 100 && app.updateChecking; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
   });
 
   for (final settings in [

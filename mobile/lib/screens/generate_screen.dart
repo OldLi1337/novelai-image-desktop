@@ -60,118 +60,28 @@ bool _isRoomyPhoneLandscape(BuildContext context) {
 
 ({String title, String subtitle, String progress}) _streamPreviewText(
     Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return (
-        title: '生成時串流預覽',
-        subtitle: '預設開啟；生成過程會逐步顯示中間圖。',
-        progress: '正在生成'
-      );
-    case 'en-US':
-      return (
-        title: 'Streaming generation preview',
-        subtitle: 'On by default; shows intermediate images while generating.',
-        progress: 'Generating'
-      );
-    case 'ja-JP':
-      return (
-        title: '生成中のストリーミングプレビュー',
-        subtitle: '初期状態で有効。生成途中の画像を順次表示します。',
-        progress: '生成中'
-      );
-    case 'ko-KR':
-      return (
-        title: '생성 스트리밍 미리보기',
-        subtitle: '기본으로 켜져 있으며 생성 중간 이미지를 순서대로 표시합니다.',
-        progress: '생성 중'
-      );
-    default:
-      return (
-        title: '生成时流式预览',
-        subtitle: '默认开启；生成过程中逐步显示中间图。',
-        progress: '正在生成'
-      );
-  }
+  return (
+    title: '生成时流式预览',
+    subtitle: '默认开启；生成过程中逐步显示中间图。',
+    progress: '正在生成'
+  );
 }
 
 Map<String, String> _opusUsageText(String language) {
-  switch (language) {
-    case 'zh-TW':
-      return {
-        'title': 'Opus 生成使用限制',
-        'body':
-            'Opus 包含一般解析度、最多 28 步的免費 NovelAI Diffusion V5 生成。額度會自動補充；用完後仍可消耗 Anlas。',
-        'remaining': '剩餘',
-        'images': '張圖片',
-        'refill': '目前每天恢復',
-        'unavailable': '官網暫未返回 V5 Opus 額度資料。',
-        'empty': '免費額度已用完，V5 生成將消耗 Anlas。',
-        'synced': '已從 NovelAI 官方介面即時同步',
-        'stale': '官網同步失敗，目前顯示上次成功資料',
-        'refresh': '重新整理',
-        'close': '關閉'
-      };
-    case 'en-US':
-      return {
-        'title': 'Opus Generation Usage Limit',
-        'body':
-            'Opus includes free NovelAI Diffusion V5 generations at normal resolutions and up to 28 steps. The allowance refills automatically; after it is depleted, V5 can still spend Anlas.',
-        'remaining': 'remaining',
-        'images': 'images',
-        'refill': 'Currently refills per day',
-        'unavailable': 'NovelAI did not return V5 Opus allowance data yet.',
-        'empty': 'The free allowance is depleted; V5 will spend Anlas.',
-        'synced': 'Live data synced from the official NovelAI endpoint',
-        'stale': 'Official sync failed; showing the last successful reading',
-        'refresh': 'Refresh',
-        'close': 'Close'
-      };
-    case 'ja-JP':
-      return {
-        'title': 'Opus 生成使用上限',
-        'body':
-            'Opus では通常解像度・最大 28 ステップの NovelAI Diffusion V5 生成を無料枠で利用できます。枠は自動回復し、使い切った後も Anlas を消費できます。',
-        'remaining': '残り',
-        'images': '枚',
-        'refill': '1 日の回復',
-        'unavailable': 'NovelAI から V5 Opus 枠の情報が返されていません。',
-        'empty': '無料枠を使い切りました。V5 は Anlas を消費します。',
-        'synced': 'NovelAI 公式エンドポイントからリアルタイム同期済み',
-        'stale': '公式同期に失敗したため、前回成功時の値を表示中',
-        'refresh': '更新',
-        'close': '閉じる'
-      };
-    case 'ko-KR':
-      return {
-        'title': 'Opus 생성 사용 한도',
-        'body':
-            'Opus에는 일반 해상도와 최대 28스텝의 무료 NovelAI Diffusion V5 생성이 포함됩니다. 한도는 자동 회복되며, 소진 후에도 Anlas를 사용할 수 있습니다.',
-        'remaining': '남음',
-        'images': '장',
-        'refill': '하루 회복',
-        'unavailable': 'NovelAI에서 V5 Opus 한도 데이터를 반환하지 않았습니다.',
-        'empty': '무료 한도를 모두 사용했습니다. V5는 Anlas를 소모합니다.',
-        'synced': 'NovelAI 공식 엔드포인트에서 실시간 동기화됨',
-        'stale': '공식 동기화에 실패하여 마지막 성공 데이터를 표시 중',
-        'refresh': '새로고침',
-        'close': '닫기'
-      };
-    default:
-      return {
-        'title': 'Opus 生成使用限制',
-        'body':
-            'Opus 包含普通分辨率、最多 28 步的免费 NovelAI Diffusion V5 生成。额度会自动补充；用完后仍可消耗 Anlas。',
-        'remaining': '剩余',
-        'images': '张图片',
-        'refill': '目前每天恢复',
-        'unavailable': '官网暂未返回 V5 Opus 额度数据。',
-        'empty': '免费额度已用完，V5 生成将消耗 Anlas。',
-        'synced': '已从 NovelAI 官方接口实时同步',
-        'stale': '官网同步失败，当前显示上次成功数据',
-        'refresh': '刷新',
-        'close': '关闭'
-      };
-  }
+  return {
+    'title': 'Opus 生成使用限制',
+    'body':
+        'Opus 包含普通分辨率、最多 28 步的免费 NovelAI Diffusion V5 生成。额度会自动补充；用完后仍可消耗 Anlas。',
+    'remaining': '剩余',
+    'images': '张图片',
+    'refill': '目前每天恢复',
+    'unavailable': '官网暂未返回 V5 Opus 额度数据。',
+    'empty': '免费额度已用完，V5 生成将消耗 Anlas。',
+    'synced': '已从 NovelAI 官方接口实时同步',
+    'stale': '官网同步失败，当前显示上次成功数据',
+    'refresh': '刷新',
+    'close': '关闭'
+  };
 }
 
 Future<void> _showOpusUsageDialog(BuildContext context) async {
@@ -1099,73 +1009,19 @@ class _StylePresetControlsState extends State<_StylePresetControls> {
     String deleteConfirm,
     String moveTo,
     String manage
-  }) _groupText(String language) => switch (language) {
-        'zh-TW' => (
-            label: '風格分組',
-            all: '全部分組',
-            defaultGroup: '預設分組',
-            create: '建立分組',
-            name: '分組名稱',
-            exists: '該分組已存在。',
-            created: '已建立分組',
-            deleteGroup: '刪除分組',
-            deleteConfirm: '分組內的風格會移至預設分組。',
-            moveTo: '移至分組',
-            manage: '選擇與管理風格'
-          ),
-        'en-US' => (
-            label: 'Style group',
-            all: 'All groups',
-            defaultGroup: 'Default group',
-            create: 'Create group',
-            name: 'Group name',
-            exists: 'That group already exists.',
-            created: 'Group created',
-            deleteGroup: 'Delete group',
-            deleteConfirm: 'Styles in it will move to the default group.',
-            moveTo: 'Move to group',
-            manage: 'Choose and manage styles'
-          ),
-        'ja-JP' => (
-            label: 'スタイルグループ',
-            all: 'すべてのグループ',
-            defaultGroup: 'デフォルトグループ',
-            create: 'グループを作成',
-            name: 'グループ名',
-            exists: '同じグループが既に存在します。',
-            created: 'グループを作成しました',
-            deleteGroup: 'グループを削除',
-            deleteConfirm: 'スタイルはデフォルトグループへ移動します。',
-            moveTo: 'グループへ移動',
-            manage: 'スタイルを選択・管理'
-          ),
-        'ko-KR' => (
-            label: '스타일 그룹',
-            all: '모든 그룹',
-            defaultGroup: '기본 그룹',
-            create: '그룹 만들기',
-            name: '그룹 이름',
-            exists: '같은 그룹이 이미 있습니다.',
-            created: '그룹을 만들었습니다',
-            deleteGroup: '그룹 삭제',
-            deleteConfirm: '스타일은 기본 그룹으로 이동합니다.',
-            moveTo: '그룹으로 이동',
-            manage: '스타일 선택 및 관리'
-          ),
-        _ => (
-            label: '风格分组',
-            all: '全部分组',
-            defaultGroup: '默认分组',
-            create: '创建分组',
-            name: '分组名称',
-            exists: '该分组已经存在。',
-            created: '已创建分组',
-            deleteGroup: '删除分组',
-            deleteConfirm: '分组内的风格会移动到默认分组。',
-            moveTo: '移动到分组',
-            manage: '选择与管理风格'
-          ),
-      };
+  }) _groupText(String language) => (
+        label: '风格分组',
+        all: '全部分组',
+        defaultGroup: '默认分组',
+        create: '创建分组',
+        name: '分组名称',
+        exists: '该分组已经存在。',
+        created: '已创建分组',
+        deleteGroup: '删除分组',
+        deleteConfirm: '分组内的风格会移动到默认分组。',
+        moveTo: '移动到分组',
+        manage: '选择与管理风格'
+      );
 
   String _fillName(String template, String name) =>
       template.replaceAll('{name}', name);
@@ -1283,17 +1139,10 @@ class _StylePresetControlsState extends State<_StylePresetControls> {
 
   Future<void> _chooseHistoryStyleImage(
       BuildContext context, AppState state, StylePromptPreset preset) async {
-    final names = {
-      'zh-CN': '从历史记录选择',
-      'zh-TW': '從歷史記錄選擇',
-      'en-US': 'Choose from history',
-      'ja-JP': '履歴から選択',
-      'ko-KR': '기록에서 선택'
-    };
     final selected = await showDialog<HistoryItem>(
         context: context,
         builder: (context) => AlertDialog(
-                title: Text(names[state.settings.language] ?? names['en-US']!),
+                title: const Text('从历史记录选择'),
                 content: SizedBox(
                     width: 480,
                     height: 400,
@@ -1392,14 +1241,7 @@ class _StylePresetControlsState extends State<_StylePresetControls> {
                           : () =>
                               _chooseHistoryStyleImage(context, state, preset),
                       icon: const Icon(Icons.history),
-                      label: Text(const {
-                            'zh-CN': '从历史记录选择',
-                            'zh-TW': '從歷史記錄選擇',
-                            'en-US': 'Choose from history',
-                            'ja-JP': '履歴から選択',
-                            'ko-KR': '기록에서 선택'
-                          }[state.settings.language] ??
-                          'Choose from history')),
+                      label: const Text('从历史记录选择')),
                   Expanded(
                     child: images.isEmpty
                         ? Center(
@@ -1517,12 +1359,7 @@ class _StylePresetControlsState extends State<_StylePresetControls> {
     String language,
   ) async {
     final labels = _groupText(language);
-    final title = switch (language) {
-      'en-US' => '${labels.deleteGroup} “$group”?',
-      'ja-JP' => '「$group」を${labels.deleteGroup}しますか？',
-      'ko-KR' => '“$group” ${labels.deleteGroup}할까요?',
-      _ => '${labels.deleteGroup}“$group”？',
-    };
+    final title = '${labels.deleteGroup}“$group”？';
     return await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
@@ -1549,13 +1386,7 @@ class _StylePresetControlsState extends State<_StylePresetControls> {
     String name,
     String language,
   ) async {
-    final message = switch (language) {
-      'zh-TW' => '確定刪除風格「$name」嗎？此操作無法復原。',
-      'en-US' => 'Delete style “$name”? This cannot be undone.',
-      'ja-JP' => 'スタイル「$name」を削除しますか？この操作は元に戻せません。',
-      'ko-KR' => '스타일 “$name”을 삭제할까요? 이 작업은 되돌릴 수 없습니다.',
-      _ => '确定删除风格“$name”吗？此操作无法撤销。',
-    };
+    final message = '确定删除风格“$name”吗？此操作无法撤销。';
     return await showDialog<bool>(
           context: context,
           builder: (dialogContext) => AlertDialog(
@@ -1577,13 +1408,7 @@ class _StylePresetControlsState extends State<_StylePresetControls> {
         false;
   }
 
-  String textForDeleteStyle(String language) => switch (language) {
-        'zh-TW' => '刪除風格',
-        'en-US' => 'Delete style',
-        'ja-JP' => 'スタイルを削除',
-        'ko-KR' => '스타일 삭제',
-        _ => '删除风格',
-      };
+  String textForDeleteStyle(String language) => '删除风格';
 
   Future<void> _showStyleLibrary(
     BuildContext context,
@@ -2320,8 +2145,7 @@ class _CapsulePickerSheetState extends State<_CapsulePickerSheet> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text(localizedCapsuleCategoryName(
-                            language, widget.categories[index].name)),
+                        label: Text(widget.categories[index].name),
                         selected: categoryIndex == index,
                         onSelected: (_) => setState(() {
                           categoryIndex = index;
@@ -2344,8 +2168,7 @@ class _CapsulePickerSheetState extends State<_CapsulePickerSheet> {
                     Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: FilterChip(
-                        label: Text(localizedCapsuleSubgroupName(
-                            language, category.subgroups[index].name)),
+                        label: Text(category.subgroups[index].name),
                         selected: subgroupIndex == index,
                         onSelected: (_) =>
                             setState(() => subgroupIndex = index),
@@ -3881,7 +3704,7 @@ Future<void> _saveReferencePreset(
         );
   if (!context.mounted) return;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(error ?? state.displayStatus)),
+    SnackBar(content: Text(error ?? state.status)),
   );
 }
 
@@ -4177,7 +4000,7 @@ class _ReferencePresetLibraryPanelState
     groupController.dispose();
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? state.displayStatus)),
+      SnackBar(content: Text(error ?? state.status)),
     );
   }
 
@@ -4304,7 +4127,7 @@ class _ReferencePresetLibraryPanelState
     final error = await state.moveReferencePresetToGroup(preset.id, value);
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? state.displayStatus)),
+      SnackBar(content: Text(error ?? state.status)),
     );
   }
 
@@ -4326,7 +4149,7 @@ class _ReferencePresetLibraryPanelState
     if (!context.mounted) return;
     setState(() => _busy = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? state.displayStatus)),
+      SnackBar(content: Text(error ?? state.status)),
     );
   }
 
@@ -4429,7 +4252,7 @@ class _ReferencePresetLibraryPanelState
     }
     if (!mounted || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(lastError ?? '${state.displayStatus} · $applied')),
+      SnackBar(content: Text(lastError ?? '${state.status} · $applied')),
     );
     if (applied > 0 && lastError == null && context.mounted) {
       Navigator.maybePop(context);
@@ -5414,7 +5237,7 @@ class _RunBar extends StatelessWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                state.displayStatus,
+                state.status,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.bodySmall,

@@ -128,25 +128,4 @@ String exportVibeFile(List<VibeTransferItem> items) => jsonEncode({
       }).toList()
     });
 List<String> vibeFileLabels(String language) =>
-    const {
-      'zh-CN': ['导入 Vibe 文件', '导出 Vibe 文件', '编码参考（无原图）', '已导入 Vibe 参考'],
-      'zh-TW': ['匯入 Vibe 檔案', '匯出 Vibe 檔案', '編碼參考（無原圖）', '已匯入 Vibe 參考'],
-      'ja-JP': [
-        'Vibe ファイルを読込',
-        'Vibe ファイルを書出し',
-        'エンコード参照（元画像なし）',
-        'Vibe を読み込みました'
-      ],
-      'ko-KR': [
-        'Vibe 파일 가져오기',
-        'Vibe 파일 내보내기',
-        '인코딩 참조 (원본 없음)',
-        'Vibe를 가져왔습니다'
-      ],
-    }[language] ??
-    [
-      'Import Vibe file',
-      'Export Vibe file',
-      'Encoded reference (no image)',
-      'Vibe references imported'
-    ];
+    const ['导入 Vibe 文件', '导出 Vibe 文件', '编码参考（无原图）', '已导入 Vibe 参考'];

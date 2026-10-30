@@ -81,7 +81,6 @@ void main() {
       });
       final app = AppState();
       addTearDown(app.dispose);
-      app.settings.language = 'en-US';
       app.settings.lockStylePrompt = locked;
       app.params
         ..stylePrompt = '1.2::artist:current::, ink'
@@ -106,7 +105,7 @@ void main() {
           value: app, child: const MaterialApp(home: GenerateScreen())));
       await t.pumpAndSettle();
       for (var i = 0; i < 3; i++) {
-        final button = find.text('Load image');
+        final button = find.text('加载图片');
         await t.ensureVisible(button);
         await t.runAsync(() async {
           await t.tap(button);

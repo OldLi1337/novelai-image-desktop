@@ -4,9 +4,8 @@ import 'dart:io';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:novelai_mobile/agent/agent_models.dart';
-import 'package:novelai_mobile/agent/studio_options.dart';
-import 'package:novelai_mobile/agent/tavern_preset_import.dart';
+import 'package:novelai_mobile/tavern/tavern_models.dart';
+import 'package:novelai_mobile/tavern/tavern_preset_import.dart';
 import 'package:novelai_mobile/models/nai_models.dart';
 import 'package:novelai_mobile/prompts/ig5_image_prompts.dart';
 import 'package:novelai_mobile/services/nai_api.dart';
@@ -210,35 +209,6 @@ void main() {
     built.sourceHash = unique.sourceHash;
     expect(selectImportedSystemPreset(library, unique).id, unique.id);
     expect(built.systemPrompt, ig5PromptBodies['convert']);
-  });
-  test(
-      'Studio selected body is single task layer; legacy/off choices survive and references contain no body',
-      () {
-    final workspace = AgentWorkspace();
-    final chat = AgentConversation(id: 'fixture', title: 'host');
-    expect(
-        studioSelectedSystemPrompt(workspace, chat), ig5PromptBodies['studio']);
-    expect(jsonDecode(studioCreativeContext(workspace, chat))['preset'],
-        containsPair('id', 'dsh-infinite-gen-5'));
-    final preset =
-        importImageSystemPrompt('IMPORTED SYSTEM', fileName: 'custom.txt')
-            .preset;
-    workspace.samplerPresets.add(preset);
-    chat.studioPresetId = 'tavern:${preset.id}';
-    expect(studioSelectedSystemPrompt(workspace, chat), 'IMPORTED SYSTEM');
-    expect(studioCreativeContext(workspace, chat),
-        isNot(contains('IMPORTED SYSTEM')));
-    chat.studioPresetId = studioLegacyPresetId;
-    expect(studioSelectedSystemPrompt(workspace, chat), studioInfinitePrompt);
-    chat.studioTemplateEnabled = false;
-    expect(studioSelectedSystemPrompt(workspace, chat), '');
-    expect(
-        AgentConversation.fromJson({
-          'id': 'old',
-          'title': 'old',
-          'studioPresetId': 'dsh-infinite-gen-4'
-        }).studioPresetId,
-        studioLegacyPresetId);
   });
   test(
       'actual loopback conversion/reverse keeps independent imported rules plus custom output; off disables only layer',

@@ -12,7 +12,7 @@ const targetPath = path.join(
   "random_custom_tag_library.dart",
 );
 const source = JSON.parse(await readFile(sourcePath, "utf8"));
-const locales = ["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"];
+const locales = ["zh-CN"];
 
 const dartString = (value) => `'${String(value)
   .replaceAll("\\", "\\\\")
@@ -47,7 +47,7 @@ class RandomCustomTagEntry {
   final String tag;
   final Map<String, String> labels;
 
-  String label(String language) => labels[language] ?? labels['en-US'] ?? tag;
+  String label(String language) => labels[language] ?? labels['zh-CN'] ?? tag;
 }
 
 class RandomCustomTagCategory {
@@ -61,7 +61,7 @@ class RandomCustomTagCategory {
   final Map<String, String> labels;
   final List<RandomCustomTagEntry> tags;
 
-  String label(String language) => labels[language] ?? labels['en-US'] ?? id;
+  String label(String language) => labels[language] ?? labels['zh-CN'] ?? id;
 }
 
 const randomCustomTagLibrary = <RandomCustomTagCategory>[

@@ -107,12 +107,6 @@ abstract final class ImageFiles {
   /// A synchronous existence check cannot materialize an external provider.
   /// On iOS keep the tile so the coordinated image/error UI can explain a
   /// revoked/offline grant, rather than hiding it or deleting its history.
-  // Display metadata is deliberately not used for validation or API budgets;
-  // every action performs a fresh bounded read. Provider stat is asynchronous.
-  static int displaySize(String path) {
-    if (Platform.isIOS) return 0;
-    try { return File(path).lengthSync(); } catch (_) { return 0; }
-  }
   static bool keepVisible(String path) => Platform.isIOS || File(path).existsSync();
 }
 

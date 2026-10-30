@@ -38,25 +38,14 @@ class TranslationStorage extends Storage {
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
   test(
-      'legacy default follows UI and explicit selection survives serialization/storage',
+      'legacy default follows the Chinese UI and explicit selection survives serialization/storage',
       () async {
     final settings = AppSettings.fromJson({});
     expect(settings.translateTargetLanguage, 'system');
     expect(settings.translateRealtime, isFalse);
     expect(settings.translateSourceLanguage, 'auto');
-    for (final entry in {
-      'zh-CN': 'zh-CN',
-      'zh-TW': 'zh-TW',
-      'en-US': 'en',
-      'ja-JP': 'ja',
-      'ko-KR': 'ko'
-    }.entries) {
-      expect(
-          resolveTranslationTarget(settings.translateTargetLanguage, entry.key),
-          entry.value);
-      expect(
-          translationText(entry.key).values.every((v) => v.isNotEmpty), isTrue);
-    }
+    expect(resolveTranslationTarget(settings.translateTargetLanguage), 'zh-CN');
+    expect(translationText('zh-CN').values.every((v) => v.isNotEmpty), isTrue);
     for (final lang in translationLanguages) {
       expect(baiduTranslationTarget(lang.value), lang.baidu);
     }
@@ -68,8 +57,7 @@ void main() {
     expect(restored.translateTargetLanguage, 'ja');
     expect(restored.translateRealtime, isTrue);
     expect(restored.translateSourceLanguage, 'en');
-    expect(resolveTranslationTarget(restored.translateTargetLanguage, 'en-US'),
-        'ja');
+    expect(resolveTranslationTarget(restored.translateTargetLanguage), 'ja');
   });
   Future<void> mount(WidgetTester tester, AppState state,
       {bool Function(String)? isCurrent,

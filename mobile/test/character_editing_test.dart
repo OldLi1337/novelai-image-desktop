@@ -23,7 +23,6 @@ void main() {
   testWidgets('save dialog can save the second character only', (tester) async {
     final s = AppState();
     addTearDown(s.dispose);
-    s.settings.language = 'en-US';
     s.extras.charCaptions = [
       CharCaptionItem(prompt: 'alice'),
       CharCaptionItem(prompt: 'bob', negativePrompt: 'hat')
@@ -31,13 +30,13 @@ void main() {
     await tester.pumpWidget(ChangeNotifierProvider.value(
         value: s,
         child: const MaterialApp(home: Scaffold(body: CharacterPresetBar()))));
-    await tester.tap(find.text('Save to prompt presets'));
+    await tester.tap(find.text('保存到正面预设'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('2 · bob'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), 'Bob');
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
     final saved = s.settings.positivePromptPresets.single.toJson();
     expect(s.settings.characterPromptPresets, isEmpty);
@@ -110,7 +109,6 @@ void main() {
     addTearDown(tester.view.reset);
     final s = AppState();
     addTearDown(s.dispose);
-    s.settings.language = 'en-US';
     final a = CharCaptionItem(prompt: 'alice'),
         b = CharCaptionItem(prompt: 'bob');
     s.extras.charCaptions = [a, b];
@@ -134,7 +132,7 @@ void main() {
     await gesture.up();
     await tester.pumpAndSettle();
     expect(s.extras.charCaptions, [b, a]);
-    expect(find.text('Sync positions'), findsOneWidget);
+    expect(find.text('同步位置'), findsOneWidget);
   });
   testWidgets('reorder exposes both choices and restores collapse state',
       (tester) async {
@@ -143,7 +141,6 @@ void main() {
     addTearDown(tester.view.reset);
     final s = AppState();
     addTearDown(s.dispose);
-    s.settings.language = 'en-US';
     final a = CharCaptionItem(prompt: 'alice', x: .2, y: .3, useCoords: true),
         b = CharCaptionItem(prompt: 'bob', x: .8, y: .7, useCoords: true);
     s.extras.charCaptions = [a, b];
@@ -179,16 +176,16 @@ void main() {
     await tester.pumpAndSettle();
     expect(s.extras.charCaptions, [b, a]);
     expect(a.x, .2);
-    expect(find.text('Sync positions'), findsOneWidget);
-    expect(find.text('Keep positions'), findsOneWidget);
+    expect(find.text('同步位置'), findsOneWidget);
+    expect(find.text('保留位置'), findsOneWidget);
     final restored = tester
         .widgetList<StudioCollapse>(
             find.descendant(of: list, matching: find.byType(StudioCollapse)))
         .map((c) => c.open)
         .toList();
     expect(restored, [false, true]);
-    await tester.ensureVisible(find.text('Sync positions'));
-    await tester.tap(find.text('Sync positions'));
+    await tester.ensureVisible(find.text('同步位置'));
+    await tester.tap(find.text('同步位置'));
     await tester.pumpAndSettle();
     expect(b.x, .2);
     expect(a.x, .8);

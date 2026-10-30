@@ -60,7 +60,7 @@ void main() {
               .readAsBytesSync();
       await t.runAsync(
           () => storage.saveMetadataInspectorImage(bytes, 'source.png'));
-      final app = AppState(storage: storage)..settings.language = 'en-US';
+      final app = AppState(storage: storage);
       app.params
         ..positivePrompt = 'old positive'
         ..negativePrompt = 'old negative'
@@ -96,7 +96,7 @@ void main() {
             MetadataRecoveryMode.online);
         await t.tap(find.byKey(const ValueKey('metadata-recovery-mode')));
         await t.pumpAndSettle();
-        await t.tap(find.text('Offline: local parser').last);
+        await t.tap(find.text('离线：本机解析器').last);
         await t.pump(const Duration(milliseconds: 300));
         await settleIo(
             t,

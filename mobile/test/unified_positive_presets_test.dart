@@ -56,7 +56,6 @@ void main() {
     addTearDown(tester.view.reset);
     final s = AppState();
     addTearDown(s.dispose);
-    s.settings.language = 'en-US';
     s.settings.positivePromptPresets = [
       PositivePromptPreset(
           id: 'role',
@@ -79,11 +78,11 @@ void main() {
             home: Scaffold(
                 body: PositivePromptPresetButton(
                     currentPrompt: text, onApply: (v) => text = v)))));
-    await tester.tap(find.text('Prompt presets'));
+    await tester.tap(find.text('正面预设'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Alice').first);
     await tester.pumpAndSettle();
-    final apply = find.text('Apply · 1');
+    final apply = find.text('应用 · 1');
     await tester.ensureVisible(apply);
     await tester.tap(apply);
     await tester.pumpAndSettle();

@@ -11,15 +11,13 @@ import 'accounts_test.dart' show memoryVault;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  for(final language in ['zh-CN','zh-TW','en-US','ja-JP','ko-KR']) {
-    test('API Token runtime terminology is consistent in $language', () {
-      for(final key in ['error.tokenRequired','error.naiTokenRequired','comic.authStopped']) {
-        final message=runtimeTextFor(language,key);
-        expect(message,contains('API Token'));
-        expect(message,isNot(contains('API Key')));
-      }
-    });
-  }
+  test('API Token runtime terminology is consistent', () {
+    for(final key in ['error.tokenRequired','error.naiTokenRequired','comic.authStopped']) {
+      final message=runtimeTextFor('zh-CN',key);
+      expect(message,contains('API Token'));
+      expect(message,isNot(contains('API Key')));
+    }
+  });
   test('relay read-only fallback uses explicit prefix, parses string balance, no POST',() async {
     final vault=await memoryVault(); final calls=<http.Request>[];
     final api=NovelAiAccountApi(vault,clientFactory:(_,__)=>MockClient((r) async {

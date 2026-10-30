@@ -17,57 +17,9 @@ const _labels = <String, List<String>>{
     "已保存",
     "预设角色数量超过当前模型上限，请先切换模型。"
   ],
-  "zh-TW": [
-    "角色預設",
-    "儲存目前角色",
-    "套用",
-    "重新命名",
-    "刪除",
-    "名稱",
-    "儲存",
-    "取消",
-    "已儲存",
-    "預設角色數量超過目前模型上限，請先切換模型。"
-  ],
-  "en-US": [
-    "Character presets",
-    "Save current characters",
-    "Apply",
-    "Rename",
-    "Delete",
-    "Name",
-    "Save",
-    "Cancel",
-    "Saved",
-    "Too many characters for this model. Switch models first."
-  ],
-  "ja-JP": [
-    "キャラクタープリセット",
-    "現在のキャラクターを保存",
-    "適用",
-    "名前を変更",
-    "削除",
-    "名前",
-    "保存",
-    "キャンセル",
-    "保存しました",
-    "現在のモデルの人数上限を超えています。モデルを変更してください。"
-  ],
-  "ko-KR": [
-    "캐릭터 프리셋",
-    "현재 캐릭터 저장",
-    "적용",
-    "이름 변경",
-    "삭제",
-    "이름",
-    "저장",
-    "취소",
-    "저장됨",
-    "현재 모델의 캐릭터 수 제한을 초과합니다. 모델을 변경하세요."
-  ]
 };
 List<String> characterPresetLabels(String language) =>
-    _labels[language] ?? _labels['en-US']!;
+    _labels[language] ?? _labels['zh-CN']!;
 Future<String?> requestPresetName(BuildContext context, String language,
     {String initial = ''}) {
   final t = characterPresetLabels(language);
@@ -109,19 +61,11 @@ class _CharacterPresetBarState extends State<CharacterPresetBar> {
     final language = state.settings.language;
     final t = characterPresetLabels(language),
         labels = characterEditLabels(language);
-    final title = const {
-          'zh-CN': '保存到正面预设',
-          'zh-TW': '儲存到正面預設',
-          'en-US': 'Save to prompt presets',
-          'ja-JP': '正面プリセットに保存',
-          'ko-KR': '긍정 프리셋에 저장'
-        }[language] ??
-        'Save to prompt presets';
     return Align(
         alignment: Alignment.centerLeft,
         child: TextButton.icon(
             icon: const Icon(Icons.bookmark_add_outlined),
-            label: Text(title),
+            label: const Text('保存到正面预设'),
             onPressed: busy || state.extras.charCaptions.isEmpty
                 ? null
                 : () async {

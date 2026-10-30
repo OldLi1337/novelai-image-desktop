@@ -2,14 +2,10 @@ import 'package:flutter/material.dart';
 
 const _effortTitles = <String, String>{
   'zh-CN': '生成档位（Effort）',
-  'zh-TW': '生成檔位（Effort）',
-  'en-US': 'Generation Effort',
-  'ja-JP': '生成 Effort',
-  'ko-KR': '생성 Effort',
 };
-String effortTitle(Object? language) => _effortTitles[language] ?? _effortTitles['en-US']!;
+String effortTitle(Object? language) => _effortTitles[language] ?? _effortTitles['zh-CN']!;
 
-String effortRemainingTitle(Object? language) => const {'zh-CN':'预计可生成张数','zh-TW':'預計可生成張數','en-US':'Estimated remaining images','ja-JP':'生成可能枚数の目安','ko-KR':'예상 잔여 이미지 수'}[language] ?? 'Estimated remaining images';
+String effortRemainingTitle(Object? language) => '预计可生成张数';
 
 class EffortControl extends StatelessWidget {
   final String model, value;

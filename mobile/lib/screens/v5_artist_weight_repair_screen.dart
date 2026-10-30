@@ -77,449 +77,95 @@ class _RepairDrawResult {
 }
 
 Map<String, String> _repairText(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return {
-        'title': 'V4.5 畫師串修復器',
-        'subtitle':
-            '自動識別畫師、品質詞與其他 Tag；整串每個有效 Tag 都獨立壓到原權重的 1/3–1/2，並統一為規範 V5 數值格式。',
-        'basis': '使用者實測與限制',
-        'note':
-            'NovelAI 官方沒有公布 V4.5→V5 換算公式。社群的 1/3–1/2 建議主要來自舊畫師權重遷移；依本工具設定，品質、風格與其他有效 Tag 也會套用相同範圍。這不是官方標準。',
-        'safe':
-            '明確的 artist: 與已確認的無前綴畫師名會辨識為畫師；品質、風格、年份、負面與內容 Tag 不會被加上 artist:。重複分隔符與孤立 :: 會自動清理。',
-        'strategy': '社群遷移策略',
-        'input': 'V4.5 完整 Tag 串',
-        'output': '規範 V5 Tag 串',
-        'run': '隨機修復畫師權重',
-        'copy': '複製結果',
-        'reset': '恢復預設',
-        'empty': '請先貼上畫師串。',
-        'none': '未識別到有效 Tag；請檢查輸入與分隔符。',
-        'done':
-            '已產生 {candidates} 組候選；每組修復 {count} 個 Tag（畫師 {artists}、品質詞 {quality}、其他 {other}）。',
-        'copied': '已複製結果。',
-      };
-    case 'en-US':
-      return {
-        'title': 'V4.5 Artist-string Repair',
-        'subtitle':
-            'Auto-detect artist, quality, and other tags; independently scale every valid tag to one third–one half of its old weight and normalize V5 syntax.',
-        'basis': 'Community evidence and limits',
-        'note':
-            'NovelAI publishes no V4.5→V5 formula. The community one-third-to-one-half heuristic mainly concerns legacy artist weights; this tool deliberately applies it to quality, style, and other valid tags for whole-string migration. It is not an official standard.',
-        'safe':
-            'Explicit artist: tags and reviewed bare artist names are classified as artists. Quality, style, year, negative, and content tags never gain artist:. Repeated separators and orphan :: markers are cleaned.',
-        'strategy': 'Community migration heuristic',
-        'input': 'Complete V4.5 tag string',
-        'output': 'Normalized V5 tag string',
-        'run': 'Randomize repair',
-        'copy': 'Copy result',
-        'reset': 'Restore defaults',
-        'empty': 'Paste an artist string first.',
-        'none': 'No valid tags were detected. Check the input and separators.',
-        'done':
-            'Created {candidates} candidates; each repairs {count} tags ({artists} artist, {quality} quality, {other} other).',
-        'copied': 'Result copied.',
-      };
-    case 'ja-JP':
-      return {
-        'title': 'V4.5 画家列修復',
-        'subtitle':
-            '画家・品質・その他の Tag を自動判定し、すべての有効 Tag を旧値の 1/3～1/2 に個別調整して V5 数値形式へ統一します。',
-        'basis': 'ユーザー検証と制限',
-        'note':
-            'NovelAI は V4.5→V5 の換算式を公開していません。1/3～1/2 の目安は主に旧画家ウェイト向けですが、本ツールでは文字列全体の移行のため品質・スタイル・その他にも適用します。公式標準ではありません。',
-        'safe':
-            '明示的な artist: と確認済みの画家名だけを画家として分類します。品質・スタイル・年・ネガティブ・内容 Tag に artist: は追加せず、重複区切りと孤立 :: は整理します。',
-        'strategy': 'コミュニティ移行ヒューリスティック',
-        'input': 'V4.5 完全 Tag 列',
-        'output': '正規化 V5 Tag 列',
-        'run': 'ランダム修復',
-        'copy': '結果をコピー',
-        'reset': '初期値に戻す',
-        'empty': '画家列を貼り付けてください。',
-        'none': '有効な Tag を認識できませんでした。入力と区切りを確認してください。',
-        'done':
-            '{candidates} 組の候補を作成し、各組で {count} 個の Tag（画家 {artists}、品質 {quality}、その他 {other}）を修復しました。',
-        'copied': 'コピーしました。',
-      };
-    case 'ko-KR':
-      return {
-        'title': 'V4.5 작가 문자열 복구',
-        'subtitle':
-            '작가·품질·기타 Tag를 자동 구분하고 모든 유효 Tag를 기존 가중치의 1/3~1/2로 개별 조정해 V5 형식으로 통일합니다.',
-        'basis': '사용자 검증과 한계',
-        'note':
-            'NovelAI는 V4.5→V5 환산식을 공개하지 않았습니다. 1/3~1/2 기준은 주로 기존 작가 가중치에 관한 것이며 이 도구는 전체 문자열 이전을 위해 품질·스타일·기타 Tag에도 적용합니다. 공식 표준은 아닙니다.',
-        'safe':
-            '명시적 artist:와 검토된 작가명만 작가로 분류합니다. 품질·스타일·연도·네거티브·내용 Tag에는 artist:를 붙이지 않으며 중복 구분자와 고립된 ::를 정리합니다.',
-        'strategy': '커뮤니티 마이그레이션 휴리스틱',
-        'input': 'V4.5 전체 Tag 문자열',
-        'output': '정규화 V5 Tag 문자열',
-        'run': '무작위 가중치 복구',
-        'copy': '결과 복사',
-        'reset': '기본값 복원',
-        'empty': '작가 문자열을 먼저 붙여넣으세요.',
-        'none': '유효한 Tag를 찾지 못했습니다. 입력과 구분자를 확인하세요.',
-        'done':
-            '후보 {candidates}개를 만들고 각 후보에서 Tag {count}개(작가 {artists}, 품질 {quality}, 기타 {other})를 복구했습니다.',
-        'copied': '복사했습니다.',
-      };
-    default:
-      return {
-        'title': 'V4.5 画师串修复器',
-        'subtitle':
-            '自动识别画师、质量词和其他 Tag；整串每个有效 Tag 都独立压到原权重的 1/3–1/2，并统一为规范 V5 数值格式。',
-        'basis': '用户实测结论与限制',
-        'note':
-            'NovelAI 官方没有公布 V4.5→V5 换算公式。社区的 1/3–1/2 建议主要来自旧画师权重迁移；按本工具设定，质量词、风格词和其他有效 Tag 也会套用同一范围。结果仅是试验起点，不是官方标准。',
-        'safe':
-            '显式 artist: 标签和已确认的无前缀画师名会识别为画师；质量、风格、年份、负面和内容 Tag 不会被加上 artist:。重复分隔符和孤立 :: 会自动清理。',
-        'strategy': '社区迁移策略',
-        'input': 'V4.5 完整 Tag 串',
-        'output': '规范 V5 Tag 串',
-        'run': '随机修复画师权重',
-        'copy': '复制结果',
-        'reset': '恢复默认',
-        'empty': '请先粘贴画师串。',
-        'none': '没有识别到有效 Tag；请检查输入和分隔符。',
-        'done':
-            '已生成 {candidates} 组候选；每组修复 {count} 个 Tag（画师 {artists}、质量词 {quality}、其他 {other}）。',
-        'copied': '已复制结果。',
-      };
-  }
+  return {
+    'title': 'V4.5 画师串修复器',
+    'subtitle':
+        '自动识别画师、质量词和其他 Tag；整串每个有效 Tag 都独立压到原权重的 1/3–1/2，并统一为规范 V5 数值格式。',
+    'basis': '用户实测结论与限制',
+    'note':
+        'NovelAI 官方没有公布 V4.5→V5 换算公式。社区的 1/3–1/2 建议主要来自旧画师权重迁移；按本工具设定，质量词、风格词和其他有效 Tag 也会套用同一范围。结果仅是试验起点，不是官方标准。',
+    'safe':
+        '显式 artist: 标签和已确认的无前缀画师名会识别为画师；质量、风格、年份、负面和内容 Tag 不会被加上 artist:。重复分隔符和孤立 :: 会自动清理。',
+    'strategy': '社区迁移策略',
+    'input': 'V4.5 完整 Tag 串',
+    'output': '规范 V5 Tag 串',
+    'run': '随机修复画师权重',
+    'copy': '复制结果',
+    'reset': '恢复默认',
+    'empty': '请先粘贴画师串。',
+    'none': '没有识别到有效 Tag；请检查输入和分隔符。',
+    'done':
+        '已生成 {candidates} 组候选；每组修复 {count} 个 Tag（画师 {artists}、质量词 {quality}、其他 {other}）。',
+    'copied': '已复制结果。',
+  };
 }
 
 Map<String, String> _drawText(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return {
-        'title': '輸入畫師串抽卡',
-        'hint':
-            '沿用修復器的辨識與規範流程：每個有效 Tag 先按舊權重的 1/3～1/2 遷移，再限制於自訂最終範圍；不刪除任何 Tag。',
-        'settings': '抽卡設定',
-        'input': '完整 Tag 串',
-        'inputHint': '例如：xiaoluo_xl, 1.2::artist:pottsness ::',
-        'normalizeHint':
-            '自動辨識畫師、品質詞與其他 Tag；只有明確 artist: 與已確認畫師名會取得 artist: 前綴。',
-        'inputEmpty': '請先貼上畫師串。',
-        'none': '未識別到有效 Tag；請檢查輸入與分隔符。',
-        'min': '最低權重',
-        'max': '最高權重',
-        'count': '候選組數',
-        'base': '正面提示詞（固定內容）',
-        'fixed': '全批固定 Seed',
-        'random': '每張隨機 Seed',
-        'seed': 'Seed',
-        'randomSeed': '隨機 Seed',
-        'draw': '重新抽權重',
-        'generate': '生成這一批',
-        'stop': '停止',
-        'params': '沿用生成頁目前參數；非 V5 模型會自動改用 V5 Full。',
-        'all':
-            '已識別 {count} 個有效 Tag（畫師 {artists}、品質詞 {quality}、其他 {other}）；每組完整保留。',
-        'results': '本批候選',
-        'favorites': '收藏夾',
-        'shared': '本工具收藏獨立保存，不與另外兩種畫師工具共用',
-        'empty': '輸入畫師串後即可抽取候選。',
-        'emptyFavorite': '收藏庫暫無內容。',
-        'needPrompt': '請填寫固定內容提示詞。',
-        'needDraw': '請先抽取候選。',
-        'running': '生成中 {done}/{total}',
-        'complete': '生成完成，可收藏喜歡的結果。',
-        'pending': '等待',
-        'generating': '生成中',
-        'done': '完成',
-        'failed': '失敗',
-        'favorite': '收藏',
-        'saved': '已收藏',
-        'saving': '儲存中',
-        'remove': '移除',
-        'apply': '套用到生成',
-        'retry': '重試',
-        'removed': '已移除收藏和本機圖片。',
-        'preview': '雙擊或點擊按鈕預覽大圖',
-      };
-    case 'en-US':
-      return {
-        'title': 'Artist-string Weight Draw',
-        'hint':
-            'Uses the repair parser and normalization: every valid tag is first migrated to one third–one half of its old weight, then constrained to the custom final bounds; no tags are removed.',
-        'settings': 'Draw settings',
-        'input': 'Complete tag string',
-        'inputHint': 'Example: xiaoluo_xl, 1.2::artist:pottsness ::',
-        'normalizeHint':
-            'Artist, quality, and other tags are classified automatically; only explicit or reviewed artists gain artist:.',
-        'inputEmpty': 'Paste an artist string first.',
-        'none': 'No valid tags were detected. Check the input and separators.',
-        'min': 'Minimum weight',
-        'max': 'Maximum weight',
-        'count': 'Candidate sets',
-        'base': 'Positive prompt (fixed content)',
-        'fixed': 'Fixed seed for batch',
-        'random': 'Random seed per image',
-        'seed': 'Seed',
-        'randomSeed': 'Random seed',
-        'draw': 'Reroll weights',
-        'generate': 'Generate batch',
-        'stop': 'Stop',
-        'params':
-            'Uses current Generate settings; non-V5 models switch to V5 Full.',
-        'all':
-            '{count} valid tags detected ({artists} artist, {quality} quality, {other} other); every set retains all of them.',
-        'results': 'Candidates',
-        'favorites': 'Favorites',
-        'shared':
-            'This tool has its own favorites; the other two artist tools are separate',
-        'empty': 'Paste an artist string, then draw candidates.',
-        'emptyFavorite': 'No favorites yet.',
-        'needPrompt': 'Enter a fixed content prompt.',
-        'needDraw': 'Draw candidates first.',
-        'running': 'Generating {done}/{total}',
-        'complete': 'Generation complete. Save the results you like.',
-        'pending': 'Pending',
-        'generating': 'Generating',
-        'done': 'Done',
-        'failed': 'Failed',
-        'favorite': 'Favorite',
-        'saved': 'Saved',
-        'saving': 'Saving',
-        'remove': 'Remove',
-        'apply': 'Apply',
-        'retry': 'Retry',
-        'removed': 'Favorite and local image removed.',
-        'preview': 'Double-tap or use the button to preview',
-      };
-    case 'ja-JP':
-      return {
-        'title': '画家列ウェイト抽選',
-        'hint':
-            '修復器と同じ判定・正規化を使い、各 Tag を旧ウェイトの 1/3～1/2 に移行してから指定範囲内に収めます。Tag は削除しません。',
-        'settings': '抽選設定',
-        'input': '完全な Tag 列',
-        'inputHint': '例：xiaoluo_xl, 1.2::artist:pottsness ::',
-        'normalizeHint': '画家・品質・その他を自動分類し、明示的または確認済みの画家だけに artist: を付けます。',
-        'inputEmpty': '画家列を貼り付けてください。',
-        'none': '有効な Tag を認識できませんでした。入力と区切りを確認してください。',
-        'min': '最小',
-        'max': '最大',
-        'count': '候補セット数',
-        'base': 'ポジティブプロンプト（固定内容）',
-        'fixed': '全候補 Seed 固定',
-        'random': '画像ごと Seed 抽選',
-        'seed': 'Seed',
-        'randomSeed': 'Seed を抽選',
-        'draw': 'ウェイト再抽選',
-        'generate': '一括生成',
-        'stop': '停止',
-        'params': '生成画面の現在設定を使用し、非 V5 は V5 Full に切り替えます。',
-        'all':
-            '{count} 個の有効 Tag（画家 {artists}、品質 {quality}、その他 {other}）を各組に保持します。',
-        'results': '候補',
-        'favorites': 'お気に入り',
-        'shared': 'このツール専用のお気に入りです。他の2つとは共有しません',
-        'empty': '画家列を入力して候補を抽選できます。',
-        'emptyFavorite': 'お気に入りはありません。',
-        'needPrompt': '固定内容を入力してください。',
-        'needDraw': '先に候補を抽選してください。',
-        'running': '生成中 {done}/{total}',
-        'complete': '生成完了。好きな結果を保存できます。',
-        'pending': '待機',
-        'generating': '生成中',
-        'done': '完了',
-        'failed': '失敗',
-        'favorite': '保存',
-        'saved': '保存済み',
-        'saving': '保存中',
-        'remove': '削除',
-        'apply': '生成へ適用',
-        'retry': '再試行',
-        'removed': 'お気に入りと画像を削除しました。',
-        'preview': 'ダブルタップまたはボタンで拡大',
-      };
-    case 'ko-KR':
-      return {
-        'title': '작가 문자열 가중치 뽑기',
-        'hint':
-            '복구 도구와 같은 판별·정규화를 사용해 각 Tag를 기존 가중치의 1/3~1/2로 이전한 뒤 지정 범위로 제한하며 Tag는 삭제하지 않습니다.',
-        'settings': '추첨 설정',
-        'input': '전체 Tag 문자열',
-        'inputHint': '예: xiaoluo_xl, 1.2::artist:pottsness ::',
-        'normalizeHint': '작가·품질·기타를 자동 분류하고 명시적 또는 검토된 작가에만 artist:를 붙입니다.',
-        'inputEmpty': '작가 문자열을 붙여넣으세요.',
-        'none': '유효한 Tag를 찾지 못했습니다. 입력과 구분자를 확인하세요.',
-        'min': '최저',
-        'max': '최고',
-        'count': '후보 세트 수',
-        'base': '긍정 프롬프트 (고정 내용)',
-        'fixed': '전체 Seed 고정',
-        'random': '이미지별 Seed 무작위',
-        'seed': 'Seed',
-        'randomSeed': 'Seed 무작위',
-        'draw': '가중치 다시 뽑기',
-        'generate': '일괄 생성',
-        'stop': '중지',
-        'params': '생성 화면의 현재 설정을 사용하며 비 V5 모델은 V5 Full로 전환합니다.',
-        'all':
-            '유효 Tag {count}개(작가 {artists}, 품질 {quality}, 기타 {other})를 모든 세트에 유지합니다.',
-        'results': '후보',
-        'favorites': '즐겨찾기',
-        'shared': '이 도구 전용 즐겨찾기이며 다른 두 도구와 공유하지 않습니다',
-        'empty': '작가 문자열을 입력한 뒤 후보를 뽑을 수 있습니다.',
-        'emptyFavorite': '즐겨찾기가 없습니다.',
-        'needPrompt': '고정 내용을 입력하세요.',
-        'needDraw': '먼저 후보를 뽑으세요.',
-        'running': '생성 중 {done}/{total}',
-        'complete': '생성 완료. 마음에 드는 결과를 저장하세요.',
-        'pending': '대기',
-        'generating': '생성 중',
-        'done': '완료',
-        'failed': '실패',
-        'favorite': '저장',
-        'saved': '저장됨',
-        'saving': '저장 중',
-        'remove': '삭제',
-        'apply': '생성에 적용',
-        'retry': '재시도',
-        'removed': '즐겨찾기와 이미지를 삭제했습니다.',
-        'preview': '두 번 탭하거나 버튼으로 크게 보기',
-      };
-    default:
-      return {
-        'title': '输入画师串抽卡',
-        'hint':
-            '沿用修复器的识别与规范流程：每个有效 Tag 先按旧权重的 1/3～1/2 迁移，再限制在自定义最终范围内；不删除任何 Tag。',
-        'settings': '抽卡设置',
-        'input': '完整 Tag 串',
-        'inputHint': '例如：xiaoluo_xl, 1.2::artist:pottsness ::',
-        'normalizeHint':
-            '自动识别画师、质量词与其他 Tag；只有显式 artist: 和已确认画师名会获得 artist: 前缀。',
-        'inputEmpty': '请先粘贴画师串。',
-        'none': '没有识别到有效 Tag；请检查输入和分隔符。',
-        'min': '最低权重',
-        'max': '最高权重',
-        'count': '候选组数',
-        'base': '正面提示词（固定内容）',
-        'fixed': '全批固定 Seed',
-        'random': '每张随机 Seed',
-        'seed': 'Seed',
-        'randomSeed': '随机 Seed',
-        'draw': '重新抽权重',
-        'generate': '生成这一批',
-        'stop': '停止',
-        'params': '生图沿用生成页当前参数；非 V5 模型会自动改用 V5 Full。',
-        'all':
-            '已识别 {count} 个有效 Tag（画师 {artists}、质量词 {quality}、其他 {other}）；每组完整保留。',
-        'results': '本批候选',
-        'favorites': '收藏夹',
-        'shared': '本工具收藏独立保存，不与另外两种画师工具共用',
-        'empty': '输入画师串后即可抽取候选。',
-        'emptyFavorite': '收藏库暂无内容。',
-        'needPrompt': '请填写固定内容提示词。',
-        'needDraw': '请先抽取候选。',
-        'running': '正在生成 {done}/{total}',
-        'complete': '生成完成；可收藏喜欢的结果。',
-        'pending': '等待',
-        'generating': '生成中',
-        'done': '完成',
-        'failed': '失败',
-        'favorite': '收藏',
-        'saved': '已收藏',
-        'saving': '保存中',
-        'remove': '移除',
-        'apply': '应用到生成',
-        'retry': '重试',
-        'removed': '已移除收藏和本地图片。',
-        'preview': '双击或点击按钮预览大图',
-      };
-  }
+  return {
+    'title': '输入画师串抽卡',
+    'hint':
+        '沿用修复器的识别与规范流程：每个有效 Tag 先按旧权重的 1/3～1/2 迁移，再限制在自定义最终范围内；不删除任何 Tag。',
+    'settings': '抽卡设置',
+    'input': '完整 Tag 串',
+    'inputHint': '例如：xiaoluo_xl, 1.2::artist:pottsness ::',
+    'normalizeHint':
+        '自动识别画师、质量词与其他 Tag；只有显式 artist: 和已确认画师名会获得 artist: 前缀。',
+    'inputEmpty': '请先粘贴画师串。',
+    'none': '没有识别到有效 Tag；请检查输入和分隔符。',
+    'min': '最低权重',
+    'max': '最高权重',
+    'count': '候选组数',
+    'base': '正面提示词（固定内容）',
+    'fixed': '全批固定 Seed',
+    'random': '每张随机 Seed',
+    'seed': 'Seed',
+    'randomSeed': '随机 Seed',
+    'draw': '重新抽权重',
+    'generate': '生成这一批',
+    'stop': '停止',
+    'params': '生图沿用生成页当前参数；非 V5 模型会自动改用 V5 Full。',
+    'all':
+        '已识别 {count} 个有效 Tag（画师 {artists}、质量词 {quality}、其他 {other}）；每组完整保留。',
+    'results': '本批候选',
+    'favorites': '收藏夹',
+    'shared': '本工具收藏独立保存，不与另外两种画师工具共用',
+    'empty': '输入画师串后即可抽取候选。',
+    'emptyFavorite': '收藏库暂无内容。',
+    'needPrompt': '请填写固定内容提示词。',
+    'needDraw': '请先抽取候选。',
+    'running': '正在生成 {done}/{total}',
+    'complete': '生成完成；可收藏喜欢的结果。',
+    'pending': '等待',
+    'generating': '生成中',
+    'done': '完成',
+    'failed': '失败',
+    'favorite': '收藏',
+    'saved': '已收藏',
+    'saving': '保存中',
+    'remove': '移除',
+    'apply': '应用到生成',
+    'retry': '重试',
+    'removed': '已移除收藏和本地图片。',
+    'preview': '双击或点击按钮预览大图',
+  };
 }
 
 Map<String, String> _drawParamText(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return {
-        'title': 'NovelAI 生成參數',
-        'hint': '參數只用於本工具批次生圖，可自行修改，也可從生成頁同步或恢復初始參數。',
-        'sync': '從生成頁同步',
-        'reset': '恢復初始參數',
-        'model': '模型',
-        'size': '圖片尺寸',
-        'width': '寬度',
-        'height': '高度',
-        'negative': '負面提示詞',
-        'steps': '步數',
-        'sampler': '採樣器',
-        'noise': '噪聲計畫',
-        'uc': '負面預設',
-      };
-    case 'en-US':
-      return {
-        'title': 'NovelAI generation settings',
-        'hint':
-            'These independent settings apply only to this batch. Sync from Generate or restore app defaults at any time.',
-        'sync': 'Sync from Generate',
-        'reset': 'Restore defaults',
-        'model': 'Model',
-        'size': 'Image size',
-        'width': 'Width',
-        'height': 'Height',
-        'negative': 'Negative prompt',
-        'steps': 'Steps',
-        'sampler': 'Sampler',
-        'noise': 'Noise schedule',
-        'uc': 'UC preset',
-      };
-    case 'ja-JP':
-      return {
-        'title': 'NovelAI 生成設定',
-        'hint': 'このツールの一括生成だけに使う独立設定です。生成画面との同期または初期化ができます。',
-        'sync': '生成画面から同期',
-        'reset': '初期設定に戻す',
-        'model': 'モデル',
-        'size': '画像サイズ',
-        'width': '幅',
-        'height': '高さ',
-        'negative': 'ネガティブプロンプト',
-        'steps': 'ステップ',
-        'sampler': 'サンプラー',
-        'noise': 'ノイズスケジュール',
-        'uc': 'UC プリセット',
-      };
-    case 'ko-KR':
-      return {
-        'title': 'NovelAI 생성 설정',
-        'hint': '이 도구의 일괄 생성에만 적용되는 독립 설정입니다. 생성 화면 동기화 또는 초기화가 가능합니다.',
-        'sync': '생성 화면에서 동기화',
-        'reset': '초기값 복원',
-        'model': '모델',
-        'size': '이미지 크기',
-        'width': '너비',
-        'height': '높이',
-        'negative': '네거티브 프롬프트',
-        'steps': '스텝',
-        'sampler': '샘플러',
-        'noise': '노이즈 스케줄',
-        'uc': 'UC 프리셋',
-      };
-    default:
-      return {
-        'title': 'NovelAI 生成参数',
-        'hint': '参数仅用于本工具批量生图，可自行修改；也可从生成页同步或恢复软件初始参数。',
-        'sync': '从生成页同步',
-        'reset': '恢复初始参数',
-        'model': '模型',
-        'size': '图片尺寸',
-        'width': '宽度',
-        'height': '高度',
-        'negative': '负面提示词',
-        'steps': '步数',
-        'sampler': '采样器',
-        'noise': '噪声计划',
-        'uc': '负面预设',
-      };
-  }
+  return {
+    'title': 'NovelAI 生成参数',
+    'hint': '参数仅用于本工具批量生图，可自行修改；也可从生成页同步或恢复软件初始参数。',
+    'sync': '从生成页同步',
+    'reset': '恢复初始参数',
+    'model': '模型',
+    'size': '图片尺寸',
+    'width': '宽度',
+    'height': '高度',
+    'negative': '负面提示词',
+    'steps': '步数',
+    'sampler': '采样器',
+    'noise': '噪声计划',
+    'uc': '负面预设',
+  };
 }
 
 enum V5ArtistToolMode { repair, draw }
@@ -893,17 +539,14 @@ class _V5ArtistWeightRepairScreenState
           entry.labels.values
               .any((label) => label.toLowerCase().contains(query));
     }).toList(growable: false);
-    final chinese = language == 'zh-CN' || language == 'zh-TW';
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       child: ExpansionTile(
         initiallyExpanded: false,
         leading: const Icon(Icons.style_outlined),
-        title: Text(chinese ? '画风 Tag 库' : 'Style Tag library'),
-        subtitle: Text(chinese
-            ? '已选 ${_drawStyleTags.length} 个；每个候选都会加入并随机赋权'
-            : '${_drawStyleTags.length} selected; added to every draw with random weights'),
+        title: const Text('画风 Tag 库'),
+        subtitle: Text('已选 ${_drawStyleTags.length} 个；每个候选都会加入并随机赋权'),
         childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         children: [
           TextField(
@@ -920,7 +563,7 @@ class _V5ArtistWeightRepairScreenState
                       },
                       icon: const Icon(Icons.clear),
                     ),
-              hintText: chinese ? '搜索 Tag 或含义' : 'Search Tag or meaning',
+              hintText: '搜索 Tag 或含义',
               border: const OutlineInputBorder(),
             ),
           ),
@@ -945,8 +588,7 @@ class _V5ArtistWeightRepairScreenState
           SizedBox(
             height: 280,
             child: entries.isEmpty
-                ? Center(
-                    child: Text(chinese ? '没有匹配的 Tag' : 'No matching tags'))
+                ? const Center(child: Text('没有匹配的 Tag'))
                 : ListView.builder(
                     primary: false,
                     itemCount: entries.length,

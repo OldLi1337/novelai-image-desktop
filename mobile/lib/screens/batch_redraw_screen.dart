@@ -131,7 +131,7 @@ class _BatchBody extends StatelessWidget {
                         ),
                       ),
                     Expanded(
-                      child: Text(controller.displayStatus,
+                      child: Text(controller.status,
                           maxLines: 2, overflow: TextOverflow.ellipsis),
                     ),
                   ],
@@ -1241,7 +1241,7 @@ class _BatchGenerateStep extends StatelessWidget {
                   await controller.clearGeneratedResults();
                   if (context.mounted) {
                     messenger.showSnackBar(
-                        SnackBar(content: Text(controller.displayStatus)));
+                        SnackBar(content: Text(controller.status)));
                   }
                 },
           onTogglePause: controller.togglePause,

@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:novelai_mobile/billing/anlas.dart';
-import 'package:novelai_mobile/i18n/app_locales.dart';
 import 'package:novelai_mobile/main.dart';
 import 'package:novelai_mobile/models/nai_models.dart';
 import 'package:novelai_mobile/screens/generate_screen.dart';
@@ -17,11 +16,8 @@ import 'package:novelai_mobile/ui/studio_theme.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:provider/provider.dart';
 
-const _locales = ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR'];
+const _locales = ['zh-CN'];
 const _fontZh = 'AuditZh';
-const _fontEn = 'AuditEn';
-const _fontJa = 'AuditJa';
-const _fontKo = 'AuditKo';
 const _fontMaterialIcons = 'MaterialIcons';
 
 class _AuditPathProvider extends PathProviderPlatform {
@@ -107,24 +103,21 @@ Future<void> _pumpCapture(
     message: 'screenshot audit quote',
   );
 
-  final locale = appLocaleInfoFor(localeCode).locale;
   final theme = StudioTheme.light();
-  final fontFamily = _fontFamilyFor(localeCode);
   await tester.pumpWidget(
     ChangeNotifierProvider.value(
       value: state,
       child: MaterialApp(
-        locale: locale,
-        supportedLocales: supportedAppLocales.map((item) => item.locale),
+        locale: const Locale('zh', 'CN'),
+        supportedLocales: const [Locale('zh', 'CN')],
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
         theme: theme.copyWith(
-          textTheme: theme.textTheme.apply(fontFamily: fontFamily),
-          primaryTextTheme:
-              theme.primaryTextTheme.apply(fontFamily: fontFamily),
+          textTheme: theme.textTheme.apply(fontFamily: _fontZh),
+          primaryTextTheme: theme.primaryTextTheme.apply(fontFamily: _fontZh),
         ),
         home: RepaintBoundary(
           key: boundaryKey,
@@ -139,9 +132,6 @@ Future<void> _pumpCapture(
 
 Future<void> _loadAuditFonts() async {
   await _loadFont(_fontZh, ['C:/Windows/Fonts/msyh.ttc']);
-  await _loadFont(_fontEn, ['C:/Windows/Fonts/arial.ttf']);
-  await _loadFont(_fontJa, ['C:/Windows/Fonts/YuGothR.ttc']);
-  await _loadFont(_fontKo, ['C:/Windows/Fonts/malgun.ttf']);
   await _loadFont(_fontMaterialIcons, [
     'F:/flutter/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
     '${_repoRoot()}/mobile/build/unit_test_assets/fonts/MaterialIcons-Regular.otf',
@@ -160,15 +150,6 @@ Future<void> _loadFont(String family, List<String> candidates) async {
   if (loaded) {
     await loader.load();
   }
-}
-
-String _fontFamilyFor(String localeCode) {
-  return switch (normalizeAppLocaleCode(localeCode)) {
-    'en-US' => _fontEn,
-    'ja-JP' => _fontJa,
-    'ko-KR' => _fontKo,
-    _ => _fontZh,
-  };
 }
 
 Future<void> _savePng(GlobalKey boundaryKey, File output) async {

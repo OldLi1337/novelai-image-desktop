@@ -444,25 +444,23 @@ class _InpaintPanelState extends State<_InpaintPanel> {
               region:state.inpaintRegion,onMode: state.setInpaintSizeMode, onSize: state.setInpaintCustomSize),
             const SizedBox(height: 16),
             Text(
-              language.startsWith('zh') ? '生成后下次重绘使用' : 'Next redraw source',
+              '生成后下次重绘使用',
               style: Theme.of(context).textTheme.titleSmall,
             ),
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: SegmentedButton<String>(
-                segments: [
+                segments: const [
                   ButtonSegment(
                     value: 'original',
-                    icon: const Icon(Icons.photo_outlined),
-                    label:
-                        Text(language.startsWith('zh') ? '始终使用原图' : 'Original'),
+                    icon: Icon(Icons.photo_outlined),
+                    label: Text('始终使用原图'),
                   ),
                   ButtonSegment(
                     value: 'latest',
-                    icon: const Icon(Icons.auto_awesome_outlined),
-                    label: Text(
-                        language.startsWith('zh') ? '使用最新结果' : 'Latest result'),
+                    icon: Icon(Icons.auto_awesome_outlined),
+                    label: Text('使用最新结果'),
                   ),
                 ],
                 selected: {state.inpaintSourceMode},
@@ -472,9 +470,7 @@ class _InpaintPanelState extends State<_InpaintPanel> {
             ),
             const SizedBox(height: 6),
             Text(
-              language.startsWith('zh')
-                  ? '默认保留最初加载的图片连续重绘；切换来源会清空旧蒙版，完成后自动打开前后对比。'
-                  : 'Keeps the original by default. Changing source clears the old mask and opens comparison after redraw.',
+              '默认保留最初加载的图片连续重绘；切换来源会清空旧蒙版，完成后自动打开前后对比。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
             const SizedBox(height: 16),
@@ -522,13 +518,7 @@ class _InpaintPanelState extends State<_InpaintPanel> {
                     ..markChanged();
                 },
                 icon: const Icon(Icons.restart_alt, size: 18),
-                label: Text(switch (language) {
-                  'zh-TW' => '恢復官網預設',
-                  'en-US' => 'Restore official defaults',
-                  'ja-JP' => '公式初期値に戻す',
-                  'ko-KR' => '공식 기본값 복원',
-                  _ => '恢复官网默认',
-                }),
+                label: const Text('恢复官网默认'),
               ),
             ),
             const SizedBox(height: 8),

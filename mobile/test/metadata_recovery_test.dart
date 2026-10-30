@@ -95,13 +95,11 @@ void main() {
     await expectLater(second, throwsA(failure('asset_integrity_changed')));
     expect(gets, 1);
   });
-  test('all five languages explicitly state online failure and local privacy', () {
-    for (final language in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      final text = metadataRecoveryText(language);
-      expect(text.label, isNotEmpty); expect(text.online, isNot(text.offline));
-      expect(text.onlineInfo, contains('PNG')); expect(text.onlineInfo, contains('WebP'));
-      expect(text.onlineInfo, contains('JPEG')); expect(text.onlineFailure, isNotEmpty);
-      expect(text.offlineInfo, contains('Anlas'));
-    }
+  test('recovery text explicitly states online failure and local privacy', () {
+    final text = metadataRecoveryText('zh-CN');
+    expect(text.label, isNotEmpty); expect(text.online, isNot(text.offline));
+    expect(text.onlineInfo, contains('PNG')); expect(text.onlineInfo, contains('WebP'));
+    expect(text.onlineInfo, contains('JPEG')); expect(text.onlineFailure, isNotEmpty);
+    expect(text.offlineInfo, contains('Anlas'));
   });
 }

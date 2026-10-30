@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../i18n/app_locales.dart';
 
 typedef ImageSaveCopy = ({
   String preparing,
@@ -15,68 +14,17 @@ typedef ImageSaveCopy = ({
 });
 
 ImageSaveCopy imageSaveCopy(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return (
-        preparing: '正在準備下載…',
-        done: '圖片儲存成功',
-        partial: '部分圖片儲存成功',
-        failed: '圖片儲存失敗',
-        cancelled: '已取消儲存',
-        saved: '已儲存',
-        errors: '失敗',
-        location: '儲存位置',
-        close: '關閉提示'
-      );
-    case 'en-US':
-      return (
-        preparing: 'Preparing download…',
-        done: 'Images saved',
-        partial: 'Some images saved',
-        failed: 'Save failed',
-        cancelled: 'Save cancelled',
-        saved: 'Saved',
-        errors: 'Failed',
-        location: 'Saved to',
-        close: 'Dismiss'
-      );
-    case 'ja-JP':
-      return (
-        preparing: '保存を準備中…',
-        done: '画像を保存しました',
-        partial: '一部の画像を保存しました',
-        failed: '保存に失敗しました',
-        cancelled: '保存をキャンセルしました',
-        saved: '保存済み',
-        errors: '失敗',
-        location: '保存先',
-        close: '閉じる'
-      );
-    case 'ko-KR':
-      return (
-        preparing: '다운로드 준비 중…',
-        done: '이미지 저장 완료',
-        partial: '일부 이미지 저장 완료',
-        failed: '저장 실패',
-        cancelled: '저장 취소',
-        saved: '저장',
-        errors: '실패',
-        location: '저장 위치',
-        close: '닫기'
-      );
-    default:
-      return (
-        preparing: '正在准备下载…',
-        done: '图片保存成功',
-        partial: '部分图片保存成功',
-        failed: '图片保存失败',
-        cancelled: '已取消保存',
-        saved: '已保存',
-        errors: '失败',
-        location: '保存位置',
-        close: '关闭提示'
-      );
-  }
+  return (
+    preparing: '正在准备下载…',
+    done: '图片保存成功',
+    partial: '部分图片保存成功',
+    failed: '图片保存失败',
+    cancelled: '已取消保存',
+    saved: '已保存',
+    errors: '失败',
+    location: '保存位置',
+    close: '关闭提示'
+  );
 }
 
 /// Root-overlay feedback stays above fullscreen previews and survives page

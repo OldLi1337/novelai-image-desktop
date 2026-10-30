@@ -52,10 +52,5 @@ String resolutionPickerRatio(InpaintSize size) {
 bool resolutionSizeAllowed(InpaintSize size, [int? maxDimension]) => [size.width,size.height]
   .every((v)=>v>=64 && v%64==0 && (maxDimension==null || v<=maxDimension));
 
-({String tier,String ratio,String custom,List<String> tiers}) resolutionLabels(String language) => switch(language) {
-  'zh-CN' => (tier:'总分辨率',ratio:'画面比例',custom:'自定义',tiers:['小图','普通','大图','超大图','最大']),
-  'zh-TW' => (tier:'總解析度',ratio:'畫面比例',custom:'自訂',tiers:['小圖','一般','大圖','超大圖','最大']),
-  'ja-JP' => (tier:'画素数',ratio:'縦横比',custom:'カスタム',tiers:['小','通常','大','特大','最大']),
-  'ko-KR' => (tier:'픽셀 크기',ratio:'화면 비율',custom:'사용자 지정',tiers:['작게','보통','크게','매우 크게','최대']),
-  _ => (tier:'Pixel tier',ratio:'Aspect ratio',custom:'Custom',tiers:['Small','Normal','Large','Extra large','Maximum']),
-};
+({String tier,String ratio,String custom,List<String> tiers}) resolutionLabels(String language) =>
+  (tier:'总分辨率',ratio:'画面比例',custom:'自定义',tiers:['小图','普通','大图','超大图','最大']);

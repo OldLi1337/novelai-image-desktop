@@ -4,7 +4,6 @@ import 'package:crypto/crypto.dart';
 
 import 'package:archive/archive.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:novelai_mobile/agent/agent_models.dart';
 import 'package:novelai_mobile/models/nai_models.dart';
 import 'package:novelai_mobile/services/data_backup_service.dart';
 import 'package:novelai_mobile/services/storage.dart';
@@ -30,8 +29,6 @@ class _BackupStorage extends Storage {
   @override
   Future<String?> getConvertKey() async => '';
   @override
-  Future<String?> getAgentApiKey() async => '';
-  @override
   Future<String?> getTagKey() async => '';
   @override
   Future<String?> getBaiduSecret() async => '';
@@ -42,8 +39,6 @@ class _BackupStorage extends Storage {
   Future<void> setVisionKey(String value) async {}
   @override
   Future<void> setConvertKey(String value) async {}
-  @override
-  Future<void> setAgentApiKey(String value) async {}
   @override
   Future<void> setTagKey(String value) async {}
   @override
@@ -89,13 +84,13 @@ void main() {
       final bytes = utf8.encode('{"synthetic":true}');
       final inner = Archive();
       inner.addFile(
-          ArchiveFile('files/profiles/custom.json', bytes.length, bytes));
+          ArchiveFile('files/runs/result.json', bytes.length, bytes));
       final manifest = utf8.encode(jsonEncode({
         'version': 1,
-        'kind': 'agent',
+        'kind': 'detective',
         'files': [
           {
-            'name': 'profiles/custom.json',
+            'name': 'runs/result.json',
             'bytes': bytes.length,
             'hash': sha256.convert(bytes).toString()
           }
@@ -106,14 +101,14 @@ void main() {
       final capsule = ZipEncoder().encode(inner);
       final outer = Archive();
       outer.addFile(ArchiveFile(
-          'portable-projects/agent-${sha256.convert(capsule)}.zip',
+          'portable-projects/detective-${sha256.convert(capsule)}.zip',
           capsule.length,
           capsule));
       final old = utf8.encode(jsonEncode({
         'format': DataBackupService.format,
         'version': 1,
         'categories': [
-          {'category': 'agentWorkspace', 'items': 0, 'bytes': 0}
+          {'category': 'styleLab', 'items': 0, 'bytes': 0}
         ]
       }));
       outer.addFile(ArchiveFile('manifest.json', old.length, old));
@@ -123,12 +118,9 @@ void main() {
     final inspected = await service.inspect('$interop/desktop.naisbackup');
     expect(
         inspected.categories.any(
-            (c) => c.category == DataBackupCategory.tavernAgent && c.items > 0),
+            (c) => c.category == DataBackupCategory.styleLab && c.items > 0),
         true);
-    final selected = {
-      DataBackupCategory.tavernAgent,
-      DataBackupCategory.styleLab
-    };
+    final selected = {DataBackupCategory.styleLab};
     final report = await service.importBackup(
         '$interop/desktop.naisbackup', selected,
         confirmConfigurationOverwrite: true);
@@ -228,76 +220,77 @@ void main() {
     );
   });
 
-  test('agent conversations and attachments merge idempotently', () async {
-    final attachmentFile = File('${root.path}/agent-reference.png')
-      ..writeAsBytesSync([137, 80, 78, 71, 1, 2, 3, 4]);
-    final attachment = AgentAttachment(
-      id: 'attachment-source',
-      name: 'agent-reference.png',
-      mime: 'image/png',
-      size: attachmentFile.lengthSync(),
-      kind: 'image',
-      filePath: attachmentFile.path,
-      width: 1,
-      height: 1,
-    );
-    await storage.setAgentWorkspace(AgentWorkspace(
-      selectedConversationId: 'agent-chat',
-      conversations: [
-        AgentConversation(
-          id: 'agent-chat',
-          title: '角色设计',
-          messages: [
-            AgentMessage(
-              id: 'agent-message',
-              role: 'user',
-              content: '保持角色服装',
-              attachments: [attachment],
-            ),
-          ],
-        ),
+  test(
+      'old archives carrying removed Agent data and capsules still restore the kept categories',
+      () async {
+    final profile = utf8.encode('LEGACY AGENT PROFILE');
+    final legacy = Archive()
+      ..addFile(
+          ArchiveFile('files/profiles/custom.yml', profile.length, profile));
+    final legacyManifest = utf8.encode(jsonEncode({
+      'version': 1,
+      'kind': 'agent',
+      'files': [
+        {
+          'name': 'profiles/custom.yml',
+          'bytes': profile.length,
+          'hash': sha256.convert(profile).toString()
+        }
       ],
-      memories: [
-        AgentMemory(
-          id: 'agent-memory',
-          title: '服装',
-          content: '保持蓝色外套',
-          scope: 'conversation',
-          conversationId: 'agent-chat',
-        ),
+      'omitted': []
+    }));
+    legacy.addFile(
+        ArchiveFile('manifest.json', legacyManifest.length, legacyManifest));
+    final capsule = ZipEncoder().encode(legacy);
+    final archive = Archive();
+    void json(String name, Object value) {
+      final bytes = utf8.encode(jsonEncode(value));
+      archive.addFile(ArchiveFile(name, bytes.length, bytes));
+    }
+
+    json('manifest.json', {
+      'format': DataBackupService.format,
+      'version': 1,
+      'categories': [
+        {'category': 'agentWorkspace', 'items': 1, 'bytes': 0},
+        {'category': 'tavernAgent', 'items': 1, 'bytes': profile.length},
+        {'category': 'workspaceData', 'items': 2, 'bytes': 0}
+      ]
+    });
+    json('data/agent-workspace.json', {
+      'conversations': [
+        {'id': 'legacy', 'messages': [], 'draftAttachments': []}
       ],
-    ));
+      'memories': []
+    });
+    archive.addFile(ArchiveFile(
+        'portable-projects/agent-${sha256.convert(capsule)}.zip',
+        capsule.length,
+        capsule));
+    json('data/mobile-state.json', {
+      'agent_workspace_v1': jsonEncode({'conversations': []}),
+      'mobile-only-project': 'kept'
+    });
+    json('data/workspace.json',
+        {'langbai.artist-detective.v1': jsonEncode({'prompt': 'kept'})});
+    final file = File('${root.path}/legacy.naisbackup')
+      ..writeAsBytesSync(ZipEncoder().encode(archive));
 
-    final archive = await service.createBackup(
-      {DataBackupCategory.agentWorkspace},
-      includeAssets: true,
-    );
-    await storage.setAgentWorkspace(AgentWorkspace());
-
-    final first = await service.importBackup(
-      archive.path,
-      {DataBackupCategory.agentWorkspace},
-      confirmConfigurationOverwrite: false,
-    );
-    final restored = await storage.getAgentWorkspace();
-    final restoredAttachment =
-        restored.conversations.single.messages.single.attachments.single;
-    expect(first.imported, greaterThanOrEqualTo(2));
-    expect(File(restoredAttachment.filePath).existsSync(), isTrue);
-    expect(File(restoredAttachment.filePath).readAsBytesSync(),
-        attachmentFile.readAsBytesSync());
-    expect(restored.memories.single.conversationId,
-        restored.conversations.single.id);
-
-    final second = await service.importBackup(
-      archive.path,
-      {DataBackupCategory.agentWorkspace},
-      confirmConfigurationOverwrite: false,
-    );
-    final afterSecond = await storage.getAgentWorkspace();
-    expect(afterSecond.conversations, hasLength(1));
-    expect(afterSecond.memories, hasLength(1));
-    expect(second.skipped, greaterThanOrEqualTo(2));
+    final inspected = await service.inspect(file.path);
+    expect(inspected.categories.map((c) => c.category),
+        [DataBackupCategory.workspaceData]);
+    final report = await service.importBackup(file.path,
+        {DataBackupCategory.workspaceData, DataBackupCategory.styleLab},
+        confirmConfigurationOverwrite: false);
+    final prefs = await SharedPreferences.getInstance();
+    expect(report.retainedNativeArchives, 0);
+    expect(prefs.getString('mobile-only-project'), 'kept');
+    expect(prefs.containsKey('agent_workspace_v1'), isFalse);
+    expect(
+        jsonDecode(prefs.getString('langbai.artist-detective.v1')!)['prompt'],
+        'kept');
+    expect(Directory('${root.path}/portable-project-capsules').existsSync(),
+        isFalse);
   });
 
   test('skips identical image records and suffixes same-name different bytes',

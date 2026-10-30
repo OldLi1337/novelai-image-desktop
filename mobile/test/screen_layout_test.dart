@@ -11,7 +11,6 @@ import 'package:novelai_mobile/screens/settings_screen.dart';
 import 'package:novelai_mobile/screens/tools_hub_screen.dart';
 import 'package:novelai_mobile/screens/tools_screen.dart';
 import 'package:novelai_mobile/screens/v5_artist_weight_repair_screen.dart';
-import 'package:novelai_mobile/services/update_service.dart';
 import 'package:novelai_mobile/state/app_state.dart';
 import 'package:novelai_mobile/ui/studio_theme.dart';
 import 'package:provider/provider.dart';
@@ -400,34 +399,6 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('settings hides raw update socket errors on compact phones',
-      (tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(320, 640);
-    addTearDown(tester.view.reset);
-    final state = AppState()
-      ..updateInfo = const UpdateInfo(
-        hasUpdate: false,
-        currentVersion: appVersion,
-        error: 'ClientException with SocketConnection refused, port 52702',
-      );
-    addTearDown(state.dispose);
-
-    await _pumpScreen(
-      tester,
-      state,
-      const SettingsScreen(),
-      'compact update check error',
-    );
-
-    await tester.scrollUntilVisible(find.text('检查失败'), 200,
-        scrollable: find.byType(Scrollable).first);
-    await tester.pumpAndSettle();
-    expect(find.text('检查失败'), findsOneWidget);
-    expect(find.textContaining('SocketConnection'), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
   testWidgets(
       'generate screen keeps a compact bar when the queue runs in landscape',
       (tester) async {
@@ -557,7 +528,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = target.$2;
       addTearDown(tester.view.reset);
-      final state = AppState()..settings.language = 'en-US';
+      final state = AppState();
       addTearDown(state.dispose);
 
       await _pumpScreen(
@@ -567,7 +538,7 @@ void main() {
         'settings about initial ${target.$1}',
       );
 
-      final aboutTile = find.text('About');
+      final aboutTile = find.text('关于我们');
       final scrollable = find.byType(Scrollable).first;
       await tester.scrollUntilVisible(
         aboutTile,
@@ -583,7 +554,7 @@ void main() {
       expect(tester.takeException(), isNull,
           reason: 'settings about expanded ${target.$1}');
 
-      const githubUrl = 'https://github.com/2786886095/novelai-image-desktop';
+      const githubUrl = 'https://github.com/OldLi1337/novelai-image-desktop';
       await tester.scrollUntilVisible(
         find.text(githubUrl),
         180,
@@ -594,14 +565,15 @@ void main() {
       expect(githubTile.onTap, isNotNull);
 
       await tester.scrollUntilVisible(
-        find.text('Alipay reward code'),
+        find.text('开源许可'),
         120,
         scrollable: scrollable,
       );
-      expect(find.text('WeChat reward code'), findsOneWidget);
-      expect(find.text('Alipay reward code'), findsOneWidget);
+      expect(find.textContaining('Copyright (c) 2026 Langbai'), findsOneWidget);
+      expect(find.textContaining('QQ'), findsNothing);
+      expect(find.textContaining('赞赏码'), findsNothing);
       expect(tester.takeException(), isNull,
-          reason: 'settings about rewards ${target.$1}');
+          reason: 'settings about license ${target.$1}');
     });
   }
 

@@ -102,8 +102,7 @@ void main() {
             allowCustomEndpoint: true,
             proxyMode: 'direct',
             saveToGallery: false,
-            imageOutputDir: root.path,
-            language: 'en-US')
+            imageOutputDir: root.path)
         ..directorTool = 'colorize';
       await storage.setSettings(app.settings);
       final source = File('${root.path}/source.png')..writeAsBytesSync(png);
@@ -129,8 +128,8 @@ void main() {
         expect(app.history, hasLength(1));
         expect(await File(app.history.single.filePath).exists(), true);
         expect(await storage.getHistory(), hasLength(1));
-        expect(app.status, contains('original preserved'));
-        expect(app.status, contains('history'));
+        expect(app.status, contains('保留原图'));
+        expect(app.status, contains('历史记录'));
         expect(posts, 1);
         expect(app.postprocessRunning, false);
       } finally {

@@ -47,12 +47,9 @@ const _auditPlatform = String.fromEnvironment(
 const _auditOutputOverride = String.fromEnvironment('FULL_UI_AUDIT_OUTPUT');
 const _auditTargetPlatform =
     _auditPlatform == 'ios' ? TargetPlatform.iOS : TargetPlatform.android;
-const _locales = ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR'];
+const _locales = ['zh-CN'];
 const _themes = ['light', 'dark'];
 const _fontZh = 'AuditZh';
-const _fontEn = 'AuditEn';
-const _fontJa = 'AuditJa';
-const _fontKo = 'AuditKo';
 const _fontMaterialIcons = 'MaterialIcons';
 
 typedef _SurfaceBuilder = Widget Function(AppState state);
@@ -187,14 +184,6 @@ String _flutterRoot() {
   return directory.path.replaceAll('\\', '/');
 }
 
-String _fontFamilyFor(String localeCode) =>
-    switch (normalizeAppLocaleCode(localeCode)) {
-      'en-US' => _fontEn,
-      'ja-JP' => _fontJa,
-      'ko-KR' => _fontKo,
-      _ => _fontZh,
-    };
-
 Future<void> _loadFont(String family, List<String> candidates) async {
   final loader = FontLoader(family);
   var loaded = false;
@@ -209,9 +198,6 @@ Future<void> _loadFont(String family, List<String> candidates) async {
 
 Future<void> _loadAuditFonts() async {
   await _loadFont(_fontZh, ['C:/Windows/Fonts/msyh.ttc']);
-  await _loadFont(_fontEn, ['C:/Windows/Fonts/arial.ttf']);
-  await _loadFont(_fontJa, ['C:/Windows/Fonts/YuGothR.ttc']);
-  await _loadFont(_fontKo, ['C:/Windows/Fonts/malgun.ttf']);
   await _loadFont(_fontMaterialIcons, [
     '${_flutterRoot()}/bin/cache/artifacts/material_fonts/materialicons-regular.otf',
     '${_repoRoot()}/mobile/build/unit_test_assets/fonts/MaterialIcons-Regular.otf',
@@ -470,14 +456,12 @@ void main() {
             final boundaryKey = GlobalKey();
             final baseTheme =
                 themeName == 'dark' ? StudioTheme.dark() : StudioTheme.light();
-            final fontFamily = _fontFamilyFor(locale);
             await tester.pumpWidget(
               ChangeNotifierProvider.value(
                 value: state,
                 child: MaterialApp(
-                  locale: appLocaleInfoFor(locale).locale,
-                  supportedLocales:
-                      supportedAppLocales.map((item) => item.locale),
+                  locale: const Locale('zh', 'CN'),
+                  supportedLocales: const [Locale('zh', 'CN')],
                   localizationsDelegates: const [
                     GlobalMaterialLocalizations.delegate,
                     GlobalWidgetsLocalizations.delegate,
@@ -485,12 +469,10 @@ void main() {
                   ],
                   theme: baseTheme.copyWith(
                     textTheme: baseTheme.textTheme.apply(
-                      fontFamily: fontFamily,
-                      fontFamilyFallback: const [_fontZh],
+                      fontFamily: _fontZh,
                     ),
                     primaryTextTheme: baseTheme.primaryTextTheme.apply(
-                      fontFamily: fontFamily,
-                      fontFamilyFallback: const [_fontZh],
+                      fontFamily: _fontZh,
                     ),
                   ),
                   home: RepaintBoundary(
@@ -605,14 +587,12 @@ void main() {
           final boundaryKey = GlobalKey();
           final baseTheme =
               themeName == 'dark' ? StudioTheme.dark() : StudioTheme.light();
-          final fontFamily = _fontFamilyFor(locale);
           await tester.pumpWidget(
             ChangeNotifierProvider.value(
               value: state,
               child: MaterialApp(
-                locale: appLocaleInfoFor(locale).locale,
-                supportedLocales:
-                    supportedAppLocales.map((item) => item.locale),
+                locale: const Locale('zh', 'CN'),
+                supportedLocales: const [Locale('zh', 'CN')],
                 localizationsDelegates: const [
                   GlobalMaterialLocalizations.delegate,
                   GlobalWidgetsLocalizations.delegate,
@@ -620,12 +600,10 @@ void main() {
                 ],
                 theme: baseTheme.copyWith(
                   textTheme: baseTheme.textTheme.apply(
-                    fontFamily: fontFamily,
-                    fontFamilyFallback: const [_fontZh],
+                    fontFamily: _fontZh,
                   ),
                   primaryTextTheme: baseTheme.primaryTextTheme.apply(
-                    fontFamily: fontFamily,
-                    fontFamilyFallback: const [_fontZh],
+                    fontFamily: _fontZh,
                   ),
                 ),
                 builder: (context, child) => RepaintBoundary(
@@ -720,14 +698,12 @@ void main() {
                 hasToken: true, tierName: 'Opus', anlasBalance: 9049);
           final baseTheme =
               themeName == 'dark' ? StudioTheme.dark() : StudioTheme.light();
-          final fontFamily = _fontFamilyFor(locale);
           await tester.pumpWidget(
             ChangeNotifierProvider.value(
               value: state,
               child: MaterialApp(
-                locale: appLocaleInfoFor(locale).locale,
-                supportedLocales:
-                    supportedAppLocales.map((item) => item.locale),
+                locale: const Locale('zh', 'CN'),
+                supportedLocales: const [Locale('zh', 'CN')],
                 localizationsDelegates: const [
                   GlobalMaterialLocalizations.delegate,
                   GlobalWidgetsLocalizations.delegate,
@@ -735,12 +711,10 @@ void main() {
                 ],
                 theme: baseTheme.copyWith(
                   textTheme: baseTheme.textTheme.apply(
-                    fontFamily: fontFamily,
-                    fontFamilyFallback: const [_fontZh],
+                    fontFamily: _fontZh,
                   ),
                   primaryTextTheme: baseTheme.primaryTextTheme.apply(
-                    fontFamily: fontFamily,
-                    fontFamilyFallback: const [_fontZh],
+                    fontFamily: _fontZh,
                   ),
                 ),
                 home: const GenerateScreen(),

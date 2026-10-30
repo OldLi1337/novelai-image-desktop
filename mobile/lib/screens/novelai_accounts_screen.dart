@@ -6,13 +6,9 @@ import '../state/app_state.dart';
 import '../services/novelai_accounts.dart';
 import '../services/novelai_official_auth.dart';
 import '../ui/studio_theme.dart';
-import '../i18n/studio_agent_text.dart';
+import '../i18n/novelai_accounts_text.dart';
 
-String _accountText(BuildContext context, String key, {String? name}) =>
-    studioAgentText(context.read<AppState>().settings.language, key,
-        name: name);
-String _accountMethod(BuildContext context, NovelAiAccount p) => _accountText(
-    context,
+String _accountMethod(NovelAiAccount p) => novelAiAccountText(
     p.method == 'relay'
         ? 'accountMethodRelay'
         : p.method == 'official-login'
@@ -24,7 +20,7 @@ class NovelAiAccountSelector extends StatelessWidget {
   final bool showManage;
   @override
   Widget build(BuildContext context) {
-    String t(String key) => _accountText(context, key);
+    String t(String key) => novelAiAccountText(key);
     final state = context.watch<AppState>(),
         profiles = state.naiAccounts.profiles;
     final active = state.naiAccounts.active?.profile,
@@ -52,7 +48,7 @@ class NovelAiAccountSelector extends StatelessWidget {
                         ...profiles.map((p) => DropdownMenuItem(
                             value: p.id,
                             child: Text(
-                                '${p.label} · ${_accountMethod(context, p)}',
+                                '${p.label} · ${_accountMethod(p)}',
                                 overflow: TextOverflow.ellipsis)))
                       ],
                       onChanged: state.naiAccountLocked
@@ -104,8 +100,7 @@ class _NovelAiAccountsScreenState extends State<NovelAiAccountsScreen> {
       password = TextEditingController(),
       api = TextEditingController(),
       image = TextEditingController();
-  String t(String key, {String? name}) =>
-      _accountText(context, key, name: name);
+  String t(String key, {String? name}) => novelAiAccountText(key, name: name);
   String method = 'token';
   bool submitting = false, showInputKey = false, initialized = false;
   final visibleKeys = <String>{};
@@ -222,7 +217,7 @@ class _NovelAiAccountsScreenState extends State<NovelAiAccountsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(p.label, style: Theme.of(context).textTheme.titleMedium),
-                  Text(_accountMethod(context, p),
+                  Text(_accountMethod(p),
                       style: Theme.of(context).textTheme.bodySmall),
                   Text(p.imageBaseUrl,
                       maxLines: 2, overflow: TextOverflow.ellipsis),

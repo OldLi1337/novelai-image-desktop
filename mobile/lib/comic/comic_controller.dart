@@ -63,7 +63,6 @@ class ComicController extends ChangeNotifier {
   Timer? _saveTimer;
   bool _disposed = false;
   bool _editing = false;
-  String? _agentReservation;
   bool get editing => _editing;
   String? loadError;
   String? persistenceError;
@@ -79,10 +78,7 @@ class ComicController extends ChangeNotifier {
       sha256.convert(utf8.encode(jsonEncode(project.toJson()))).toString();
   void assertRevision(String expected) {
     if (loadError != null) throw StateError(loadError!);
-    if (queueRunning ||
-        _editing ||
-        _agentReservation != null ||
-        revision != expected) {
+    if (queueRunning || _editing || revision != expected) {
       throw StateError('漫画工程已变化或正在运行，请重新读取');
     }
   }
@@ -797,11 +793,9 @@ class ComicController extends ChangeNotifier {
   }
 
   Future<_ComicGenerationTask> _captureGenerationTask(
-      ComicPanel panel, ComicProject source,
-      {GenerateExtras? approvedExtras}) async {
+      ComicPanel panel, ComicProject source) async {
     final frozen = source.panels.firstWhere((p) => p.id == panel.id);
-    final extras =
-        (approvedExtras ?? await extrasFor(frozen, source: source)).copy();
+    final extras = (await extrasFor(frozen, source: source)).copy();
     validateProviderPanel(frozen, extras, source: source);
     return _ComicGenerationTask(
         panel: panel,
@@ -886,76 +880,6 @@ class ComicController extends ChangeNotifier {
     }
   }
 
-  List<ComicPanel> agentPlan(String mode, List<String> ids) {
-    if (!['initial', 'regenerate', 'additional'].contains(mode)) {
-      throw StateError('漫画生成模式无效');
-    }
-    if (ids.toSet().length != ids.length ||
-        ids.any((id) => !project.panels.any((p) => p.id == id))) {
-      throw StateError('分镜ID不存在或重复');
-    }
-    final panels = ids.isEmpty
-        ? project.panels
-        : ids
-            .map((id) => project.panels.firstWhere((p) => p.id == id))
-            .toList();
-    final result = <ComicPanel>[];
-    for (final p in panels) {
-      final count = mode == 'additional'
-          ? 1
-          : mode == 'regenerate'
-              ? project.initialGenerationCount
-              : max(0, project.initialGenerationCount - p.candidates.length);
-      for (var i = 0; i < count; i++) {
-        result.add(p);
-      }
-    }
-    if (result.isEmpty) throw StateError('没有待生成分镜，未提交图片');
-    if (!hasCompletePanelSizes || result.any((p) => p.prompt.trim().isEmpty)) {
-      throw StateError('漫画提示词或逐格尺寸未完整配置');
-    }
-    return result;
-  }
-
-  void reserveAgentRun(String owner, String expected) {
-    assertRevision(expected);
-    _agentReservation = owner;
-    notifyListeners();
-  }
-
-  void checkAgentRun(String owner, String expected) {
-    if (_disposed ||
-        loadError != null ||
-        _agentReservation != owner ||
-        revision != expected ||
-        queueRunning ||
-        _editing) throw StateError('漫画工程已变化或预留失效，未启动');
-  }
-
-  void releaseAgentRun(String owner) {
-    if (_agentReservation == owner) {
-      _agentReservation = null;
-      notifyListeners();
-    }
-  }
-
-  Future<void> runAgent(List<String> taskIds,
-      {required String owner,
-      required String expected,
-      required Map<String, GenerateExtras> references,
-      required Future<void> Function() beforeImage,
-      required void Function() guard}) {
-    checkAgentRun(owner, expected);
-    final tasks = taskIds
-        .map((id) => project.panels.firstWhere((p) => p.id == id))
-        .toList();
-    return _runQueue(tasks,
-        agentRunId: owner,
-        beforeImage: beforeImage,
-        guard: guard,
-        approvedReferences: Map.of(references));
-  }
-
   Future<void> generateInitial() async {
     final tasks = <ComicPanel>[];
     for (final panel in project.panels) {
@@ -982,17 +906,12 @@ class ComicController extends ChangeNotifier {
       _runQueue(List<ComicPanel>.from(project.panels));
   Future<void> addOne(ComicPanel panel) => _runQueue([panel]);
 
-  Future<void> _runQueue(List<ComicPanel> tasks,
-      {String? agentRunId,
-      Map<String, GenerateExtras>? approvedReferences,
-      Future<void> Function()? beforeImage,
-      void Function()? guard}) {
+  Future<void> _runQueue(List<ComicPanel> tasks) {
     if (_disposed || loadError != null) {
       throw StateError(loadError ?? '漫画控制器已关闭');
     }
     if (queueRunning ||
         _editing ||
-        (_agentReservation != null && _agentReservation != agentRunId) ||
         app.busy ||
         app.generationQueueRunning) {
       throw StateError('图像任务正在运行，请先停止并等待读回');
@@ -1017,7 +936,6 @@ class ComicController extends ChangeNotifier {
     queueCancelled = false;
     app.busy = true;
     _scope = GenerationScope(beforeSubmit: () {
-      guard?.call();
       if (_sourceBinding() != expectedSource) {
         throw StateError('图片服务配置已变化，后续漫画图片未提交');
       }
@@ -1029,7 +947,7 @@ class ComicController extends ChangeNotifier {
     _work = () async {
       try {
         await _loadRun();
-        runId = agentRunId ?? comicId();
+        runId = comicId();
         queueDone = 0;
         queueTotal = tasks.length;
         await flush();
@@ -1042,12 +960,7 @@ class ComicController extends ChangeNotifier {
         _scope!.check();
         final planned = <_ComicGenerationTask>[];
         for (final panel in tasks) {
-          if (approvedReferences != null &&
-              !approvedReferences.containsKey(panel.id)) {
-            throw StateError('漫画授权参考快照缺失，未提交图片');
-          }
-          planned.add(await _captureGenerationTask(panel, source,
-              approvedExtras: approvedReferences?[panel.id]));
+          planned.add(await _captureGenerationTask(panel, source));
           _scope!.check();
         }
         if (planned.any((task) =>
@@ -1066,7 +979,6 @@ class ComicController extends ChangeNotifier {
           _scope!.check();
           final currentToken = await comicCredential(app.storage, app.settings);
           _scope!.credentials(currentToken ?? '', app.settings);
-          await beforeImage?.call();
           _scope!.check();
           await _generateCandidate(task, source);
           queueDone++;

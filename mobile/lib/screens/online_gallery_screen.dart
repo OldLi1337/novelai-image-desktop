@@ -21,7 +21,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../i18n/app_locales.dart';
 import '../artist/artist_recipe.dart';
 import '../services/artist_tag_service.dart';
 import '../services/online_gallery_service.dart';
@@ -113,215 +112,46 @@ class _GalleryText {
 }
 
 _GalleryText _galleryText(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return const _GalleryText(
-        title: '線上畫廊',
-        source: '畫廊來源',
-        subtitle: '搜尋、瀏覽並查看完整圖片與可用提示詞。',
-        query: '搜尋標籤，多個標籤以空格分隔',
-        search: '搜尋',
-        refresh: '重新整理',
-        openSource: '開啟來源網站',
-        safeOnly: '僅顯示全年齡',
-        loading: '正在載入畫廊…',
-        empty: '沒有符合的結果',
-        retry: '重試',
-        previous: '上一頁',
-        next: '下一頁',
-        page: '第 {page} 頁',
-        results: '{count} 個結果',
-        backCollections: '返回圖鑑列表',
-        images: '{count} 張',
-        score: '評分',
-        favorites: '收藏',
-        prompt: '正向提示詞',
-        negative: '負向提示詞',
-        copy: '複製',
-        copied: '已複製',
-        usePrompt: '套用到生成',
-        promptApplied: '提示詞已套用到生成頁',
-        preview: '全螢幕預覽',
-        downloadCurrent: '下載目前圖片',
-        downloadSeries: '下載整個系列',
-        downloading: '下載中…',
-        downloaded: '已儲存 {count} 張圖片',
-        downloadFailed: '下載失敗，請檢查網路與下載目錄。',
-        metadata: '原始資料',
-        artists: '藝術家',
-        characters: '角色',
-        copyrights: '作品',
-        general: '通用',
-        meta: '元資料',
-        noPrompt: '這個項目沒有可用提示詞。',
-      );
-    case 'en-US':
-      return const _GalleryText(
-        title: 'Online Gallery',
-        source: 'Gallery source',
-        subtitle:
-            'Search, browse, and inspect full images and reusable prompts.',
-        query: 'Search tags; separate multiple tags with spaces',
-        search: 'Search',
-        refresh: 'Refresh',
-        openSource: 'Open source website',
-        safeOnly: 'All-ages only',
-        loading: 'Loading gallery…',
-        empty: 'No matching results',
-        retry: 'Retry',
-        previous: 'Previous',
-        next: 'Next',
-        page: 'Page {page}',
-        results: '{count} results',
-        backCollections: 'Back to collections',
-        images: '{count} images',
-        score: 'Score',
-        favorites: 'Favorites',
-        prompt: 'Positive prompt',
-        negative: 'Negative prompt',
-        copy: 'Copy',
-        copied: 'Copied',
-        usePrompt: 'Use in Generate',
-        promptApplied: 'Prompt applied to Generate',
-        preview: 'Full-screen preview',
-        downloadCurrent: 'Download current image',
-        downloadSeries: 'Download full series',
-        downloading: 'Downloading…',
-        downloaded: 'Saved {count} images',
-        downloadFailed:
-            'Download failed. Check the network and download folder.',
-        metadata: 'Raw metadata',
-        artists: 'Artists',
-        characters: 'Characters',
-        copyrights: 'Copyrights',
-        general: 'General',
-        meta: 'Metadata',
-        noPrompt: 'No reusable prompt is available for this item.',
-      );
-    case 'ja-JP':
-      return const _GalleryText(
-        title: 'オンラインギャラリー',
-        source: 'ギャラリー',
-        subtitle: '画像を検索・閲覧し、利用可能なプロンプトを確認します。',
-        query: 'タグを検索（複数は空白で区切る）',
-        search: '検索',
-        refresh: '更新',
-        openSource: '配布元を開く',
-        safeOnly: '全年齢のみ',
-        loading: 'ギャラリーを読み込み中…',
-        empty: '一致する結果がありません',
-        retry: '再試行',
-        previous: '前へ',
-        next: '次へ',
-        page: '{page} ページ',
-        results: '{count} 件',
-        backCollections: '図鑑一覧へ戻る',
-        images: '{count} 枚',
-        score: 'スコア',
-        favorites: 'お気に入り',
-        prompt: 'ポジティブプロンプト',
-        negative: 'ネガティブプロンプト',
-        copy: 'コピー',
-        copied: 'コピー済み',
-        usePrompt: '生成画面で使用',
-        promptApplied: '生成画面に適用しました',
-        preview: '全画面プレビュー',
-        downloadCurrent: '現在の画像を保存',
-        downloadSeries: 'シリーズ全体を保存',
-        downloading: '保存中…',
-        downloaded: '{count} 枚を保存しました',
-        downloadFailed: '保存に失敗しました。ネットワークと保存先を確認してください。',
-        metadata: '元データ',
-        artists: 'アーティスト',
-        characters: 'キャラクター',
-        copyrights: '作品',
-        general: '一般',
-        meta: 'メタデータ',
-        noPrompt: '利用できるプロンプトがありません。',
-      );
-    case 'ko-KR':
-      return const _GalleryText(
-        title: '온라인 갤러리',
-        source: '갤러리 소스',
-        subtitle: '이미지를 검색하고 전체 이미지와 재사용 가능한 프롬프트를 확인합니다.',
-        query: '태그 검색; 여러 태그는 공백으로 구분',
-        search: '검색',
-        refresh: '새로 고침',
-        openSource: '원본 사이트 열기',
-        safeOnly: '전체 이용가만',
-        loading: '갤러리 불러오는 중…',
-        empty: '검색 결과가 없습니다',
-        retry: '다시 시도',
-        previous: '이전',
-        next: '다음',
-        page: '{page}페이지',
-        results: '{count}개 결과',
-        backCollections: '도감 목록으로',
-        images: '{count}장',
-        score: '점수',
-        favorites: '즐겨찾기',
-        prompt: '긍정 프롬프트',
-        negative: '부정 프롬프트',
-        copy: '복사',
-        copied: '복사됨',
-        usePrompt: '생성에 적용',
-        promptApplied: '생성 화면에 프롬프트를 적용했습니다',
-        preview: '전체 화면 미리보기',
-        downloadCurrent: '현재 이미지 저장',
-        downloadSeries: '전체 시리즈 저장',
-        downloading: '저장 중…',
-        downloaded: '이미지 {count}장을 저장했습니다',
-        downloadFailed: '저장하지 못했습니다. 네트워크와 저장 폴더를 확인하세요.',
-        metadata: '원본 데이터',
-        artists: '작가',
-        characters: '캐릭터',
-        copyrights: '작품',
-        general: '일반',
-        meta: '메타데이터',
-        noPrompt: '사용 가능한 프롬프트가 없습니다.',
-      );
-    default:
-      return const _GalleryText(
-        title: '在线画廊',
-        source: '画廊来源',
-        subtitle: '搜索、浏览并查看完整图片与可用提示词。',
-        query: '搜索标签，多个标签用空格分隔',
-        search: '搜索',
-        refresh: '刷新',
-        openSource: '打开来源网站',
-        safeOnly: '仅显示全年龄',
-        loading: '正在加载画廊…',
-        empty: '没有符合的结果',
-        retry: '重试',
-        previous: '上一页',
-        next: '下一页',
-        page: '第 {page} 页',
-        results: '{count} 个结果',
-        backCollections: '返回图鉴列表',
-        images: '{count} 张',
-        score: '评分',
-        favorites: '收藏',
-        prompt: '正向提示词',
-        negative: '负向提示词',
-        copy: '复制',
-        copied: '已复制',
-        usePrompt: '应用到生成',
-        promptApplied: '提示词已应用到生成页',
-        preview: '全屏预览',
-        downloadCurrent: '下载当前图片',
-        downloadSeries: '下载整个系列',
-        downloading: '正在下载…',
-        downloaded: '已保存 {count} 张图片',
-        downloadFailed: '下载失败，请检查网络与下载目录。',
-        metadata: '原始数据',
-        artists: '艺术家',
-        characters: '角色',
-        copyrights: '作品',
-        general: '通用',
-        meta: '元数据',
-        noPrompt: '这个项目没有可用提示词。',
-      );
-  }
+  return const _GalleryText(
+    title: '在线画廊',
+    source: '画廊来源',
+    subtitle: '搜索、浏览并查看完整图片与可用提示词。',
+    query: '搜索标签，多个标签用空格分隔',
+    search: '搜索',
+    refresh: '刷新',
+    openSource: '打开来源网站',
+    safeOnly: '仅显示全年龄',
+    loading: '正在加载画廊…',
+    empty: '没有符合的结果',
+    retry: '重试',
+    previous: '上一页',
+    next: '下一页',
+    page: '第 {page} 页',
+    results: '{count} 个结果',
+    backCollections: '返回图鉴列表',
+    images: '{count} 张',
+    score: '评分',
+    favorites: '收藏',
+    prompt: '正向提示词',
+    negative: '负向提示词',
+    copy: '复制',
+    copied: '已复制',
+    usePrompt: '应用到生成',
+    promptApplied: '提示词已应用到生成页',
+    preview: '全屏预览',
+    downloadCurrent: '下载当前图片',
+    downloadSeries: '下载整个系列',
+    downloading: '正在下载…',
+    downloaded: '已保存 {count} 张图片',
+    downloadFailed: '下载失败，请检查网络与下载目录。',
+    metadata: '原始数据',
+    artists: '艺术家',
+    characters: '角色',
+    copyrights: '作品',
+    general: '通用',
+    meta: '元数据',
+    noPrompt: '这个项目没有可用提示词。',
+  );
 }
 
 String _format(String value, String key, Object replacement) =>
@@ -329,13 +159,7 @@ String _format(String value, String key, Object replacement) =>
 
 String _sourceLabel(OnlineGallerySource source, Object? language) {
   if (source == OnlineGallerySource.artistRanking) {
-    return switch (normalizeAppLocaleCode(language)) {
-      'zh-TW' => '畫師排行榜',
-      'en-US' => 'Artist ranking',
-      'ja-JP' => '画家ランキング',
-      'ko-KR' => '작가 순위',
-      _ => '画师排行榜',
-    };
+    return '画师排行榜';
   }
   return source.label;
 }
@@ -349,23 +173,9 @@ String _friendlyGalleryError(
   final raw = exception.toString();
   final status =
       RegExp(r'HTTP\s+(\d{3})', caseSensitive: false).firstMatch(raw)?.group(1);
-  return switch (normalizeAppLocaleCode(language)) {
-    'zh-TW' => status == null
-        ? '暫時無法載入 $sourceName。請檢查網路後重試，或開啟來源網站確認服務狀態。'
-        : '$sourceName 暫時無法使用（HTTP $status）。請稍後重試，或開啟來源網站確認服務狀態。',
-    'en-US' => status == null
-        ? 'Could not load $sourceName. Check your connection and retry, or open the source website to verify its status.'
-        : '$sourceName is temporarily unavailable (HTTP $status). Retry later or open the source website to verify its status.',
-    'ja-JP' => status == null
-        ? '$sourceName を読み込めません。通信を確認して再試行するか、配布元サイトの状態を確認してください。'
-        : '$sourceName は一時的に利用できません（HTTP $status）。しばらくしてから再試行してください。',
-    'ko-KR' => status == null
-        ? '$sourceName을(를) 불러올 수 없습니다. 네트워크를 확인한 뒤 다시 시도하거나 원본 사이트 상태를 확인하세요.'
-        : '$sourceName을(를) 일시적으로 사용할 수 없습니다(HTTP $status). 잠시 후 다시 시도하세요.',
-    _ => status == null
-        ? '暂时无法加载 $sourceName。请检查网络后重试，或打开来源网站确认服务状态。'
-        : '$sourceName 暂时不可用（HTTP $status）。请稍后重试，或打开来源网站确认服务状态。',
-  };
+  return status == null
+      ? '暂时无法加载 $sourceName。请检查网络后重试，或打开来源网站确认服务状态。'
+      : '$sourceName 暂时不可用（HTTP $status）。请稍后重试，或打开来源网站确认服务状态。';
 }
 
 ({
@@ -379,69 +189,18 @@ String _friendlyGalleryError(
   String cancel,
   String search,
   String refresh
-}) _artistRankingText(Object? language) =>
-    switch (normalizeAppLocaleCode(language)) {
-      'zh-TW' => (
-          summary: '收錄 Danbooru 全部有效畫師 · 共 {count} 位',
-          perPage: '每頁畫師',
-          perPageValue: '每頁 {count} 位',
-          choosePage: '選擇頁數',
-          pageRange: '第 1–{pages} 頁',
-          pagePosition: '第 {page} / {pages} 頁',
-          jump: '跳轉',
-          cancel: '取消',
-          search: '搜尋畫師 Tag',
-          refresh: '手動更新'
-        ),
-      'en-US' => (
-          summary: 'All active Danbooru artists · {count} total',
-          perPage: 'Artists per page',
-          perPageValue: '{count} per page',
-          choosePage: 'Choose page',
-          pageRange: 'Pages 1–{pages}',
-          pagePosition: 'Page {page} of {pages}',
-          jump: 'Go',
-          cancel: 'Cancel',
-          search: 'Search artist tags',
-          refresh: 'Update'
-        ),
-      'ja-JP' => (
-          summary: 'Danbooru の有効な画家をすべて収録 · 全 {count} 人',
-          perPage: '1ページの画家数',
-          perPageValue: '1ページ {count} 人',
-          choosePage: 'ページを選択',
-          pageRange: '1–{pages} ページ',
-          pagePosition: '{page} / {pages} ページ',
-          jump: '移動',
-          cancel: 'キャンセル',
-          search: '画家タグを検索',
-          refresh: '今すぐ更新'
-        ),
-      'ko-KR' => (
-          summary: 'Danbooru의 모든 활성 작가 수록 · 총 {count}명',
-          perPage: '페이지당 작가',
-          perPageValue: '페이지당 {count}명',
-          choosePage: '페이지 선택',
-          pageRange: '1–{pages}페이지',
-          pagePosition: '{page} / {pages}페이지',
-          jump: '이동',
-          cancel: '취소',
-          search: '작가 태그 검색',
-          refresh: '지금 업데이트'
-        ),
-      _ => (
-          summary: '收录 Danbooru 全部有效画师 · 共 {count} 位',
-          perPage: '每页画师',
-          perPageValue: '每页 {count} 位',
-          choosePage: '选择页数',
-          pageRange: '第 1–{pages} 页',
-          pagePosition: '第 {page} / {pages} 页',
-          jump: '跳转',
-          cancel: '取消',
-          search: '搜索画师 Tag',
-          refresh: '手动更新'
-        ),
-    };
+}) _artistRankingText(Object? language) => (
+      summary: '收录 Danbooru 全部有效画师 · 共 {count} 位',
+      perPage: '每页画师',
+      perPageValue: '每页 {count} 位',
+      choosePage: '选择页数',
+      pageRange: '第 1–{pages} 页',
+      pagePosition: '第 {page} / {pages} 页',
+      jump: '跳转',
+      cancel: '取消',
+      search: '搜索画师 Tag',
+      refresh: '手动更新'
+    );
 
 String _replaceArtistText(String value, Map<String, Object> fields) =>
     fields.entries.fold(
@@ -776,13 +535,7 @@ class _OnlineGalleryScreenState extends State<OnlineGalleryScreen> {
   Widget _buildArtistRanking(
       BuildContext context, _GalleryText text, String language) {
     final labels = _artistRankingText(language);
-    final updatedLabel = switch (normalizeAppLocaleCode(language)) {
-      'zh-TW' => '更新時間',
-      'en-US' => 'Updated',
-      'ja-JP' => '更新',
-      'ko-KR' => '업데이트',
-      _ => '更新时间',
-    };
+    const updatedLabel = '更新时间';
     final rows = artistRanking;
     final pageCount =
         math.max(1, (artistRankingTotal / artistRankingPageSize).ceil());

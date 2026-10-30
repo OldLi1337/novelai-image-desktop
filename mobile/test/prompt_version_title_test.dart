@@ -8,10 +8,6 @@ import 'package:provider/provider.dart';
 void main() {
   final titles = <String, (String, String)>{
     'zh-CN': ('反推模板版本', '转换模板版本'),
-    'zh-TW': ('反推範本版本', '轉換範本版本'),
-    'en-US': ('Reverse template version', 'Conversion template version'),
-    'ja-JP': ('解析テンプレート版', '変換テンプレート版'),
-    'ko-KR': ('분석 템플릿 버전', '변환 템플릿 버전'),
   };
   for (final entry in titles.entries) {
     for (final kind in InspectPageKind.values) {

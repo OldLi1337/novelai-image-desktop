@@ -48,7 +48,7 @@ void main() {
       ('v5', '1.0.0'),
       ('v4.5', '1.0.0')
     ]) {
-      for (final language in ['zh-CN', 'en-US']) {
+      for (final language in ['zh-CN']) {
         testWidgets(
             'skill selector fits ${target.$1} ${selection.$1}/${selection.$2} $language',
             (tester) async {
@@ -88,7 +88,7 @@ void main() {
     var model = 'v5', edition = '2.0.0';
     final changes = <String>[];
     Future<void> mount() async =>
-        pumpSelector(tester, const Size(320, 640), 2, model, edition, 'en-US',
+        pumpSelector(tester, const Size(320, 640), 2, model, edition, 'zh-CN',
             changed: (m, e) {
           model = m;
           edition = e;

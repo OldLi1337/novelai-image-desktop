@@ -1,6 +1,5 @@
 import '../images/image_file_access.dart';
 import '../prompts/prompt_skill_selection.dart';
-import 'package:crypto/crypto.dart';
 import '../services/generation_scope.dart';
 import '../services/comic_image_service.dart';
 import 'dart:async';
@@ -62,9 +61,6 @@ class BatchRedrawController extends ChangeNotifier {
   String status = runtimeTextFor('zh-CN', 'common.ready');
   Timer? _saveTimer;
   bool _disposed = false;
-  bool _editing = false;
-  String? _agentReservation;
-  bool get editing => _editing || _agentReservation != null;
   String? loadError;
   String? persistenceError;
   String? runId;
@@ -127,147 +123,9 @@ class BatchRedrawController extends ChangeNotifier {
     _journalLoaded = true;
   }
 
-  String get revision => sha256
-      .convert(utf8.encode(jsonEncode({
-        'project': project.toJson(),
-        if (project.reuseMainReferences) 'references': app.extras.toJson()
-      })))
-      .toString();
-  void assertRevision(String expected) {
-    if (loadError != null) throw StateError(loadError!);
-    if (_disposed ||
-        busy ||
-        queueRunning ||
-        _editing ||
-        _agentReservation != null ||
-        revision != expected) {
-      throw StateError('批量工程已变化或正在运行，请重新读取');
-    }
-  }
-
-  Future<void> commitProject(
-    String expected,
-    BatchRedrawProject next,
-  ) async {
-    assertRevision(expected);
-    _editing = true;
-    _saveTimer?.cancel();
-    final captured = BatchRedrawProject.fromJson(
-        jsonDecode(jsonEncode(next.toJson())), next.globalParams,
-        trustOutputs: true);
-    final transaction = _writes.then((_) async {
-      if (revision != expected || queueRunning) {
-        throw StateError('批量工程已变化，请重新读取');
-      }
-      await app.storage.setBatchRedrawProject(captured);
-      if (revision != expected || queueRunning) {
-        await app.storage.setBatchRedrawProject(project);
-        throw StateError('保存期间批量工程已变化，保留了软件端编辑，请重新读取');
-      }
-      project = captured;
-      persistenceError = null;
-      notifyListeners();
-    });
-    _writes = transaction.then<void>((_) {}, onError: (Object e) {
-      persistenceError = e.toString();
-      notifyListeners();
-    });
-    try {
-      await transaction;
-    } finally {
-      _editing = false;
-      notifyListeners();
-    }
-  }
-
-  void reserveAgentRun(String owner, String expected) {
-    assertRevision(expected);
-    _agentReservation = owner;
-  }
-
-  void checkAgentRun(String owner, String expected) {
-    if (_disposed ||
-        loadError != null ||
-        busy ||
-        queueRunning ||
-        _editing ||
-        _agentReservation != owner ||
-        revision != expected) {
-      throw StateError('批量工程已变化或正在运行，请重新读取');
-    }
-  }
-
-  void releaseAgentRun(String owner) {
-    if (_agentReservation == owner) _agentReservation = null;
-  }
-
-  List<BatchRedrawItem> agentPlan(String mode, List<String> ids) {
-    if (!['all', 'pending', 'failed', 'additional'].contains(mode) ||
-        ids.toSet().length != ids.length ||
-        ids.any((id) => !project.items.any((x) => x.id == id))) {
-      throw StateError('批量模式或图片ID无效');
-    }
-    if (app.settings.imageProvider != 'novelai') {
-      throw StateError('兼容图片服务未接入批量图生图；未自动回退');
-    }
-    final items = project.items
-        .where((x) =>
-            (ids.isEmpty || ids.contains(x.id)) &&
-            (mode != 'pending' || x.status != BatchItemStatus.done) &&
-            (mode != 'failed' || x.status == BatchItemStatus.failed))
-        .toList();
-    if (items.isEmpty || items.any((x) => x.prompt.trim().isEmpty)) {
-      throw StateError('没有待生成图片或缺少提示词');
-    }
-    if (project.sizeMode == 'perImage') {
-      parseBatchSizeImport(project.sizeBulk, project.items.length);
-    }
-    for (final job in _snapshotQueue(items)) {
-      if (base64Decode(job.sourceBase64).isEmpty) throw StateError('批量源图片为空');
-      if (job.extras.vibeImages.isNotEmpty &&
-              !job.params.supportsVibeTransfer ||
-          job.extras.preciseReferences.isNotEmpty &&
-              !job.params.supportsPreciseReference) {
-        throw StateError('当前模型不支持所选参考');
-      }
-    }
-    return [
-      for (final item in items)
-        for (var i = 0;
-            i <
-                (mode == 'additional'
-                    ? 1
-                    : normalizeBatchRedrawCandidateCount(
-                        project.candidateCount));
-            i++)
-          item
-    ];
-  }
-
-  Future<void> runAgent(List<String> ids,
-      {required String owner,
-      required String expected,
-      required void Function() guard,
-      required Future<void> Function() beforeImage}) {
-    checkAgentRun(owner, expected);
-    final targets =
-        ids.map((id) => project.items.firstWhere((x) => x.id == id)).toList();
-    return _runQueue(targets,
-        agentRunId: owner, guard: guard, beforeImage: beforeImage);
-  }
-
   Future<void> flush() {
     _saveTimer?.cancel();
     if (loadError != null) return Future.error(StateError(loadError!));
-    if (_editing) {
-      final next =
-          _writes.then((_) => app.storage.setBatchRedrawProject(project));
-      _writes = next.then<void>((_) {}, onError: (Object e) {
-        persistenceError = '$e';
-        notifyListeners();
-      });
-      return next;
-    }
     final snapshot = BatchRedrawProject.fromJson(
         jsonDecode(jsonEncode(project.toJson())), project.globalParams,
         trustOutputs: true);
@@ -303,11 +161,6 @@ class BatchRedrawController extends ChangeNotifier {
           project.groupName == defaultBatchRedrawGroupName
       ? _rt('batch.defaultName')
       : project.groupName;
-  String get displayStatus =>
-      status == runtimeTextFor('zh-CN', 'common.ready') ||
-              status == runtimeTextFor('en-US', 'common.ready')
-          ? _rt('common.ready')
-          : status;
   String get displayGroupName => _projectName();
 
   Future<void> load() => _loading ??= () async {
@@ -352,7 +205,7 @@ class BatchRedrawController extends ChangeNotifier {
   }
 
   void reset() {
-    if (queueRunning || busy || editing || loadError != null) {
+    if (queueRunning || busy || loadError != null) {
       throw StateError("批量工程正在运行或读取失败，未重置");
     }
     project = BatchRedrawProject.empty(app.params);
@@ -666,8 +519,7 @@ class BatchRedrawController extends ChangeNotifier {
   /// Freeze all mutable inputs for a confirmed queue.  Do not retain a
   /// reference to [project.globalParams], per-item params, prompts, strengths,
   /// or references: the editor remains available while the queue is running.
-  List<_BatchRedrawQueueJob> _snapshotQueue(List<BatchRedrawItem> targets,
-      {bool singleCandidate = false}) {
+  List<_BatchRedrawQueueJob> _snapshotQueue(List<BatchRedrawItem> targets) {
     final globalStyle = project.globalStyle;
     final globalNegative = project.globalNegative;
     final globalStrength = project.globalStrength;
@@ -721,9 +573,8 @@ class BatchRedrawController extends ChangeNotifier {
         params: params,
         extras: referencesFor(sourceParams),
         strength: item.strength ?? globalStrength,
-        candidateCount: singleCandidate
-            ? 1
-            : normalizeBatchRedrawCandidateCount(project.candidateCount),
+        candidateCount:
+            normalizeBatchRedrawCandidateCount(project.candidateCount),
       );
     }).toList(growable: false);
   }
@@ -759,14 +610,9 @@ class BatchRedrawController extends ChangeNotifier {
   }
 
   Future<void> startQueue(List<BatchRedrawItem> targets) => _runQueue(targets);
-  Future<void> _runQueue(List<BatchRedrawItem> targets,
-      {String? agentRunId,
-      void Function()? guard,
-      Future<void> Function()? beforeImage}) {
+  Future<void> _runQueue(List<BatchRedrawItem> targets) {
     if (targets.isEmpty || queueRunning) return Future.value();
     if (_disposed ||
-        _editing ||
-        (_agentReservation != null && _agentReservation != agentRunId) ||
         loadError != null ||
         busy ||
         app.busy ||
@@ -780,14 +626,14 @@ class BatchRedrawController extends ChangeNotifier {
       if (app.settings.imageProvider != 'novelai') {
         throw StateError('当前兼容图片服务未接入图生图，请切回 NovelAI；未自动回退');
       }
-      if ((agentRunId == null && targets.toSet().length != targets.length) ||
+      if (targets.toSet().length != targets.length ||
           targets.any((item) =>
               !project.items.contains(item) || item.prompt.trim().isEmpty)) {
         throw StateError('批量图片不存在、重复或缺少提示词');
       }
       if (project.sizeMode == 'perImage' &&
           !applyPerImageSizes(announce: false)) return Future.value();
-      jobs = _snapshotQueue(targets, singleCandidate: agentRunId != null);
+      jobs = _snapshotQueue(targets);
       for (final job in jobs) {
         if (base64Decode(job.sourceBase64).isEmpty) throw StateError('批量源图片为空');
         if (job.extras.vibeImages.isNotEmpty &&
@@ -810,13 +656,12 @@ class BatchRedrawController extends ChangeNotifier {
     final expectedSource = comicImageBinding(app.settings);
     final groupName = _projectName();
     String? token;
-    // Reserve synchronously: another UI/Agent task cannot pass an async gap.
+    // Reserve synchronously: another UI task cannot pass an async gap.
     queueRunning = true;
     queuePaused = false;
     queueCancelled = false;
     app.busy = true;
     final scope = GenerationScope(beforeSubmit: () {
-      guard?.call();
       if (comicImageBinding(app.settings) != expectedSource) {
         throw StateError('图片服务配置已变化，未继续提交批量任务');
       }
@@ -831,7 +676,7 @@ class BatchRedrawController extends ChangeNotifier {
       var backgroundStarted = false;
       try {
         await _loadRun();
-        runId = agentRunId ?? _id();
+        runId = _id();
         queueDone = 0;
         queueTotal = jobs.fold(0, (total, job) => total + job.candidateCount);
         await flush();
@@ -876,7 +721,6 @@ class BatchRedrawController extends ChangeNotifier {
                   text: _rf('notification.generating',
                       {'current': queueDone + 1, 'total': queueTotal}));
             } catch (_) {}
-            await beforeImage?.call();
             scope.check();
             List<HistoryItem> results;
             Object? savedError;

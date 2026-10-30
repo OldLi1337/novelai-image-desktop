@@ -40,7 +40,6 @@ void main() {
         debugDefaultTargetPlatformOverride = entry.value.$2;
         addTearDown(() {tester.view.reset(); debugDefaultTargetPlatformOverride = null;});
         final state = AppState();
-        state.settings.language = 'en-US';
         state.settings.promptCodexEnhanceEnabled = false;
         state.params..positivePrompt = 'ORIGINAL_POSITIVE_QA'..stylePrompt = 'STYLE_KEEP_QA'..negativePrompt = 'NEGATIVE_KEEP_QA'..seed = 345678;
         final first = record('first', entry.value.$3, variants: entry.value.$4);
@@ -50,7 +49,7 @@ void main() {
         final semantics = tester.ensureSemantics();
         await tester.pumpWidget(ChangeNotifierProvider.value(value: state, child: MaterialApp(home: InspectScreen(kind: kind))));
         await tester.pumpAndSettle();
-        await reveal(tester, find.text('History · 2'));
+        await reveal(tester, find.text('历史记录 · 2'));
         await tester.tap(find.widgetWithIcon(IconButton, Icons.expand_more).last);
         await tester.pumpAndSettle();
         await reveal(tester, find.text('QA history first'));
@@ -77,17 +76,17 @@ void main() {
         before.remove('positivePrompt');after.remove('positivePrompt');
         expect(after, before, reason: 'Style, negative, dimensions, model, seed and other params must remain unchanged');
         expect(kind == InspectPageKind.reverse ? state.reverseHistory : state.convertHistory, [first, second]);
-        await reveal(tester, find.byTooltip('Collapse history'));
-        expect(tester.getSemantics(find.bySemanticsLabel('Collapse history')).getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-        expect(find.byTooltip('Delete this history record'), findsNWidgets(2));
-        await reveal(tester, find.byTooltip('Delete this history record').last);
-        await tester.tap(find.byTooltip('Delete this history record').last);await tester.pumpAndSettle();
+        await reveal(tester, find.byTooltip('收起历史记录'));
+        expect(tester.getSemantics(find.bySemanticsLabel('收起历史记录')).getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+        expect(find.byTooltip('删除此历史记录'), findsNWidgets(2));
+        await reveal(tester, find.byTooltip('删除此历史记录').last);
+        await tester.tap(find.byTooltip('删除此历史记录').last);await tester.pumpAndSettle();
         expect(kind == InspectPageKind.reverse ? state.reverseHistory : state.convertHistory, [first]);
         expect(state.params.positivePrompt, expected);
-        await reveal(tester, find.byTooltip('Collapse history'));
-        await tester.tap(find.byTooltip('Collapse history'));await tester.pumpAndSettle();
+        await reveal(tester, find.byTooltip('收起历史记录'));
+        await tester.tap(find.byTooltip('收起历史记录'));await tester.pumpAndSettle();
         expect(find.text('QA history first'), findsNothing);
-        expect(find.byTooltip('Expand history'), findsOneWidget);
+        expect(find.byTooltip('展开历史记录'), findsOneWidget);
         final stored = await SharedPreferences.getInstance();
         expect(stored.getString('gen_params'), contains(expected));
         await tester.pumpWidget(const SizedBox.shrink());await tester.pumpAndSettle();
@@ -100,11 +99,11 @@ void main() {
   testWidgets('empty historical outputs cannot erase either tool or Generate prompt', (tester) async {
     tester.view.devicePixelRatio = 1;tester.view.physicalSize = const Size(420, 920);addTearDown(tester.view.reset);
     for (final kind in InspectPageKind.values) {
-      final state = AppState();state.settings.language='en-US';state.params.positivePrompt='KEEP_ORIGINAL';
+      final state = AppState();state.params.positivePrompt='KEEP_ORIGINAL';
       final item=record('empty',ReversePromptMode.tags,empty:true);
       if(kind==InspectPageKind.reverse){state.reverseHistory=[item];}else{state.convertHistory=[item];}
       await tester.pumpWidget(ChangeNotifierProvider.value(value:state,child:MaterialApp(home:InspectScreen(kind:kind))));await tester.pumpAndSettle();
-      await reveal(tester,find.text('History · 1'));await tester.tap(find.widgetWithIcon(IconButton,Icons.expand_more).last);await tester.pumpAndSettle();
+      await reveal(tester,find.text('历史记录 · 1'));await tester.tap(find.widgetWithIcon(IconButton,Icons.expand_more).last);await tester.pumpAndSettle();
       await reveal(tester,find.text('QA history empty'));await tester.tap(find.text('QA history empty'));await tester.pumpAndSettle();
       final use=find.byWidgetPredicate((w)=>w is IconButton && w.icon is Icon && (w.icon as Icon).icon==Icons.send_outlined);
       expect(use,findsOneWidget);expect(tester.widget<IconButton>(use).onPressed,isNull);
@@ -113,12 +112,10 @@ void main() {
     }
     expect(tester.takeException(),isNull);
   });
-  test('history action labels are localized in all five saved languages', () {
-    for(final language in ['zh-CN','zh-TW','en-US','ja-JP','ko-KR']) {
-      for(final key in ['textTool.historyExpand','textTool.historyCollapse','textTool.historyDelete']) {
-        final label=mobileUiTextFor(language,key);
-        expect(label,isNotEmpty);expect(label,isNot(key));
-      }
+  test('history action labels are translated', () {
+    for(final key in ['textTool.historyExpand','textTool.historyCollapse','textTool.historyDelete']) {
+      final label=mobileUiTextFor('zh-CN',key);
+      expect(label,isNotEmpty);expect(label,isNot(key));
     }
   });
 }

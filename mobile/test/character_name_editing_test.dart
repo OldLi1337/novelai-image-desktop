@@ -12,7 +12,7 @@ void main() {
   setUp(()=>SharedPreferences.setMockInitialValues({}));
   testWidgets('real character card opens only on pencil; cancel discards and save persists metadata only', (tester) async {
     tester.view.devicePixelRatio=1;tester.view.physicalSize=const Size(430,2800);addTearDown(tester.view.reset);
-    final s=AppState();addTearDown(s.dispose);s.settings.language='en-US';
+    final s=AppState();addTearDown(s.dispose);
     final c=CharCaptionItem(prompt:'blue coat',negativePrompt:'red',enabled:false,useCoords:true,x:0,y:1);
     s.extras.charCaptions=[c];
     await tester.pumpWidget(ChangeNotifierProvider.value(value:s,child:const MaterialApp(home:GenerateScreen())));await tester.pumpAndSettle();

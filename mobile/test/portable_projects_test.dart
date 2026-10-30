@@ -45,7 +45,7 @@ void main() {
     root.deleteSync(recursive: true);
   });
   test(
-      'desktop capsules round trip byte-identically without loading native plugins',
+      'style lab capsules round trip byte-identically; removed Agent capsules are ignored',
       () async {
     final agent = capsule('agent'),
         detective = capsule('detective', path: 'run/status.json');
@@ -56,32 +56,43 @@ void main() {
     }
     const selected = {'tavernAgent', 'styleLab'};
     final inspected = PortableProjects.inspect(archive, selected);
+    expect(inspected.keys, [detective.key]);
     await PortableProjects.restore(inspected);
     await PortableProjects.restore(inspected);
     final output = Archive();
     await PortableProjects.export(output, selected);
-    expect(output.findFile('portable-projects/${agent.key}')!.content,
-        agent.value);
+    expect(output.findFile('portable-projects/${agent.key}'), isNull);
     expect(output.findFile('portable-projects/${detective.key}')!.content,
         detective.value);
+    expect(
+        File('${root.path}/portable-project-capsules/${agent.key}')
+            .existsSync(),
+        false);
     expect(Directory('${root.path}/TavernAgent').existsSync(), false);
     expect(File('${root.path}/profiles/custom.json').existsSync(), false);
   });
   test(
       'native category exclusion applies again when exporting retained capsules',
       () async {
-    final agent = capsule('agent');
-    await PortableProjects.restore({agent.key: agent.value});
+    final agent = capsule('agent'),
+        detective = capsule('detective', path: 'run/status.json');
+    await PortableProjects.restore(
+        {agent.key: agent.value, detective.key: detective.value});
     final output = Archive();
-    await PortableProjects.export(output, {'agentWorkspace', 'workspaceData'});
+    await PortableProjects.export(output, {'workspaceData'});
     expect(output.files, isEmpty);
+    // Capsules of the removed Agent left by older versions are never exported.
+    await PortableProjects.export(output, {'styleLab'});
+    expect(output.files.map((file) => file.name),
+        ['portable-projects/${detective.key}']);
   });
   test('rejects modified contents and traversal before storage', () async {
-    final agent = capsule('agent');
-    expect(() => PortableProjects.validate(agent.key, [...agent.value, 0]),
+    final detective = capsule('detective');
+    expect(
+        () => PortableProjects.validate(detective.key, [...detective.value, 0]),
         throwsFormatException);
     for (final path in ['../outside', 'a\\b', 'C:/outside', 'CON.txt', 'a.']) {
-      final item = capsule('agent', path: path);
+      final item = capsule('detective', path: path);
       expect(() => PortableProjects.validate(item.key, item.value),
           throwsFormatException);
     }

@@ -55,7 +55,7 @@ void main(){
  }
  testWidgets('actual 4K editor shows capped rectangle and cancels <32 source-pixel draft',(tester)async{
   tester.view.devicePixelRatio=1;tester.view.physicalSize=const Size(1100,800);addTearDown(tester.view.reset);
-  await tester.pumpWidget(const MaterialApp(home:InpaintMaskEditor(image:WorkingImage(filePath:'synthetic',width:3840,height:2160),language:'en-US',imageProvider:AssetImage('assets/icon/app_icon.png'))));await tester.pumpAndSettle();
+  await tester.pumpWidget(const MaterialApp(home:InpaintMaskEditor(image:WorkingImage(filePath:'synthetic',width:3840,height:2160),language:'zh-CN',imageProvider:AssetImage('assets/icon/app_icon.png'))));await tester.pumpAndSettle();
   await tester.tap(find.byKey(const ValueKey('select-inpaint-region')));await tester.pump();final rect=tester.getRect(find.byKey(const ValueKey('inpaint-mask-canvas')));
   var g=await tester.startGesture(rect.topLeft+const Offset(2,2));await g.moveTo(rect.bottomRight-const Offset(2,2));await g.up();await tester.pump();
   final label=tester.widget<Text>(find.descendant(of:find.byKey(const ValueKey('focused-inpaint-region')),matching:find.byType(Text))).data!;

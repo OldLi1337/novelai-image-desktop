@@ -203,9 +203,7 @@ class ResourceDatabaseService {
   final Set<ResourceDatabaseId> _paused = {};
   final Map<ResourceDatabaseId,String> _operations = {};
   final Set<ResourceDatabaseId> _committing = {};
-  final Map<ResourceDatabaseId,ResourceDatabaseProgress> _lastProgress = {};
   String? operation(ResourceDatabaseId id)=>_operations[id];
-  ResourceDatabaseProgress? lastProgress(ResourceDatabaseId id)=>_lastProgress[id];
   void _checkPaused(ResourceDatabaseId id){if(_paused.contains(id))throw const _PausedDownload();}
   final Map<String, List<ResourceTagSuggestion>> _queryCache = {};
   int _cacheHits = 0;
@@ -303,7 +301,6 @@ class ResourceDatabaseService {
       speedBytesPerSecond: speed,
       message: message,
     );
-    _lastProgress[definition.id]=event;
     _progress.add(event);
   }
 

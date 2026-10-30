@@ -14,10 +14,6 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const locales = {
     'zh-CN': ['查看文件路径', '复制路径', '文件路径已复制'],
-    'zh-TW': ['查看檔案路徑', '複製路徑', '檔案路徑已複製'],
-    'en-US': ['View file path', 'Copy path', 'File path copied'],
-    'ja-JP': ['ファイルパスを表示', 'パスをコピー', 'ファイルパスをコピーしました'],
-    'ko-KR': ['파일 경로 보기', '경로 복사', '파일 경로를 복사했습니다'],
   };
   for (final entry in locales.entries) {
     test('file path labels ${entry.key}', () {
@@ -43,7 +39,7 @@ void main() {
     (
       id: 'ios-phone-long',
       size: const Size(390, 844),
-      language: 'en-US',
+      language: 'zh-CN',
       platform: TargetPlatform.iOS,
       missing: false,
       long: true
@@ -51,7 +47,7 @@ void main() {
     (
       id: 'ipad',
       size: const Size(1024, 768),
-      language: 'zh-TW',
+      language: 'zh-CN',
       platform: TargetPlatform.iOS,
       missing: false,
       long: false

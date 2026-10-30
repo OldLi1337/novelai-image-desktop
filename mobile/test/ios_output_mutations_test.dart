@@ -88,11 +88,11 @@ void main(){
  });
  test('postcommit cleanup failure is truthful and keeps durable new identity authoritative',()async{
   final a=Access()..put('/provider/a.png',[1]);final s=Memory(a)..rows=[row('a','/provider/a.png')];a.onCopy=()=>a.replaceBeforeDelete=true;final app=AppState(storage:s)..history=List.of(s.rows);
-  app.settings.language='en-US';await app.renameHistory('a','New');expect(s.rows.single.filePath,'/provider/New.png');expect(a.files['/provider/a.png'],[9,9]);expect(app.status,contains('cleanup was not confirmed'));app.dispose();
+  await app.renameHistory('a','New');expect(s.rows.single.filePath,'/provider/New.png');expect(a.files['/provider/a.png'],[9,9]);expect(app.status,contains('未能确认旧路径清理'));app.dispose();
  });
  test('postcommit root-query failure does not report the durable rename itself as failed',()async{
-  final a=Access()..put('/provider/a.png',[1]);final s=Memory(a)..rows=[row('a','/provider/a.png')];a.onCopy=()=>s.failSettings=true;final app=AppState(storage:s)..history=List.of(s.rows);app.settings.language='en-US';
-  await app.renameHistory('a','New');expect(s.rows.single.filePath,'/provider/New.png');expect(a.files['/provider/a.png'],[1]);expect(app.status,contains('cleanup was not confirmed'));app.dispose();
+  final a=Access()..put('/provider/a.png',[1]);final s=Memory(a)..rows=[row('a','/provider/a.png')];a.onCopy=()=>s.failSettings=true;final app=AppState(storage:s)..history=List.of(s.rows);
+  await app.renameHistory('a','New');expect(s.rows.single.filePath,'/provider/New.png');expect(a.files['/provider/a.png'],[1]);expect(app.status,contains('未能确认旧路径清理'));app.dispose();
  });
  test('unavailable provider rename preserves actual history and current input without a copy fallback',()async{
   final a=Access()..put('/provider/a.png',[1]);a.unavailable.add('/provider/a.png');final s=Memory(a)..rows=[row('a','/provider/a.png')];final app=AppState(storage:s)..history=List.of(s.rows)..current=s.rows.first;

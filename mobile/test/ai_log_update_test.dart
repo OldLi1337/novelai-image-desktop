@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelai_mobile/models/nai_models.dart';
 import 'package:novelai_mobile/services/nai_api.dart';
-import 'package:novelai_mobile/services/update_service.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,12 +31,6 @@ void main() {
       ),
       isFalse,
     );
-  });
-
-  test('semantic version comparison handles v prefix and missing segments', () {
-    expect(compareVersions('v0.10.0', '0.9.9'), 1);
-    expect(compareVersions('0.9.9', '0.9.9+27'), -1);
-    expect(compareVersions('1.0', '1.0.0'), 0);
   });
 
   test('AI log records calls and omits reverse-image base64', () async {

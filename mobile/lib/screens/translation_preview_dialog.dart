@@ -37,8 +37,7 @@ class _TranslationPreviewDialogState extends State<TranslationPreviewDialog> {
     app = context.read<AppState>();
     session = TranslationSession(
         widget.source,
-        resolveTranslationTarget(
-            app.settings.translateTargetLanguage, app.settings.language),
+        resolveTranslationTarget(app.settings.translateTargetLanguage),
         (source, to, from) async {
       final reply = await app.translatePreviewText(source,
           target: to, sourceLanguage: from);
@@ -62,8 +61,7 @@ class _TranslationPreviewDialogState extends State<TranslationPreviewDialog> {
     session.setLive(app.settings.translateRealtime);
     session.setLanguages(
         app.settings.translateSourceLanguage,
-        resolveTranslationTarget(
-            app.settings.translateTargetLanguage, app.settings.language));
+        resolveTranslationTarget(app.settings.translateTargetLanguage));
   }
 
   void _sync(TextEditingController controller, String text) {
@@ -130,8 +128,7 @@ class _TranslationPreviewDialogState extends State<TranslationPreviewDialog> {
       if (mounted) {
         session.setLanguages(
             app.settings.translateSourceLanguage,
-            resolveTranslationTarget(
-                app.settings.translateTargetLanguage, app.settings.language));
+            resolveTranslationTarget(app.settings.translateTargetLanguage));
         setState(() => localError = '$e');
       }
     } finally {
@@ -225,8 +222,7 @@ class _TranslationPreviewDialogState extends State<TranslationPreviewDialog> {
     final state = context.watch<AppState>(),
         text = translationText(state.settings.language),
         editor = translationEditorText(state.settings.language);
-    final target = resolveTranslationTarget(
-        state.settings.translateTargetLanguage, state.settings.language);
+    final target = resolveTranslationTarget(state.settings.translateTargetLanguage);
     final preference = session.target == target
         ? normalizeTranslationPreference(state.settings.translateTargetLanguage)
         : session.target;
@@ -274,7 +270,7 @@ class _TranslationPreviewDialogState extends State<TranslationPreviewDialog> {
             : (v) {
                 if (v != null) {
                   session.setLanguages(session.sourceLanguage,
-                      resolveTranslationTarget(v, state.settings.language));
+                      resolveTranslationTarget(v));
                   _persist(session.sourceLanguage, v);
                 }
               });

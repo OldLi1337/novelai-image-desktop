@@ -26,7 +26,6 @@ class _Tags extends OfflineTagStore {
 }
 class _App extends AppState {
   _App(Storage storage):super(storage:storage,offlineTags:_Tags());
-  @override Future<void> checkUpdate({bool manual=false}) async {}
 }
 
 void main() {

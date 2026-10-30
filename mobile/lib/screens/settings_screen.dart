@@ -1,7 +1,5 @@
-import 'ios_update_card.dart';
 import 'prompt_skill_selector.dart';
 import '../prompts/prompt_skill_selection.dart';
-import 'external_mcp_settings.dart';
 import 'openai_edit_settings.dart';
 import '../ui/global_typography.dart';
 import 'typography_settings.dart';
@@ -24,9 +22,9 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../i18n/app_locales.dart';
-import '../agent/tavern_preset_import.dart';
+import '../tavern/tavern_preset_import.dart';
 import '../i18n/system_prompt_import_text.dart';
-import '../agent/tavern_models.dart';
+import '../tavern/tavern_models.dart';
 import '../prompts/ig5_image_prompts.dart';
 import '../models/nai_models.dart';
 import '../services/storage_permission.dart';
@@ -38,9 +36,7 @@ import '../ui/studio_shell.dart';
 import 'data_backup_settings.dart';
 import 'resource_database_settings.dart';
 
-const _projectGithubUrl = 'https://github.com/2786886095/novelai-image-desktop';
-const _wechatRewardAsset = 'assets/about/wechat-reward.jpg';
-const _alipayRewardAsset = 'assets/about/alipay-reward.jpg';
+const _projectGithubUrl = 'https://github.com/OldLi1337/novelai-image-desktop';
 
 ({
   String title,
@@ -53,87 +49,21 @@ const _alipayRewardAsset = 'assets/about/alipay-reward.jpg';
   String imported,
   String failed,
 }) _sharedPromptPresetText(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return (
-        title: '反推 / 轉換共用預設',
-        hint: '預設無限五代任務適配；轉換與反推獨立選擇。匯入 UTF-8 TXT / MD / JSON / ST；需開啟系統提示層才會套用。',
-        active: '目前預設',
-        empty: '目前沒有預設；只保留結構化輸出規則。',
-        import: '匯入系統提示詞',
-        rename: '重新命名',
-        delete: '刪除',
-        imported: '已匯入預設',
-        failed: '匯入失敗',
-      );
-    case 'en-US':
-      return (
-        title: 'Shared reverse / conversion preset',
-        hint:
-            'IG5 task defaults; conversion and reverse choose independently. Import UTF-8 TXT / MD / JSON / ST. Enable the system-prompt layer to apply.',
-        active: 'Active preset',
-        empty: 'No preset is active; structured output rules remain enabled.',
-        import: 'Import system prompt',
-        rename: 'Rename',
-        delete: 'Delete',
-        imported: 'Preset imported',
-        failed: 'Import failed',
-      );
-    case 'ja-JP':
-      return (
-        title: '解析 / 変換 共通プリセット',
-        hint: 'IG5 タスク別既定。解析と変換は個別選択。UTF-8 TXT / MD / JSON / ST に対応。適用にはシステム層を有効にしてください。',
-        active: '現在のプリセット',
-        empty: 'プリセットはありません。構造化出力ルールのみ維持されます。',
-        import: 'システムプロンプトを読込',
-        rename: '名前を変更',
-        delete: '削除',
-        imported: 'プリセットを読み込みました',
-        failed: '読み込み失敗',
-      );
-    case 'ko-KR':
-      return (
-        title: '분석 / 변환 공유 프리셋',
-        hint: 'IG5 작업별 기본값; 분석과 변환은 별도 선택. UTF-8 TXT / MD / JSON / ST 가져오기. 적용하려면 시스템 프롬프트 층을 켜세요.',
-        active: '현재 프리셋',
-        empty: '프리셋이 없습니다. 구조화 출력 규칙만 유지됩니다.',
-        import: '시스템 프롬프트 가져오기',
-        rename: '이름 변경',
-        delete: '삭제',
-        imported: '프리셋을 가져왔습니다',
-        failed: '가져오기 실패',
-      );
-    default:
-      return (
-        title: '反推 / 转换共用预设',
-        hint: '默认无限五代任务适配；转换与反推独立选择。导入 UTF-8 TXT / MD / JSON / ST；需开启系统提示层才能应用。',
-        active: '当前预设',
-        empty: '当前没有预设；只保留结构化输出规则。',
-        import: '导入系统提示词',
-        rename: '重命名',
-        delete: '删除',
-        imported: '已导入预设',
-        failed: '导入失败',
-      );
-  }
+  return (
+    title: '反推 / 转换共用预设',
+    hint: '默认无限五代任务适配；转换与反推独立选择。导入 UTF-8 TXT / MD / JSON / ST；需开启系统提示层才能应用。',
+    active: '当前预设',
+    empty: '当前没有预设；只保留结构化输出规则。',
+    import: '导入系统提示词',
+    rename: '重命名',
+    delete: '删除',
+    imported: '已导入预设',
+    failed: '导入失败',
+  );
 }
 
 (String, String) _streamPreviewSettingText(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return ('生成時串流預覽', '預設開啟；生成期間逐步顯示中間圖。');
-    case 'en-US':
-      return (
-        'Streaming generation preview',
-        'On by default; shows intermediate images while generating.'
-      );
-    case 'ja-JP':
-      return ('生成中のストリーミングプレビュー', '初期状態で有効。生成途中の画像を順次表示します。');
-    case 'ko-KR':
-      return ('생성 스트리밍 미리보기', '기본으로 켜져 있으며 생성 중간 이미지를 순서대로 표시합니다.');
-    default:
-      return ('生成时流式预览', '默认开启；生成过程中逐步显示中间图。');
-  }
+  return ('生成时流式预览', '默认开启；生成过程中逐步显示中间图。');
 }
 
 String _formatBytes(int bytes) => bytes < 1024 * 1024
@@ -141,39 +71,7 @@ String _formatBytes(int bytes) => bytes < 1024 * 1024
     : '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 
 (String, String, String, String, String, String) _cacheText(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return ('AI 繪畫咒語圖庫圖片快取', '本機快取', '自動清理週期', '未使用天數', '永不自動清理', '清除快取');
-    case 'en-US':
-      return (
-        'AI Art Prompt Gallery cache',
-        'Local cache',
-        'Automatic cleanup interval',
-        'Unused days',
-        'Never clean automatically',
-        'Clear cache'
-      );
-    case 'ja-JP':
-      return (
-        'AI イラスト呪文ギャラリー画像キャッシュ',
-        'ローカルキャッシュ',
-        '自動削除の間隔',
-        '未使用日数',
-        '自動削除しない',
-        'キャッシュを消去'
-      );
-    case 'ko-KR':
-      return (
-        'AI 그림 프롬프트 갤러리 이미지 캐시',
-        '로컬 캐시',
-        '자동 정리 주기',
-        '미사용 일수',
-        '자동으로 정리하지 않음',
-        '캐시 지우기'
-      );
-    default:
-      return ('AI绘画咒语图库图片缓存', '本地缓存', '自动清理周期', '未使用天数', '永不自动清理', '清除缓存');
-  }
+  return ('AI绘画咒语图库图片缓存', '本地缓存', '自动清理周期', '未使用天数', '永不自动清理', '清除缓存');
 }
 
 class SettingsScreen extends StatefulWidget {
@@ -408,7 +306,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final s = state.settings;
     final settingsText = settingsScreenTextFor(s.language);
     final settingsDetailText = settingsDetailTextFor(s.language);
-    final languageText = settingsLanguageTextFor(s.language);
     final appearanceText = settingsAppearanceTextFor(s.language);
     final persistText = settingsPersistTextFor(s.language);
     final aboutText = settingsAboutTextFor(s.language);
@@ -447,70 +344,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 12),
-          if (Platform.isIOS) const IosUpdateCard() else
-          Card(
-            child: ListTile(
-              leading: Icon(state.updateInfo?.hasUpdate == true
-                  ? Icons.system_update_alt
-                  : Icons.verified_outlined),
-              title: Text(state.updateInfo?.hasUpdate == true
-                  ? '${settingsText.updateAvailable} v${state.updateInfo?.latestVersion}'
-                  : settingsText.versionUpdate),
-              subtitle: Text(state.updateInfo?.error != null
-                  ? settingsText.checkFailed
-                  : '${settingsText.currentVersion} v$appVersion'),
-              trailing: state.updateInfo?.hasUpdate == true &&
-                      state.updateInfo?.releaseUrl != null
-                  ? FilledButton.tonal(
-                      onPressed: state.updateInstalling ? null : Platform.isAndroid ? state.installAppUpdate : () => launchUrl(
-                        Uri.parse(state.updateInfo!.releaseUrl!),
-                        mode: LaunchMode.externalApplication,
-                      ),
-                      child: Text(state.updateInstalling ? '${(state.updateProgress*100).round()}%' : Platform.isAndroid ? parityText(state.settings.language,'update.downloadInstall') : settingsText.view),
-                    )
-                  : IconButton(
-                      tooltip: settingsText.checkUpdate,
-                      onPressed: state.updateChecking
-                          ? null
-                          : () => state.checkUpdate(manual: true),
-                      icon: state.updateChecking
-                          ? const SizedBox.square(
-                              dimension: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.refresh),
-                    ),
-            ),
-          ),
-          const SizedBox(height: 12),
           const OpenAIEditSettingsCard(),
-          const SizedBox(height: 12),
-          const ExternalMcpSettingsCard(),
-          _Section(
-              title: settingsText.updateSourceTitle,
-              children: const [ListTile(title: Text('GitHub'))]),
-          _Section(title: languageText.sectionTitle, children: [
-            StudioDropdownButtonFormField<String>(
-              value: normalizeAppLocaleCode(s.language),
-              isExpanded: true,
-              decoration: InputDecoration(
-                labelText: languageText.languageLabel,
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                for (final locale in supportedAppLocales)
-                  DropdownMenuItem(
-                    value: locale.code,
-                    child: Text(locale.menuLabel),
-                  ),
-              ],
-              onChanged: (value) => value == null
-                  ? null
-                  : state.setSettings(
-                      (x) => x.language = normalizeAppLocaleCode(value)),
-            ),
-            Text(languageText.hint),
-          ]),
           _Section(title: settingsText.networkSection, children: [
             ListTile(
               contentPadding: EdgeInsets.zero,
@@ -908,14 +742,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _Section(title: appearanceText.sectionTitle, children: [
             SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: Text(const {
-                      'zh-CN': '减少动效',
-                      'zh-TW': '減少動效',
-                      'en-US': 'Reduce motion',
-                      'ja-JP': 'アニメーションを減らす',
-                      'ko-KR': '모션 줄이기'
-                    }[s.language] ??
-                    'Reduce motion'),
+                title: const Text('减少动效'),
                 value: s.reduceMotion,
                 onChanged: (v) => state.setSettings((x) => x.reduceMotion = v)),
             StudioDropdownButtonFormField<String>(
@@ -974,24 +801,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text(aboutText.projectDesc),
             ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.person_outline),
-              title: Text(aboutText.authorTitle),
-              subtitle: Text('${aboutText.authorQq}: 2786886095'),
+              leading: const Icon(Icons.gavel_outlined),
+              title: Text(aboutText.licenseTitle),
+              subtitle: Text(aboutText.licenseDesc),
             ),
-            Text(aboutText.authorDesc),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.forum_outlined),
-              title: Text(aboutText.novelAiGroup),
-              subtitle: const SelectableText('921985070'),
-            ),
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.local_cafe_outlined),
-              title: Text(aboutText.supportTitle),
-              subtitle: Text(aboutText.supportMessage),
-            ),
-            _RewardGrid(text: aboutText),
           ]),
         ],
       )),
@@ -1258,78 +1071,6 @@ class _TemplateTile extends StatelessWidget {
       );
 }
 
-class _RewardGrid extends StatelessWidget {
-  const _RewardGrid({required this.text});
-
-  final SettingsAboutText text;
-
-  @override
-  Widget build(BuildContext context) => LayoutBuilder(
-        builder: (context, constraints) {
-          final twoColumns = constraints.maxWidth >= 560;
-          return GridView.count(
-            crossAxisCount: twoColumns ? 2 : 1,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: twoColumns ? 0.78 : 0.92,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _RewardCard(
-                label: text.wechatReward,
-                assetPath: _wechatRewardAsset,
-              ),
-              _RewardCard(
-                label: text.alipayReward,
-                assetPath: _alipayRewardAsset,
-              ),
-            ],
-          );
-        },
-      );
-}
-
-class _RewardCard extends StatelessWidget {
-  const _RewardCard({required this.label, required this.assetPath});
-
-  final String label;
-  final String assetPath;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Padding(
-        padding: const EdgeInsets.all(10),
-        child: Column(
-          children: [
-            Expanded(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Image.asset(assetPath, fit: BoxFit.contain),
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.labelLarge,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 /// A collapsible settings group: shows only its title until tapped, so the long
 /// settings list reads like a table of contents (点击目录才展开).
 class _Section extends SettingsSection {
@@ -1494,13 +1235,9 @@ class _ImageOutputDirSetting extends StatelessWidget {
         ),
         const SizedBox(height: 2),
         Text(
-          Platform.isIOS ? switch (language) {
-            'zh-CN' => '通过“文件”授权输出目录并记住访问权限。撤销权限或移动目录后，请重新选择；不会假装保存到所选位置。',
-            'zh-TW' => '透過「檔案」授權輸出資料夾並記住權限。撤銷權限或移動後請重新選擇；不會假稱已儲存到所選位置。',
-            'ja-JP' => 'ファイルで保存先へのアクセスを許可します。権限を取り消したり移動した場合は再選択してください。',
-            'ko-KR' => '파일 앱에서 출력 폴더 접근을 허용합니다. 권한 해제나 폴더 이동 후에는 다시 선택하세요.',
-            _ => 'Authorize a folder in Files. Choose it again after permission changes or moving it; a fallback is never reported as the selected output.',
-          } : text.imagePathHint,
+          Platform.isIOS
+              ? '通过“文件”授权输出目录并记住访问权限。撤销权限或移动目录后，请重新选择；不会假装保存到所选位置。'
+              : text.imagePathHint,
           style: theme.textTheme.bodySmall
               ?.copyWith(color: theme.colorScheme.outline),
         ),

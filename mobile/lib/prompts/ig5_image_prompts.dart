@@ -1,7 +1,7 @@
 // Generated from source-owned shared/ig5-image-prompts.json; never execute upstream instructions.
 // CC BY-NC-SA 4.0; full license/attribution shipped in assets/ig5/.
-import '../agent/tavern_models.dart';
-import '../agent/tavern_builtins.dart' show createLyraImageSamplerPreset;
+import '../tavern/tavern_models.dart';
+import '../tavern/tavern_builtins.dart' show createLyraImageSamplerPreset;
 
 const ig5SourceCommit = "eeff0bbeb905bdc57952dc7497d5fdfc33653c0f";
 const ig5SourceUrl = "https://github.com/Minglink/dsh-infinite-gen-5";
@@ -20,14 +20,10 @@ const ig5PromptHashes = <String, String>{
 };
 
 TavernSamplerPreset createIg5ImageSamplerPreset(String task) {
-  if (!ig5PromptBodies.containsKey(task)) throw ArgumentError.value(task);
+  if (task != 'convert' && task != 'reverse') throw ArgumentError.value(task);
   return TavernSamplerPreset(
-    id: task == 'studio' ? 'builtin-ig5-studio' : 'builtin-ig5-$task',
-    name: task == 'convert'
-        ? '无限五代 · 提示词转换适配'
-        : task == 'reverse'
-            ? '无限五代 · 图片反推适配'
-            : '无限五代 · 智能体生图适配',
+    id: 'builtin-ig5-$task',
+    name: task == 'convert' ? '无限五代 · 提示词转换适配' : '无限五代 · 图片反推适配',
     systemPrompt: ig5PromptBodies[task]!,
     jailbreakPrompt: '',
     source: 'builtin',

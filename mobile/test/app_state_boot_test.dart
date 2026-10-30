@@ -57,9 +57,6 @@ class _BootState extends AppState {
     required super.storage,
     required super.offlineTags,
   });
-
-  @override
-  Future<void> checkUpdate({bool manual = false}) async {}
 }
 
 class _OfflineApi extends NaiApi {

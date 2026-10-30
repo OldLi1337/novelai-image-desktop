@@ -137,10 +137,6 @@ class _TestState extends AppState {
     required super.storage,
     required super.offlineTags,
   });
-
-  // Avoid the real GitHub update network call during boot.
-  @override
-  Future<void> checkUpdate({bool manual = false}) async {}
 }
 
 class _MemoryStorage extends Storage {

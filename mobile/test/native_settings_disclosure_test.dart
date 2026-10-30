@@ -32,13 +32,13 @@ Future<void> originalScrollOnly(WidgetTester tester, Key key) async {
 void main() {
   testWidgets('real SettingsScreen scroll-only misses collapsed child; helper exposes it by actual header tap',(tester)async{
     tester.view.devicePixelRatio=1;tester.view.physicalSize=const Size(360,800);
-    final app=AppState();app.settings.language='en-US';
+    final app=AppState();
     addTearDown(()async{await tester.pumpWidget(const SizedBox.shrink());app.dispose();tester.view.reset();});
     await tester.pumpWidget(ChangeNotifierProvider.value(value:app,child:const MaterialApp(home:SettingsScreen())));await tester.pump();
     await originalScrollOnly(tester,childKey);expect(find.byKey(childKey,skipOffstage:false),findsNothing);
     final p=((nativeUiElements((w)=>w is Scrollable).first as StatefulElement).state as ScrollableState).position;p.jumpTo(0);await tester.pump();
     var taps=0;
-    final result=await nativeSettingsControl(sectionTitle:'Storage & History',targetKey:childKey,waitFrame:()=>tester.pump(const Duration(milliseconds:50)),tapDisclosure:(e)async{taps++;await hostTap(tester,e);});
+    final result=await nativeSettingsControl(sectionTitle:'存储与历史',targetKey:childKey,waitFrame:()=>tester.pump(const Duration(milliseconds:50)),tapDisclosure:(e)async{taps++;await hostTap(tester,e);});
     expect(result,isNotNull);expect(result!.widget.key,childKey);expect(taps,1);expect(find.byKey(childKey),findsOneWidget);expect(tester.takeException(),isNull);
   });
   testWidgets('production SettingsSection keyed fixture action mounts only after one real disclosure tap',(tester)async{

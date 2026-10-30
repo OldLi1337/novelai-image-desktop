@@ -7,34 +7,16 @@ import 'package:novelai_mobile/services/unified_storage.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  late Directory temp, docs, agent, target;
+  late Directory temp, docs, target;
   late Map<String, dynamic> values;
   setUp(() async {
     temp = await Directory.systemTemp.createTemp('studio-migration-');
     docs = Directory(p.join(temp.path, 'old-documents'));
-    agent = Directory(p.join(temp.path, 'private-agent'));
     target = Directory(p.join(temp.path, 'LangbaiStudio'));
     await Directory(p.join(docs.path, 'images')).create(recursive: true);
     await File(p.join(docs.path, 'images', 'original.png'))
         .writeAsBytes([1, 2, 3, 4]);
-    await Directory(p.join(agent.path, 'user-home', 'sessions'))
-        .create(recursive: true);
-    await File(p.join(agent.path, 'user-home', 'sessions', 'chat.jsonl'))
-        .writeAsString('{"text":"existing chat"}');
-    await Directory(p.join(agent.path, 'user-home', 'profiles'))
-        .create(recursive: true);
-    await File(p.join(agent.path, 'user-home', 'profiles', 'secret.json'))
-        .writeAsString('DO-NOT-MIGRATE-CREDENTIAL');
     values = {
-      'agent_workspace_v1': jsonEncode({
-        'characters': [
-          {
-            'id': 'same-id',
-            'name': '角色',
-            'avatarPath': p.join(docs.path, 'images', 'original.png')
-          }
-        ]
-      }),
       'history_index_v2': jsonEncode([
         {
           'id': 'image-id',
@@ -60,7 +42,7 @@ void main() {
   test('BASELINE: original private data and source image remain readable',
       () async {
     final prefs = UnifiedPreferences(await SharedPreferences.getInstance());
-    expect(prefs.getString('agent_workspace_v1'), values['agent_workspace_v1']);
+    expect(prefs.getString('history_index_v2'), values['history_index_v2']);
     expect(
         await File(p.join(docs.path, 'images', 'original.png')).readAsBytes(),
         [1, 2, 3, 4]);
@@ -69,7 +51,7 @@ void main() {
       'MODIFIED: copies verified data, rebases only managed paths, excludes private credentials',
       () async {
     final result = await UnifiedStorage.migrateFiles(
-        documents: docs, target: target, agentRoot: agent, preferences: values);
+        documents: docs, target: target, preferences: values);
     expect(result['oldDataRetained'], true);
     expect(
         await File(p.join(docs.path, 'images', 'original.png')).readAsBytes(),
@@ -80,15 +62,6 @@ void main() {
     expect(jsonDecode(raw)[0]['filePath'],
         p.join(target.path, 'images', 'original.png'));
     expect(jsonDecode(raw)[0]['customPath'], '/other/chosen/image.png');
-    expect(
-        await File(p.join(
-                target.path, 'TavernAgent', 'data', 'sessions', 'chat.jsonl'))
-            .readAsString(),
-        contains('existing chat'));
-    expect(
-        await Directory(p.join(target.path, 'TavernAgent', 'data', 'profiles'))
-            .exists(),
-        false);
     expect(
         await File(p.join(target.path, 'presets', 'prompt-presets.json'))
             .readAsString(),
@@ -102,17 +75,15 @@ void main() {
       'ROLLBACK: new data uses shared folder; original data is retained when selection returns to private',
       () async {
     await UnifiedStorage.migrateFiles(
-        documents: docs, target: target, agentRoot: agent, preferences: values);
+        documents: docs, target: target, preferences: values);
     UnifiedStorage.active = target;
     final prefs = UnifiedPreferences(await SharedPreferences.getInstance());
-    await prefs.setString(
-        'agent_workspace_v1', '{"characters":[{"id":"new"}]}');
-    expect(prefs.getString('agent_workspace_v1'), contains('new'));
+    await prefs.setString('history_index_v2', '[{"id":"new"}]');
+    expect(prefs.getString('history_index_v2'), contains('new'));
     UnifiedStorage.active = null;
-    expect(prefs.getString('agent_workspace_v1'), values['agent_workspace_v1']);
+    expect(prefs.getString('history_index_v2'), values['history_index_v2']);
     expect(
-        await File(p.join(
-                target.path, 'data', 'conversations-and-characters.json'))
+        await File(p.join(target.path, 'data', 'image-history.json'))
             .readAsString(),
         contains('new'));
   });
@@ -122,10 +93,7 @@ void main() {
     await other.writeAsString('keep');
     await expectLater(
         UnifiedStorage.migrateFiles(
-            documents: docs,
-            target: target,
-            agentRoot: agent,
-            preferences: values),
+            documents: docs, target: target, preferences: values),
         throwsA(isA<FileSystemException>()));
     expect(await other.readAsString(), 'keep');
   });
@@ -144,7 +112,7 @@ void main() {
   test('editing shared presets preserves original private preset library',
       () async {
     await UnifiedStorage.migrateFiles(
-        documents: docs, target: target, agentRoot: agent, preferences: values);
+        documents: docs, target: target, preferences: values);
     UnifiedStorage.active = target;
     final prefs = UnifiedPreferences(await SharedPreferences.getInstance());
     final updated = jsonDecode(prefs.getString('app_settings')!) as Map;
@@ -160,31 +128,21 @@ void main() {
   test('missing migrated data raises error rather than returning empty data',
       () async {
     await UnifiedStorage.migrateFiles(
-        documents: docs, target: target, agentRoot: agent, preferences: values);
+        documents: docs, target: target, preferences: values);
     UnifiedStorage.active = target;
-    await File(p.join(target.path, 'data/conversations-and-characters.json'))
-        .delete();
+    await File(p.join(target.path, 'data/image-history.json')).delete();
     final prefs = UnifiedPreferences(await SharedPreferences.getInstance());
-    expect(() => prefs.getString('agent_workspace_v1'),
+    expect(() => prefs.getString('history_index_v2'),
         throwsA(isA<FileSystemException>()));
   });
-  test('space estimate covers managed files but excludes private profiles',
-      () async {
-    final size = await UnifiedStorage.estimateCopyBytes(docs, agent);
-    expect(
-        size,
-        4 +
-            await File(p.join(agent.path, 'user-home/sessions/chat.jsonl'))
-                .length());
+  test('space estimate covers managed files', () async {
+    expect(await UnifiedStorage.estimateCopyBytes(docs), 4);
   });
   test('malformed source prevents activation and retains originals', () async {
-    values['agent_workspace_v1'] = 'not-json';
+    values['history_index_v2'] = 'not-json';
     await expectLater(
         UnifiedStorage.migrateFiles(
-            documents: docs,
-            target: target,
-            agentRoot: agent,
-            preferences: values),
+            documents: docs, target: target, preferences: values),
         throwsFormatException);
     expect(await target.exists(), false);
     expect(

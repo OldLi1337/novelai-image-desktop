@@ -19,7 +19,7 @@ void main() {
         File('lib/screens/online_gallery_screen.dart').readAsStringSync();
     expect(gallery, isNot(contains('QuickTagCloud ·')));
   });
-  test('labels match every desktop locale and do not add a main destination',
+  test('labels match the desktop locale and do not add a main destination',
       () {
     final shared =
         jsonDecode(File('../shared/quicktag-ui.json').readAsStringSync())
@@ -29,13 +29,10 @@ void main() {
     for (final locale in shared.keys) {
       expect(quickTagUi(locale), shared[locale]);
     }
-    for (final locale in supportedAppLocales) {
-      expect(mobileUiTextFor(locale.code, 'promptCodex.enabled'),
-          contains('nai4.top'));
-      expect(mainDestinationLabelsFor(locale.code), hasLength(13));
-      expect(mainDestinationLabelsFor(locale.code),
-          isNot(contains('QuickTagCloud')));
-    }
+    expect(mobileUiTextFor('zh-CN', 'promptCodex.enabled'),
+        contains('nai4.top'));
+    expect(mainDestinationLabelsFor('zh-CN'), hasLength(12));
+    expect(mainDestinationLabelsFor('zh-CN'), isNot(contains('QuickTagCloud')));
     expect(quickTagUi('zh-CN')['catalog'], '全部资料库');
   });
 }

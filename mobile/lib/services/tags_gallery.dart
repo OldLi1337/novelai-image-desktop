@@ -15,24 +15,7 @@ const tagsGalleryCategories = [
   'composition'
 ];
 List<String> tagsGalleryLabels(String language) =>
-    const {
-      'zh-CN': ['画师', '角色', '作品', '服装风格', '面容', '五官', '发型', '配饰', '构图'],
-      'zh-TW': ['畫師', '角色', '作品', '服裝風格', '面容', '五官', '髮型', '配飾', '構圖'],
-      'en-US': [
-        'Artists',
-        'Characters',
-        'Series',
-        'Fashion',
-        'Faces',
-        'Facial features',
-        'Hair',
-        'Accessories',
-        'Composition'
-      ],
-      'ja-JP': ['絵師', 'キャラ', '作品', '服', '顔', '顔パーツ', '髪', '小物', '構図'],
-      'ko-KR': ['작가', '캐릭터', '작품', '패션', '얼굴', '얼굴 특징', '머리', '액세서리', '구도']
-    }[language] ??
-    tagsGalleryLabels('en-US');
+    const ['画师', '角色', '作品', '服装风格', '面容', '五官', '发型', '配饰', '构图'];
 String tagsGalleryCategory(String value) {
   if (value.isEmpty) return 'artist';
   if (!tagsGalleryCategories.contains(value)) {
@@ -267,12 +250,4 @@ class TagsGalleryClient {
       parseTagsGalleryDetail(await _get(tagsGalleryDetailUrl(id)), id);
 }
 
-List<String> tagsGalleryUi(String language) =>
-    const {
-      'zh-CN': ['分类', '官网尚未提供样例图'],
-      'zh-TW': ['分類', '官網尚未提供範例圖'],
-      'en-US': ['Category', 'No sample image provided by the source'],
-      'ja-JP': ['カテゴリ', '元サイトにサンプル画像がありません'],
-      'ko-KR': ['카테고리', '원본 사이트에 샘플 이미지가 없습니다']
-    }[language] ??
-    const ['Category', 'No sample image provided by the source'];
+List<String> tagsGalleryUi(String language) => const ['分类', '官网尚未提供样例图'];

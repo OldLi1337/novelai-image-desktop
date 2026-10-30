@@ -67,15 +67,15 @@ Future<void> _run() async {
         .castToEditable()
         .updateEditingValue(const TextEditingValue(text: 'blue_sky'));
     FocusManager.instance.primaryFocus?.unfocus();
-    await _text('Search');
+    await _text('搜索');
     await nativeUiWait(
         () => tls.requests.any((r) => r['path'] == '/posts.json'),
         'real search GET');
-    await _text('Next');
+    await _text('下一页');
     await nativeUiWait(
         () => tls.requests.where((r) => r['path'] == '/posts.json').length == 2,
         'page 2 GET');
-    await _text('Next');
+    await _text('下一页');
     await nativeUiWait(
         () => tls.requests.where((r) => r['path'] == '/posts.json').length == 3,
         'page 3 GET');
@@ -102,18 +102,18 @@ Future<void> _run() async {
       'lastPageDeterminedByEmptyResponse': true
     });
 
-    await _text('Search', fromTop: true);
+    await _text('搜索', fromTop: true);
     await _text('native_character_1');
     await nativeUiWait(
         () => tls.requests.any((r) => r['path'] == '/posts/1.json'),
         'actual detail GET');
-    await _text('Use in Generate');
+    await _text('应用到生成');
     require(
         c.app.params.positivePrompt.contains('blue_sky') &&
             c.app.params.negativePrompt == 'synthetic negative',
         'Inspected tags not applied or negative unexpectedly replaced');
     for (var i = 1; i <= 2; i++) {
-      await _text('Download current image', fromTop: true);
+      await _text('下载当前图片', fromTop: true);
       await nativeUiWait(
           () => _files(c.root).length == i, 'native saved image $i');
       await nativeUiWait(
@@ -162,7 +162,7 @@ Future<void> _run() async {
     for (final mode in ['error', 'html', 'oversize']) {
       tls.imageMode = mode;
       final count = tls.requests.length;
-      await _text('Download current image', fromTop: true);
+      await _text('下载当前图片', fromTop: true);
       await nativeUiWait(
           () =>
               tls.requests.skip(count).any((r) => r['path'] == '/images/1.png'),
@@ -176,7 +176,7 @@ Future<void> _run() async {
           _files(c.root).length == 2, 'Invalid $mode response written to file');
     }
     tls.holdDownload();
-    await _text('Download current image', fromTop: true);
+    await _text('下载当前图片', fromTop: true);
     await tls.heldArrived.future.timeout(const Duration(seconds: 10));
     await nativeUiTap(await _seek(
         (w) => w.key == const ValueKey('online-gallery-cancel-download'),
@@ -191,7 +191,7 @@ Future<void> _run() async {
     await frame();
     // Navigate out while another held response exists: dispose cancels its owned request.
     tls.holdDownload();
-    await _text('Download current image', fromTop: true);
+    await _text('下载当前图片', fromTop: true);
     await tls.heldArrived.future.timeout(const Duration(seconds: 10));
     final context = nativeUiElements((w) => w is Scaffold).last;
     Navigator.of(context).pop();
@@ -200,13 +200,13 @@ Future<void> _run() async {
     await frame();
     require(_files(c.root).length == 2, 'Disposed download wrote stale file');
     tls.searchMode = 'error';
-    await _text('Search', fromTop: true);
+    await _text('搜索', fromTop: true);
     await nativeUiWait(
         () => nativeUiElements(
             (w) => w is Text && (w.data?.contains('503') ?? false)).isNotEmpty,
         'visible network search failure');
     tls.searchMode = 'normal';
-    await _text('Search', fromTop: true);
+    await _text('搜索', fromTop: true);
     await _seek(
         (w) => w is Text && w.data == 'native_character_1', 'search recovered');
     for (final e in originalPaths.entries) {

@@ -1,4 +1,3 @@
-import 'package:novelai_mobile/agent/agent_tools.dart';
 import 'package:novelai_mobile/batch/batch_redraw_controller.dart';
 import 'package:novelai_mobile/batch/batch_redraw_models.dart';
 import 'package:novelai_mobile/screens/batch_redraw_screen.dart';
@@ -20,10 +19,6 @@ import 'package:novelai_mobile/prompts/prompt_skill_v2.dart';
 import 'package:novelai_mobile/prompts/prompt_skill_selection.dart';
 import 'package:novelai_mobile/services/nai_api.dart';
 import 'package:novelai_mobile/state/app_state.dart';
-import 'package:novelai_mobile/agent/template_tools.dart';
-import 'package:novelai_mobile/agent/template_workflow.dart';
-import 'package:novelai_mobile/agent/agent_models.dart';
-import 'package:novelai_mobile/agent/agent_controller.dart';
 import 'package:novelai_mobile/screens/prompt_skill_selector.dart';
 
 class _FixtureVault extends Storage {
@@ -114,17 +109,6 @@ void main(){
   });
  }
  }
- test('Agent builtins selectable, revision-aware edition save/restore keeps V1 custom',()async{
-  final app=AppState()..settings=AppSettings(reversePromptTemplates:{'tags':'LEGACY'});addTearDown(app.dispose);await app.storage.setSettings(app.settings);
-  final tools=AgentTemplateTools(app),workflow=AgentTemplateWorkflow(app,templates:tools,backup:()async=>'/fixture-only/configuration');
-  final before=await workflow.execute({'action':'read','kind':'reverse','mode':'tags','templateVersion':'v5','skillVersion':'2.0.0'});expect(before['source'],'builtin');
-  final saved=await workflow.execute({'action':'save','kind':'reverse','mode':'tags','templateVersion':'v5','skillVersion':'2.0.0','expectedRevision':before['revision'],'body':'NEW CUSTOM'});expect(app.settings.reversePromptTemplates['tags'],'LEGACY');expect(app.settings.reversePromptTemplatesV2['tags'],'NEW CUSTOM');
-  final restored=await workflow.execute({'action':'restore','kind':'reverse','mode':'tags','templateVersion':'v5','skillVersion':'2.0.0','expectedRevision':saved['revision']});expect(restored['source'],'builtin');expect(app.settings.reversePromptTemplates['tags'],'LEGACY');expect(app.settings.reversePromptTemplatesV2,isEmpty);
-  final c=AgentController(app:app)..workspace=AgentWorkspace(conversations:[AgentConversation(id:'fixture',title:'Fixture')],selectedConversationId:'fixture')..loaded=true;addTearDown(c.dispose);
-  await c.selectPromptTemplate('reverse',mode:'tags',version:'v5',skillVersion:'2.0.0');expect(c.selectedConversation!.selectedTemplateSkillVersion,'2.0.0');
-  final skills=defaultAgentSkills();expect(skills,hasLength(6));expect(skills.every((s)=>s.builtIn&&!s.enabled),true);expect(skills.every((s)=>s.instructions.contains('skillVersion=2.0.0')),true);
-  final restoredWorkspace=AgentWorkspace.fromJson(AgentWorkspace(skills:[...skills,AgentSkill(id:'custom',name:'Keep',instructions:'MY SKILL')]).toJson());expect(restoredWorkspace.skills.where((s)=>s.id=='custom').single.instructions,'MY SKILL');
- });
  testWidgets('360px selector shows independent model/edition and explicit V4.5 compatibility',(tester)async{
   tester.view.devicePixelRatio=1;tester.view.physicalSize=const Size(360,800);addTearDown(tester.view.reset);
   var model='v5',edition='2.0.0';await tester.pumpWidget(MaterialApp(home:Scaffold(body:StatefulBuilder(builder:(context,setState)=>PromptSkillSelector(model:model,edition:edition,language:'zh-CN',onChanged:(m,e)=>setState((){model=m;edition=e;}))))));
@@ -186,14 +170,6 @@ void main(){
   final app=AppState();addTearDown(app.dispose);final controller=BatchRedrawController(app)..project=BatchRedrawProject.empty(app.params)..loaded=true..step=BatchRedrawStep.prompts;addTearDown(controller.dispose);
   await tester.pumpWidget(ChangeNotifierProvider.value(value:app,child:MaterialApp(home:BatchRedrawScreen(controller:controller))));await tester.pump();
   expect(find.text('目标生图模型'),findsOneWidget);expect(find.text('默认技能版本'),findsOneWidget);expect(tester.takeException(),isNull);
- });
-
- test('Agent returns the bound completed job, never the unrelated old live editor result',()async{
-  final api=_WaitingApi(),app=AppState(storage:_FixtureVault(),api:api);addTearDown(app.dispose);app.promptTemplates=await PromptTemplateLibrary.load();app.convertResult='UNRELATED CURRENT EDITOR';
-  final executor=AgentToolExecutor(app:app,listMemories:()=>[],upsertMemory:(_)async=>{},deleteMemory:(_)async=>false);
-  final pending=executor.execute('langbai_convert_prompt',{'text':'synthetic','mode':'tags','templateVersion':'v5','skillVersion':'2.0.0'},[]);await api.entered.future;
-  app.settings.convertPromptSkillVersion='1.0.0';api.gate.complete(const AiTextResult(ok:true,message:'fixture only',text:'BOUND JOB OUTPUT'));
-  final result=await pending;expect(result.ok,true,reason:result.output);expect(result.output,'BOUND JOB OUTPUT');expect(app.convertResult,'UNRELATED CURRENT EDITOR');
  });
 
 }

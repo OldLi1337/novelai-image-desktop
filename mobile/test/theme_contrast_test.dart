@@ -80,7 +80,7 @@ void main() {
     expect(mobileSources,
         isNot(matches(RegExp(r'BorderRadius\.circular\((?:99|999)\)'))));
     expect('StudioRadii.pill'.allMatches(mobileSources).length,
-        greaterThanOrEqualTo(8));
+        greaterThanOrEqualTo(7));
     expect('StudioSpacing.'.allMatches(mobileSources).length, greaterThan(10));
   });
 }

@@ -29,8 +29,6 @@ class _BackupStorage extends Storage {
   @override
   Future<String?> getConvertKey() async => '';
   @override
-  Future<String?> getAgentApiKey() async => '';
-  @override
   Future<String?> getTagKey() async => '';
   @override
   Future<String?> getBaiduSecret() async => '';
@@ -41,8 +39,6 @@ class _BackupStorage extends Storage {
   Future<void> setVisionKey(String value) async {}
   @override
   Future<void> setConvertKey(String value) async {}
-  @override
-  Future<void> setAgentApiKey(String value) async {}
   @override
   Future<void> setTagKey(String value) async {}
   @override

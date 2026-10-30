@@ -29,4 +29,3 @@ void selectPromptSkill(AppSettings s,String kind,String edition,String model) {
 String promptSkillOverlay(AppSettings s,String kind,String edition) => edition=='2.0.0'
   ? kind=='optimize'?s.promptOptimizeTemplateV2:s.promptAssistantTemplateV2
   : kind=='optimize'?s.promptOptimizeTemplate:s.promptAssistantTemplate;
-String promptSkillOverlayKey(String kind,String edition) => 'prompt${kind=='optimize'?'Optimize':'Assistant'}Template${edition=='2.0.0'?'V2':''}';

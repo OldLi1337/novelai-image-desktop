@@ -24,7 +24,7 @@ Future<void> writeComicArchiveExclusive(File file,List<int> bytes,void Function(
   }catch(_){if(await file.exists())await file.delete();rethrow;}
 }
 
-/// Shared file boundary for software UI and Agent comic operations.
+/// File boundary for comic reference imports and project exports.
 class ComicAssetStore {
   final Future<Directory> Function() root;
   final Future<void> Function(File) share;

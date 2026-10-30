@@ -33,111 +33,34 @@ String normalizeTranslationPreference(Object? value) {
   return translationLanguages.any((l) => l.value == code) ? code : 'system';
 }
 
-String resolveTranslationTarget(Object? preference, Object? appLanguage) {
+/// "system" follows the software language, which is always Simplified Chinese.
+String resolveTranslationTarget(Object? preference) {
   final target = normalizeTranslationPreference(preference);
-  if (target != 'system') return target;
-  final language = normalizeTranslationPreference(appLanguage);
-  return language == 'system' ? 'zh-CN' : language;
+  return target == 'system' ? 'zh-CN' : target;
 }
 
 String baiduTranslationTarget(String target) => translationLanguages
-    .firstWhere((l) => l.value == resolveTranslationTarget(target, 'zh-CN'))
+    .firstWhere((l) => l.value == resolveTranslationTarget(target))
     .baidu;
-const _rows = {
-  "zh-CN": [
-    "翻译预览",
-    "目标语言",
-    "跟随软件语言",
-    "原文",
-    "译文",
-    "翻译",
-    "重新翻译",
-    "正在翻译…",
-    "应用译文",
-    "复制译文",
-    "取消",
-    "翻译失败，请重试。",
-    "原文已变化，请重新翻译后应用。",
-    "已复制译文",
-    "复制失败，请重试。",
-    "预览不会修改原文；仅点击应用后替换。"
-  ],
-  "zh-TW": [
-    "翻譯預覽",
-    "目標語言",
-    "跟隨軟體語言",
-    "原文",
-    "譯文",
-    "翻譯",
-    "重新翻譯",
-    "正在翻譯…",
-    "套用譯文",
-    "複製譯文",
-    "取消",
-    "翻譯失敗，請重試。",
-    "原文已變更，請重新翻譯後套用。",
-    "已複製譯文",
-    "複製失敗，請重試。",
-    "預覽不會修改原文；僅點擊套用後替換。"
-  ],
-  "en": [
-    "Translation preview",
-    "Target language",
-    "Follow app language",
-    "Original",
-    "Translation",
-    "Translate",
-    "Translate again",
-    "Translating…",
-    "Apply translation",
-    "Copy translation",
-    "Cancel",
-    "Translation failed. Please retry.",
-    "The original changed. Translate again before applying.",
-    "Translation copied",
-    "Copy failed. Please retry.",
-    "Preview does not change the original. Apply to replace it."
-  ],
-  "ja": [
-    "翻訳プレビュー",
-    "翻訳先の言語",
-    "アプリの言語に合わせる",
-    "原文",
-    "訳文",
-    "翻訳",
-    "再翻訳",
-    "翻訳中…",
-    "訳文を適用",
-    "訳文をコピー",
-    "キャンセル",
-    "翻訳に失敗しました。再試行してください。",
-    "原文が変更されました。再翻訳してから適用してください。",
-    "訳文をコピーしました",
-    "コピーに失敗しました。",
-    "プレビューでは原文は変わりません。適用すると置き換えます。"
-  ],
-  "ko": [
-    "번역 미리보기",
-    "대상 언어",
-    "앱 언어 따르기",
-    "원문",
-    "번역문",
-    "번역",
-    "다시 번역",
-    "번역 중…",
-    "번역 적용",
-    "번역 복사",
-    "취소",
-    "번역 실패. 다시 시도하세요.",
-    "원문이 변경되었습니다. 다시 번역한 후 적용하세요.",
-    "번역 복사됨",
-    "복사 실패. 다시 시도하세요.",
-    "미리보기는 원문을 변경하지 않습니다. 적용하면 교체됩니다."
-  ],
-};
+const _previewRow = [
+  "翻译预览",
+  "目标语言",
+  "跟随软件语言",
+  "原文",
+  "译文",
+  "翻译",
+  "重新翻译",
+  "正在翻译…",
+  "应用译文",
+  "复制译文",
+  "取消",
+  "翻译失败，请重试。",
+  "原文已变化，请重新翻译后应用。",
+  "已复制译文",
+  "复制失败，请重试。",
+  "预览不会修改原文；仅点击应用后替换。"
+];
 Map<String, String> translationText(Object? language) {
-  final row =
-      _rows[resolveTranslationTarget('system', language)] ?? _rows['en']!;
   const keys = [
     'title',
     'target',
@@ -156,7 +79,7 @@ Map<String, String> translationText(Object? language) {
     'copyFailed',
     'hint'
   ];
-  return {for (var i = 0; i < keys.length; i++) keys[i]: row[i]};
+  return {for (var i = 0; i < keys.length; i++) keys[i]: _previewRow[i]};
 }
 
 String normalizeTranslationSource(Object? value) {
@@ -165,35 +88,7 @@ String normalizeTranslationSource(Object? value) {
 }
 
 Map<String, String> translationEditorText(Object? language) {
-  final rows = {
-    'zh-CN': ['源语言', '自动检测', '互换语言', '实时翻译', '输入停止后自动翻译', '请先选择源语言或完成自动检测'],
-    'zh-TW': ['來源語言', '自動偵測', '交換語言', '即時翻譯', '停止輸入後自動翻譯', '請先選擇來源語言或完成自動偵測'],
-    'en': [
-      'Source language',
-      'Detect language',
-      'Swap languages',
-      'Live translation',
-      'Translate after typing pauses',
-      'Choose a source language or translate to detect it first'
-    ],
-    'ja': [
-      '翻訳元の言語',
-      '自動検出',
-      '言語を入れ替え',
-      'リアルタイム翻訳',
-      '入力停止後に自動翻訳',
-      '翻訳元を選択するか自動検出してください'
-    ],
-    'ko': [
-      '원본 언어',
-      '자동 감지',
-      '언어 바꾸기',
-      '실시간 번역',
-      '입력이 멈추면 자동 번역',
-      '원본 언어를 선택하거나 자동 감지하세요'
-    ]
-  };
-  final row = rows[resolveTranslationTarget('system', language)] ?? rows['en']!;
+  const row = ['源语言', '自动检测', '互换语言', '实时翻译', '输入停止后自动翻译', '请先选择源语言或完成自动检测'];
   const keys = [
     'sourceLanguage',
     'auto',

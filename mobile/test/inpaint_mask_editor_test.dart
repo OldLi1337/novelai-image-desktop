@@ -302,35 +302,29 @@ void main() {
     });
   }
 
-  for (final language in const ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-    testWidgets('editor fits a tiny phone in $language with larger text',
-        (tester) async {
-      addTearDown(tester.view.reset);
-      await _pump(
-        tester,
-        const Size(320, 640),
-        language: language,
-        textScale: 1.2,
-      );
-      expect(find.byKey(const ValueKey('inpaint-mask-canvas')), findsOneWidget);
-      expect(find.byKey(const ValueKey('inpaint-mask-done')), findsOneWidget);
-      expect(tester.takeException(), isNull, reason: language);
-    });
-  }
+  testWidgets('editor fits a tiny phone with larger text', (tester) async {
+    addTearDown(tester.view.reset);
+    await _pump(
+      tester,
+      const Size(320, 640),
+      language: 'zh-CN',
+      textScale: 1.2,
+    );
+    expect(find.byKey(const ValueKey('inpaint-mask-canvas')), findsOneWidget);
+    expect(find.byKey(const ValueKey('inpaint-mask-done')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
-  for (final language in const ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-    testWidgets('editor fits landscape in $language with larger text',
-        (tester) async {
-      addTearDown(tester.view.reset);
-      await _pump(
-        tester,
-        const Size(800, 360),
-        language: language,
-        textScale: 1.2,
-      );
-      expect(find.byKey(const ValueKey('inpaint-mask-canvas')), findsOneWidget);
-      expect(find.byKey(const ValueKey('inpaint-mask-done')), findsOneWidget);
-      expect(tester.takeException(), isNull, reason: language);
-    });
-  }
+  testWidgets('editor fits landscape with larger text', (tester) async {
+    addTearDown(tester.view.reset);
+    await _pump(
+      tester,
+      const Size(800, 360),
+      language: 'zh-CN',
+      textScale: 1.2,
+    );
+    expect(find.byKey(const ValueKey('inpaint-mask-canvas')), findsOneWidget);
+    expect(find.byKey(const ValueKey('inpaint-mask-done')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -12,7 +12,7 @@ import 'package:novelai_mobile/screens/novelai_accounts_screen.dart';
 import 'package:novelai_mobile/services/novelai_accounts.dart';
 import 'package:novelai_mobile/services/novelai_account_api.dart';
 import 'package:novelai_mobile/state/app_state.dart';
-import 'package:novelai_mobile/i18n/studio_agent_text.dart';
+import 'package:novelai_mobile/i18n/novelai_accounts_text.dart';
 import 'accounts_test.dart' show memoryVault;
 
 class DiskTestStorage extends NovelAiAccountStorage {
@@ -46,45 +46,41 @@ class DiskTestStorage extends NovelAiAccountStorage {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   testWidgets(
-      'account manager localizes every login type and verification feedback at phone widths',
+      'account manager shows every login type and verification feedback at phone widths',
       (tester) async {
     for (final width in [320.0, 390.0]) {
-      for (final language in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-        tester.view.physicalSize = Size(width, 844);
-        tester.view.devicePixelRatio = 1;
-        final vault = await memoryVault();
-        final app = AppState(
-            storage: NovelAiAccountStorage(vault),
-            api: NovelAiAccountApi(vault))
-          ..settings = AppSettings(language: language);
-        String t(String key) => studioAgentText(language, key);
-        await tester.pumpWidget(ChangeNotifierProvider.value(
-            value: app,
-            child: const MaterialApp(home: NovelAiAccountsScreen())));
+      tester.view.physicalSize = Size(width, 844);
+      tester.view.devicePixelRatio = 1;
+      final vault = await memoryVault();
+      final app = AppState(
+          storage: NovelAiAccountStorage(vault),
+          api: NovelAiAccountApi(vault));
+      String t(String key) => novelAiAccountText(key);
+      await tester.pumpWidget(ChangeNotifierProvider.value(
+          value: app,
+          child: const MaterialApp(home: NovelAiAccountsScreen())));
+      await tester.pumpAndSettle();
+      expect(find.text(t('accountManager')), findsOneWidget);
+      expect(find.text(t('accountManage')), findsNothing);
+      for (final method in [
+        'accountEmailShort',
+        'accountRelayShort',
+        'accountOfficialShort'
+      ]) {
+        await tester.ensureVisible(find.text(t(method)));
+        await tester.tap(find.text(t(method)));
         await tester.pumpAndSettle();
-        expect(find.text(t('accountManager')), findsOneWidget);
-        expect(find.text(t('accountManage')), findsNothing);
-        for (final method in [
-          'accountEmailShort',
-          'accountRelayShort',
-          'accountOfficialShort'
-        ]) {
-          await tester.ensureVisible(find.text(t(method)));
-          await tester.tap(find.text(t(method)));
-          await tester.pumpAndSettle();
-          expect(tester.takeException(), isNull);
-        }
-        await tester.ensureVisible(find.text(t('accountVerifySave')));
-        await tester.tap(find.text(t('accountVerifySave')));
-        await tester.pumpAndSettle();
-        expect(vault.profiles, isEmpty);
-        expect(find.text(t('accountFailed')), findsOneWidget);
-        if (language != 'zh-CN') expect(find.text('验证未通过'), findsNothing);
         expect(tester.takeException(), isNull);
-        await tester.pumpWidget(const SizedBox());
-        await tester.pumpAndSettle();
-        app.dispose();
       }
+      await tester.ensureVisible(find.text(t('accountVerifySave')));
+      await tester.tap(find.text(t('accountVerifySave')));
+      await tester.pumpAndSettle();
+      expect(vault.profiles, isEmpty);
+      expect(find.text(t('accountFailed')), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpAndSettle();
+      app.dispose();
     }
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();

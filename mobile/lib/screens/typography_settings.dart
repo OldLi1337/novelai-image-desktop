@@ -58,18 +58,6 @@ class _TypographySettingsState extends State<TypographySettings> {
   }
 }
 
-String _familyHint(String language) => switch(language) {
- 'zh-CN'=>'默认与无衬线字形接近属正常；导入字体若不含中文字形，中文会回退到系统字体。',
- 'zh-TW'=>'預設與無襯線字形相近屬正常；匯入字型若不含中文字形，中文會回退到系統字型。',
- 'ja-JP'=>'既定とサンセリフは似る場合があります。フォントにない文字はシステムフォントで表示します。',
- 'ko-KR'=>'기본 글꼴과 고딕은 비슷할 수 있습니다. 글꼴에 없는 문자는 시스템 글꼴로 표시됩니다.',
- _=>'Default and sans serif can look similar; missing glyphs in imported fonts use the system fallback.',
-};
+String _familyHint(String language) => '默认与无衬线字形接近属正常；导入字体若不含中文字形，中文会回退到系统字体。';
 
-String _hierarchyHint(String language)=>switch(language){
- 'zh-TW'=>'正文與提示詞按完整比例放大；標題、導覽和按鈕溫和放大，避免介面擁擠。',
- 'en-US'=>'Body text and prompts use the full scale; headings, navigation and buttons grow more gently to keep the layout readable.',
- 'ja-JP'=>'本文とプロンプトは設定どおり拡大し、見出し・ナビ・ボタンは緩やかに拡大して混雑を防ぎます。',
- 'ko-KR'=>'본문과 프롬프트는 설정대로 확대하고, 제목·탐색·버튼은 완만하게 확대해 레이아웃을 유지합니다.',
- _=>'正文与提示词按完整比例放大；标题、导航和按钮温和放大，避免界面拥挤。',
-};
+String _hierarchyHint(String language)=>'正文与提示词按完整比例放大；标题、导航和按钮温和放大，避免界面拥挤。';

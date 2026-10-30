@@ -71,11 +71,9 @@ class AnlasQuote {
   }
 }
 
-Object _lang(Object? language) => language ?? 'en-US';
-String _at(Object? language, String key) =>
-    runtimeTextFor(_lang(language), key);
+String _at(Object? language, String key) => runtimeTextFor(language, key);
 String _af(Object? language, String key, Map<String, Object?> values) =>
-    runtimeFormatFor(_lang(language), key, values);
+    runtimeFormatFor(language, key, values);
 
 AnlasQuote calculateImageGenerationAnlas({
   required GenerateParams params,

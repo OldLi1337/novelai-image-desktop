@@ -129,7 +129,6 @@ void main() {
     addTearDown(tester.view.reset);
     final s = AppState();
     addTearDown(s.dispose);
-    s.settings.language = 'en-US';
     final a = CharCaptionItem(
         prompt: 'blue coat',
         negativePrompt: 'red coat',

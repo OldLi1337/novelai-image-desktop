@@ -20,7 +20,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart' show MediaType;
 
 import '../billing/anlas.dart';
-import '../agent/tavern_models.dart';
+import '../tavern/tavern_models.dart';
 import '../images/image_processing.dart';
 import '../models/nai_models.dart';
 import '../prompts/dsh_image_ai.dart';
@@ -269,8 +269,8 @@ class NaiApi {
 
   Future<AiTextResult> translateText(String text, AppSettings settings,
       {String? target, String? sourceLanguage, String baiduSecret = ''}) async {
-    final resolvedTarget = resolveTranslationTarget(
-        target ?? settings.translateTargetLanguage, settings.language);
+    final resolvedTarget =
+        resolveTranslationTarget(target ?? settings.translateTargetLanguage);
     final from = normalizeTranslationSource(sourceLanguage);
     final input = text.trim();
     if (input.isEmpty) {

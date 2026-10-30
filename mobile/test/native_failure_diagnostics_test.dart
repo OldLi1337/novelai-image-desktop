@@ -8,7 +8,7 @@ const _source = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
 const _profile = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 NativeFailureDiagnostics _diagnostics(List<String> output) =>
     NativeFailureDiagnostics(sourceIdentity: _source,
-      profileIdentity: _profile, entry: 'batch_mcp7', output: output.add);
+      profileIdentity: _profile, entry: 'batch4', output: output.add);
 List<Map<String, dynamic>> _records(List<String> output) {
   final groups = <int, List<Map<String, dynamic>>>{};
   for (final line in output.where((v) => v.startsWith('NATIVE_DIAGNOSTIC_CHUNK:'))) {
@@ -47,7 +47,7 @@ void main() {
     expect(record['schema'], 'native-failure-diagnostic/v1');
     expect(record['sourceSha'], _source);
     expect(record['profileSha'], _profile);
-    expect(record['entry'], 'batch_mcp7');
+    expect(record['entry'], 'batch4');
     expect(record['checkIndex'], 4);
     expect(record['kind'], 'framework');
     expect(record['exception'], contains('CONTROLLED_FRAMEWORK_DIAGNOSTIC'));
@@ -166,7 +166,7 @@ void main() {
   });
   test('diagnostic sink failure cannot replace original failure or skip presenter', () {
     final diagnostics = NativeFailureDiagnostics(sourceIdentity: _source,
-      profileIdentity: _profile, entry: 'batch_mcp7',
+      profileIdentity: _profile, entry: 'batch4',
       output: (_) => throw StateError('controlled sink failure'));
     final suite = NativeScenarios(7, diagnostics: diagnostics);
     final original = StateError('CONTROLLED_ORIGINAL_ERROR');

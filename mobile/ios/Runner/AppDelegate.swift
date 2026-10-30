@@ -27,29 +27,6 @@ import WebKit
       officialMetadata = OfficialMetadataBridge(messenger: controller.binaryMessenger)
       composerFiles = ComposerFiles(controller: controller)
       outputFolders = OutputFolderBridge(controller: controller)
-      // Read-only installed bundle identity; unsigned IPA downloads never install.
-      let iosUpdateChannel = FlutterMethodChannel(
-        name: "langbai.novelai/ios_update",
-        binaryMessenger: controller.binaryMessenger
-      )
-      iosUpdateChannel.setMethodCallHandler { call, result in
-        guard call.method == "status" else {
-          result(FlutterMethodNotImplemented)
-          return
-        }
-        let bundle = Bundle.main
-        result([
-          "state": "download_only",
-          "downloadSupported": true,
-          "installSupported": false,
-          "bundleIdentifier": bundle.bundleIdentifier ?? "",
-          "currentVersion": bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "",
-          "currentBuild": bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "",
-          "appDisplayName": bundle.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "",
-          "documentsVisible": bundle.object(forInfoDictionaryKey: "UIFileSharingEnabled") as? Bool ?? false,
-          "openDocumentsInPlace": bundle.object(forInfoDictionaryKey: "LSSupportsOpeningDocumentsInPlace") as? Bool ?? false
-        ])
-      }
       let channel = FlutterMethodChannel(
         name: "langbai.novelai/native_text",
         binaryMessenger: controller.binaryMessenger

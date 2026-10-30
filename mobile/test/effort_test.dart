@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:novelai_mobile/ui/effort_control.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:novelai_mobile/state/app_state.dart';
-import 'package:novelai_mobile/agent/studio_generation_preparations.dart';
 import 'package:novelai_mobile/models/nai_models.dart';
 import 'package:novelai_mobile/services/nai_api.dart';
 import 'package:novelai_mobile/billing/anlas.dart';
-import 'package:novelai_mobile/agent/tavern_models.dart';
-import 'package:novelai_mobile/agent/tavern_prompt.dart';
 
 void main() {
   testWidgets('Effort title and choices omit explanatory small text in both modes', (tester) async {
@@ -50,24 +46,5 @@ void main() {
     expect(GenerateParams(model:'nai-diffusion-5-curated',effort:'medium').isMediumEffort,isFalse);
     final infill=GenerateParams(model:'nai-diffusion-5-full-inpainting',effort:'medium').effectiveEffort();
     expect(infill.model,'nai-diffusion-5-full-medium-inpainting');
-  });
-  test('active Studio Agent prepares actual Medium settings and unchanged count', () {
-    final app=AppState()..settings=AppSettings(allowCustomEndpoint:false)..params=GenerateParams(width:1024,height:1024,steps:23,effort:'medium')..batchCount=3..account=const AccountSummary(hasToken:true,tierLevel:1,hasActiveSubscription:true,anlasBalance:1000);
-    addTearDown(app.dispose);
-    final preview=studioGenerationPreview(app,{'positivePrompt':'1girl','count':3});
-    expect(preview,containsPair('effort','medium'));
-    expect(preview,containsPair('model','nai-diffusion-5-full-medium'));
-    expect(preview,containsPair('steps',14));
-    expect(preview,containsPair('estimatedAnlas',54));
-    final high=studioGenerationPreview(app,{'positivePrompt':'1girl','count':3,'effort':'high'});
-    expect(high,containsPair('steps',23)); expect(high,containsPair('estimatedAnlas',78));
-    expect(app.params.effort,'medium'); expect(app.batchCount,3);
-  });
-  test('Agent Effort serialization and authoritative count', () {
-    final visual=TavernCharacterVisual(effort:'medium',count:4);
-    expect(TavernCharacterVisual.fromJson(visual.toJson()).effort,'medium');
-    final proposal=TavernImageProposal.fromJson({'effort':'medium','count':8,'explicitParameters':['effort']});
-    applyAuthoritativeTavernImageDefaults(proposal,const TavernImageParameterDefaults(model:'nai-diffusion-5-full',effort:'high',count:4));
-    expect(proposal.effort,'medium'); expect(proposal.count,4);
   });
 }

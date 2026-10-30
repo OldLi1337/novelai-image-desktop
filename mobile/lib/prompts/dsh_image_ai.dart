@@ -1,8 +1,8 @@
-import '../agent/lyra_preset_data.dart';
+import '../tavern/lyra_preset_data.dart';
 import 'ig5_image_prompts.dart';
-import '../agent/tavern_models.dart';
+import '../tavern/tavern_models.dart';
 
-enum DshImageAiTask { tavernImage, reverse, convert }
+enum DshImageAiTask { reverse, convert }
 
 const dshImageAiVersion = '0.5.0';
 const dshImageAiSourceCommit = 'd0c43196079849d4501afb3d1a8e195cf808024a';
@@ -18,12 +18,8 @@ String buildDshImageAiSystemAddon(
   bool useDefaultSharedPreset = true,
 }) {
   final effectivePreset = sharedPreset ??
-      (useDefaultSharedPreset
-          ? createIg5ImageSamplerPreset(task == DshImageAiTask.convert ? 'convert' : task == DshImageAiTask.reverse ? 'reverse' : 'studio')
-          : null);
+      (useDefaultSharedPreset ? createIg5ImageSamplerPreset(task.name) : null);
   final taskRule = switch (task) {
-    DshImageAiTask.tavernImage =>
-      'Turn the current visual request and any attached references into a concrete NovelAI image proposal. Preserve every explicit subject, identity, pose, framing, camera, background, lighting, palette, material, and style constraint, and obey the existing <langbai-image> proposal contract.',
     DshImageAiTask.reverse =>
       'Inspect the supplied image directly and reconstruct observable subject, identity, pose, framing, camera, background, lighting, palette, materials, and style as generation-ready prompt tokens. Do not replace visible details with generic prose.',
     DshImageAiTask.convert =>
@@ -56,7 +52,7 @@ String injectDshImageAiSystemPrompt({
 }) {
   if (!enabled) return systemPrompt;
   final effectiveSystemPrompt = sharedPreset?.systemPrompt ??
-      (useDefaultSharedPreset ? ig5PromptBodies[task == DshImageAiTask.convert ? 'convert' : task == DshImageAiTask.reverse ? 'reverse' : 'studio']! : '');
+      (useDefaultSharedPreset ? ig5PromptBodies[task.name]! : '');
   final sharedPresetAlreadyPresent = effectiveSystemPrompt.isNotEmpty &&
       systemPrompt.contains(effectiveSystemPrompt);
   return [

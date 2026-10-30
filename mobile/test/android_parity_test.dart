@@ -12,8 +12,6 @@ import 'package:novelai_mobile/services/completion_sound.dart';
 import 'package:novelai_mobile/services/storage.dart';
 import 'package:novelai_mobile/state/app_state.dart';
 import 'package:novelai_mobile/screens/completion_sound_settings.dart';
-import 'package:novelai_mobile/screens/local_agent_screen.dart';
-import 'package:novelai_mobile/i18n/local_agent_text.dart';
 import 'package:novelai_mobile/prompts/prompt_mode.dart';
 import 'package:novelai_mobile/prompts/prompt_templates.dart';
 
@@ -29,14 +27,12 @@ class _GalleryStorage extends Storage {
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  test('gallery path copy follows unified directory mode in all five locales', () {
-    for (final language in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      final unified = onlineGalleryDownloadPathText(language, unified: true);
-      final legacy = onlineGalleryDownloadPathText(language, unified: false);
-      expect(unified.defaultLabel, isNot(legacy.defaultLabel));
-      expect(unified.hint, isNot(legacy.hint));
-      expect(unified.reset, isNot(legacy.reset));
-    }
+  test('gallery path copy follows unified directory mode', () {
+    final unified = onlineGalleryDownloadPathText('zh-CN', unified: true);
+    final legacy = onlineGalleryDownloadPathText('zh-CN', unified: false);
+    expect(unified.defaultLabel, isNot(legacy.defaultLabel));
+    expect(unified.hint, isNot(legacy.hint));
+    expect(unified.reset, isNot(legacy.reset));
     expect(onlineGalleryDownloadPathText('zh-CN', unified: true).defaultLabel,
         '使用统一文件夹');
   });
@@ -122,20 +118,6 @@ void main() {
     app.dispose();
   });
   test(
-      'all five languages translate owned Agent logs and preserve raw diagnostics',
-      () {
-    for (final locale in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      expect(
-          localAgentText(locale, 'officialPrepare'), isNot('officialPrepare'));
-      expect(
-          localAgentLog(
-              locale, 'ANDROID HOME PASS: existing user files preserved.'),
-          isNot('ANDROID HOME PASS: existing user files preserved.'));
-      expect(localAgentLog(locale, 'plugin.js:7 diagnostic detail'),
-          'plugin.js:7 diagnostic detail');
-    }
-  });
-  test(
       'template versions edit and reset independently; V4.5 conversion is bundled',
       () async {
     // This pre-V2 test covers the independent legacy model slots. Fresh V2
@@ -216,64 +198,6 @@ void main() {
     const Size(430, 932),
     const Size(844, 390)
   ]) {
-    testWidgets('Agent split channels, re-entry check and layout $size',
-        (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = size;
-      addTearDown(tester.view.reset);
-      final app = AppState();
-      final visible = ValueNotifier(true);
-      final calls = <MethodCall>[];
-      const native = MethodChannel('langbai.novelai/local_agent');
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(native, (call) async {
-        calls.add(call);
-        if (call.method == 'status') {
-          return {
-            'supported': true,
-            'phase': 'stopped',
-            'busy': false,
-            'running': false,
-            'installed': '0.1.2',
-            'installedUpstream': '0.1.7',
-            'official': '0.1.8',
-            'candidate': '0.1.3',
-            'componentCheckedAt': 1,
-            'officialCheckedAt': 1,
-            'downloadAvailable': true,
-            'logs': ['Agent stopped by user']
-          };
-        }
-        if (call.method == 'backups') return <String>[];
-        return null;
-      });
-      await tester.pumpWidget(ChangeNotifierProvider.value(
-          value: app,
-          child: MaterialApp(home: LocalAgentScreen(visible: visible))));
-      await tester.pumpAndSettle();
-      expect(calls.where((c) => c.method == 'check').length, 1);
-      expect(calls.where((c) => c.method == 'prepare' || c.method == 'confirm'),
-          isEmpty);
-      await tester.ensureVisible(find.text('检查官方更新'));
-      await tester.tap(find.text('检查官方更新'));
-      await tester.pumpAndSettle();
-      expect(
-          (calls.lastWhere((c) => c.method == 'check').arguments
-              as Map)['kind'],
-          'official');
-      visible.value = false;
-      await tester.pump();
-      visible.value = true;
-      await tester.pumpAndSettle();
-      expect(calls.where((c) => c.method == 'check').length, 3);
-      expect(tester.takeException(), isNull);
-      await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump();
-      visible.dispose();
-      app.dispose();
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(native, null);
-    });
     testWidgets('sound controls fit and remain independent $size',
         (tester) async {
       tester.view.devicePixelRatio = 1;

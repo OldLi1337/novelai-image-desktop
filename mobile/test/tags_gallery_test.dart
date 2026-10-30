@@ -69,10 +69,8 @@ void main() {
         c.search('hair', 1, 12, ''), throwsA(isA<http.ClientException>()));
     expect((await c.search('hair', 1, 12, '')).total, 0);
   });
-  test('all languages expose nine categories', () {
-    for (final l in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      expect(tagsGalleryLabels(l).length, 9);
-    }
+  test('labels expose nine categories', () {
+    expect(tagsGalleryLabels('zh-CN').length, 9);
     expect(tagsGalleryCategories.length, 9);
   });
 }

@@ -16,7 +16,6 @@ void main() {
       final source = AppSettings(
         allowCustomEndpoint: true,
         theme: 'dark',
-        updateSource: 'gitee',
         proxyForNai: false,
         translateProvider: 'baidu',
         baiduAppId: 'example-id',
@@ -37,7 +36,6 @@ void main() {
 
       expect(restored.allowCustomEndpoint, isTrue);
       expect(restored.theme, 'dark');
-      expect(restored.updateSource, 'github');
       expect(restored.proxyForNai, isFalse);
       expect(restored.translateProvider, 'baidu');
       expect(restored.historyRetentionDays, 90);
@@ -47,11 +45,21 @@ void main() {
       expect(restored.promptShortcuts.single.name, '测试');
     });
 
-    test('GitHub is the default update source and invalid values are repaired',
+    test('settings saved with removed update, Agent and language options load',
         () {
-      expect(AppSettings().updateSource, 'github');
-      expect(AppSettings.fromJson({'updateSource': 'invalid'}).updateSource,
-          'github');
+      final restored = AppSettings.fromJson({
+        'theme': 'dark',
+        'updateSource': 'gitee',
+        'agentApiBaseUrl': 'https://agent.invalid/v1',
+        'agentApiModel': 'legacy-agent',
+        'language': 'ja-JP',
+      });
+      expect(restored.theme, 'dark');
+      expect(restored.language, 'zh-CN');
+      final saved = restored.toJson();
+      expect(saved.keys, isNot(contains('updateSource')));
+      expect(saved.keys.where((key) => key.startsWith('agent')), isEmpty);
+      expect(saved['language'], 'zh-CN');
     });
 
     test('custom NovelAI endpoints honor explicit opt-out', () {

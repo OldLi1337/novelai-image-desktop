@@ -63,27 +63,16 @@ class _McpToolSettingsState extends State<McpToolSettings> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>(), s = state.settings;
-    final zh = s.language.startsWith('zh');
     final values = [
       s.tagServerTool,
       s.tagServerRelatedTool,
       s.tagServerArtistTool
     ];
-    final labels = zh
-        ? ['标签搜索工具', '关联拓展工具（可选）', '画师推荐工具（可选）']
-        : [
-            'Tag search tool',
-            'Related tags (optional)',
-            'Artist recommendations (optional)'
-          ];
+    const labels = ['标签搜索工具', '关联拓展工具（可选）', '画师推荐工具（可选）'];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       OutlinedButton(
           onPressed: busy ? null : discover,
-          child: Text(busy
-              ? 'tools/list…'
-              : zh
-                  ? '发现工具'
-                  : 'Discover tools')),
+          child: Text(busy ? 'tools/list…' : '发现工具')),
       if (error.isNotEmpty) Text(error),
       for (var i = 0; i < 3; i++)
         Padding(
@@ -100,8 +89,7 @@ class _McpToolSettingsState extends State<McpToolSettings> {
                     decoration: InputDecoration(labelText: labels[i]),
                     items: [
                       if (i > 0)
-                        DropdownMenuItem(
-                            value: '', child: Text(zh ? '不使用' : 'Disabled')),
+                        const DropdownMenuItem(value: '', child: Text('不使用')),
                       for (final name in {
                         ...tools.map((t) => t['name'] as String),
                         if (values[i].isNotEmpty) values[i]
@@ -113,9 +101,7 @@ class _McpToolSettingsState extends State<McpToolSettings> {
                         : (v) {
                             if (v != null) save(state, i, v);
                           })),
-      Text(zh
-          ? '发现只读取工具列表，不调用工具。'
-          : 'Discovery reads the list without calling tools.')
+      const Text('发现只读取工具列表，不调用工具。')
     ]);
   }
 

@@ -170,8 +170,8 @@ Future<void> _run()async{
     app.params.effort='high';await api.generate(syntheticToken,app.settings,app.params,GenerateExtras());
     require(lastGenerate()['model']=='nai-diffusion-5-full'&&lastGenerate()['parameters']['steps']==28,'High model/steps');
     suite.check('effort','model-steps-wire',{'medium':['nai-diffusion-5-full-medium',14],'high':['nai-diffusion-5-full',28],'actualHttp':true});
-    final relay=calculateImageGenerationAnlas(params:app.params).asRelayReference('en-US');
-    require(relay.referenceOnly&&relay.referenceAmount==relay.amount&&relay.message.toLowerCase().contains('unknown'),'Relay actual billing not unknown');
+    final relay=calculateImageGenerationAnlas(params:app.params).asRelayReference('zh-CN');
+    require(relay.referenceOnly&&relay.referenceAmount==relay.amount&&relay.message.contains('未知'),'Relay actual billing not unknown');
     suite.check('effort','unknown-price-policy',{'referenceOnly':true,'actualBillingUnknown':true,'notBillingVerification':true});
 
     // Every user-exposed Director tool is exercised using its actual production

@@ -405,13 +405,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                           IconButton.filledTonal(
-                              tooltip: const {
-                                    'zh-CN': '上一张',
-                                    'zh-TW': '上一張',
-                                    'ja-JP': '前へ',
-                                    'ko-KR': '이전'
-                                  }[widget.language] ??
-                                  'Previous',
+                              tooltip: '上一张',
                               onPressed: index > 0 ? () => move(-1) : null,
                               icon: const Icon(Icons.chevron_left)),
                           Padding(
@@ -421,13 +415,7 @@ class _FullscreenImageViewerState extends State<_FullscreenImageViewer> {
                                   '${index + 1} / ${widget.images.length}',
                                   style: const TextStyle(color: Colors.white))),
                           IconButton.filledTonal(
-                              tooltip: const {
-                                    'zh-CN': '下一张',
-                                    'zh-TW': '下一張',
-                                    'ja-JP': '次へ',
-                                    'ko-KR': '다음'
-                                  }[widget.language] ??
-                                  'Next',
+                              tooltip: '下一张',
                               onPressed: index + 1 < widget.images.length
                                   ? () => move(1)
                                   : null,

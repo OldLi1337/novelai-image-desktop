@@ -5,10 +5,10 @@ import 'native_foreground.dart';
 import 'native_proof_log.dart';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:image/image.dart' as im;
 import 'package:provider/provider.dart';
@@ -183,7 +183,7 @@ class NativeScenarios {
       require(const bool.fromEnvironment('FEATURE_ISOLATED_DEVICE'), 'Disposable device is mandatory');
       require(RegExp(r'^[a-f0-9]{40}$').hasMatch(sourceSha), 'Committed source identity required');
       require(RegExp(r'^[a-f0-9]{64}$').hasMatch(profileSha), 'Profile identity required');
-      require(const {'library33':33,'generation24':24,'text15':15,'skill_reopen1':1,'batch_mcp7':7,'comic_openai6':6,'image_agent3':3,'tools3':3,'ui9':9,'os6':6,'android_update2':2,'ios_update2':2,'android_folder1':1,'metadata_import3':3,'gallery3':3}[testEntry] == expected, 'Registered native entry/count identity required');
+      require(const {'library33':33,'generation24':24,'text15':15,'skill_reopen1':1,'batch4':4,'comic_openai6':6,'tools3':3,'ui9':9,'os5':5,'android_folder1':1,'metadata_import3':3,'gallery3':3}[testEntry] == expected, 'Registered native entry/count identity required');
       print('FEATURE_ACCEPTANCE_BEGIN:${jsonEncode({'sourceSha':sourceSha,'profileSha':profileSha,'platform':Platform.operatingSystem,'kind':'device','nativeOnly':true,'mockOnly':false,'paidCalls':0,'testEntry':testEntry,'expectedChecks':expected,'nativePid':pid})}');
       if (Platform.isAndroid) FlutterForegroundTask.initCommunicationPort();
       BackgroundQueueService.initialize();
@@ -194,19 +194,6 @@ class NativeScenarios {
       require(!coldEntry || predecessorVerified,'Cold entry requires a runner-verified qualified predecessor and fresh process');
       require(!predecessorVerified || coldEntry,'Predecessor preservation is limited to the registered cold entry');
       if(!coldEntry)await (await SharedPreferences.getInstance()).clear();
-      // Read-only real native bridge probe. Unsupported/missing handler is
-      // evidence of a gap, never an accepted install/activation scenario.
-      try {
-        final status=await const MethodChannel('langbai.novelai/local_agent')
-          .invokeMapMethod<String,dynamic>('status');
-        pending('agent-components',jsonEncode({'nativeStatus':{
-          for(final field in ['supported','running','phase'])field:status?[field]},
-          'installActivateProcessNotExecuted':true}));
-      } on MissingPluginException catch(error) {
-        pending('agent-components','Actual native MissingPluginException: ${error.message}');
-      } on PlatformException catch(error) {
-        pending('agent-components','Actual native PlatformException: ${error.code}');
-      }
       await body();
       require(checks.length == expected, 'Incomplete fixed checks: ${checks.length}/$expected');
       verifyNoFrameworkFailures();
@@ -226,10 +213,6 @@ class NativeScenarios {
       'mockOnly':false,'paidCalls':0,'observed':observed};
     checks.add(record); printNativeCheck(record, entry: testEntry, id: checks.length);
   }
-  void pending(String feature, String reason) => print('FEATURE_ACCEPTANCE_PENDING:${jsonEncode({
-    'sourceSha':sourceSha,'profileSha':profileSha,'platform':Platform.operatingSystem,
-    'feature':feature,'status':'pending','reason':reason,
-    'kind':'device','nativeOnly':true,'testEntry':testEntry,'mockOnly':false,'paidCalls':0})}');
 }
 
 class NativeContext {
@@ -251,7 +234,7 @@ class NativeContext {
       imageOutputDir:root.path,backupDir:'${root.path}/backups',
       streamPreviewEnabled:false,saveToGallery:false,keepImageMetadata:true,
       promptCodexEnhanceEnabled:false,promptRuleAutoRepairEnabled:false,
-      reverseConvertDshEnabled:false,language:'en-US');
+      reverseConvertDshEnabled:false);
     final app=AppState(api:api,storage:storage)..settings=settings
       ..params=GenerateParams(width:64,height:64,seed:42,seedMode:'fixed',
         positivePrompt:'synthetic forest',negativePrompt:'synthetic negative',

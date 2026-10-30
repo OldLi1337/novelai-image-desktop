@@ -131,7 +131,7 @@ Future<void> _run() async {
       }
     });
     final api = NaiApi();
-    final settings = AppSettings(imageBaseUrl: 'http://127.0.0.1:${server.port}', apiBaseUrl: 'http://127.0.0.1:${server.port}', allowCustomEndpoint: true, allowCustomEndpointFallback: false, proxyMode: 'direct', saveToGallery: false, keepImageMetadata: true, streamPreviewEnabled: false, language: 'en-US', imageOutputDir: root.path);
+    final settings = AppSettings(imageBaseUrl: 'http://127.0.0.1:${server.port}', apiBaseUrl: 'http://127.0.0.1:${server.port}', allowCustomEndpoint: true, allowCustomEndpointFallback: false, proxyMode: 'direct', saveToGallery: false, keepImageMetadata: true, streamPreviewEnabled: false, imageOutputDir: root.path);
     final params = GenerateParams(width: 64, height: 64, positivePrompt: 'acceptance forest', negativePrompt: 'acceptance negative', qualityPreset: 'none', ucPreset: 0, seed: 4000000000, seedMode: 'fixed');
     final app = AppState(api: api, storage: storage)..settings = settings..params = params;
     cleanup.add(() async { app.dispose(); await server.close(force: true); await storage.clearToken(); });

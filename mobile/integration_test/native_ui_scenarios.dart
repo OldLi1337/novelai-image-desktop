@@ -687,7 +687,7 @@ Future<void> _navigation(NativeContext c, NativeUiTlsFixture tls) async {
           as StudioAdaptiveShell)
       .destinations
       .length;
-  require(count == 15, 'Uncovered new mobile navigation destination');
+  require(count == 14, 'Uncovered new mobile navigation destination');
   final visited = <int>[];
   for (var index = 0; index < count; index++) {
     await _navigateTo(index);
@@ -765,7 +765,7 @@ Future<void> _navigation(NativeContext c, NativeUiTlsFixture tls) async {
       first = order[0],
       third = order[2];
   await nativeUiTextTap(shell.moreLabel);
-  await nativeUiTextTap('Reorder navigation');
+  await nativeUiTextTap('排列功能入口');
   await nativeUiWait(
       () =>
           nativeUiElements((w) => w.key == ValueKey('navigation-order-$first'))
@@ -786,12 +786,12 @@ Future<void> _navigation(NativeContext c, NativeUiTlsFixture tls) async {
   firstRow.visitChildren(find);
   require(handle != null, 'Actual production drag handle missing');
   await nativeUiDrag(handle!, thirdRow);
-  await nativeUiTextTap('Save');
+  await nativeUiTextTap('保存');
   final prefs = await SharedPreferences.getInstance();
   await nativeUiWait(
-      () => prefs.getStringList('mobile_navigation_order_v1') != null,
+      () => prefs.getStringList('mobile_navigation_order_v2') != null,
       'native order commit');
-  final saved = prefs.getStringList('mobile_navigation_order_v1')!;
+  final saved = prefs.getStringList('mobile_navigation_order_v2')!;
   require(
       saved.length == count &&
           saved.toSet().length == count &&
@@ -827,8 +827,8 @@ Future<void> _navigation(NativeContext c, NativeUiTlsFixture tls) async {
   });
 }
 
-// Diagnostic only: gaps remain explicit but never occupy the reserved Agent
-// capability namespace, create CHECKs, or contribute acceptance coverage.
+// Diagnostic only: gaps remain explicit but never create CHECKs or contribute
+// acceptance coverage.
 // ignore: avoid_print
 void coverageGap(String feature, String reason) => print(
     'FEATURE_NATIVE_COVERAGE_GAP:${jsonEncode({'sourceSha':sourceSha,

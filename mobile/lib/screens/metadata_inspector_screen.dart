@@ -11,7 +11,6 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
-import '../i18n/app_locales.dart';
 import '../i18n/metadata_recovery_text.dart';
 import '../images/png_metadata.dart';
 import '../images/metadata_recovery.dart';
@@ -76,192 +75,40 @@ Future<({ImageMetadataReport report, File file, String name})>
 }
 
 _MetadataText _metadataTextFor(Object? language) {
-  switch (normalizeAppLocaleCode(language)) {
-    case 'zh-TW':
-      return (
-        title: '恢復圖片原始資料',
-        subtitle: '讀取 NovelAI、Stable Diffusion WebUI / Forge 與 ComfyUI 圖片內嵌參數。',
-        historyTitle: '從分組記錄選擇',
-        historyHint: '直接點選分組中的圖片，即可查看其完整原始資料。',
-        historyGroup: '圖片分組',
-        historyAll: '全部分組',
-        historyUngrouped: '未分組',
-        historyEmpty: '此分組暫無可讀取的圖片',
-        historyMore: '載入更多',
-        choose: '選擇原始圖片',
-        replace: '更換圖片',
-        dropHint: '支援 PNG、JPG、JPEG、WebP。請盡量選擇未經聊天軟體壓縮的原圖。',
-        localOnly: '零積分 · 不呼叫 AI · 不傳送網路請求',
-        detected: '辨識來源',
-        sourceNovelAi: 'NovelAI',
-        sourceSd: 'Stable Diffusion WebUI / Forge',
-        sourceComfy: 'ComfyUI',
-        sourceUnknown: '未知或無可辨識參數',
-        compatible: '可一鍵使用的參數',
-        compatibleHint: '只套用 NovelAI 支援的相容項目；SD 模型、VAE、LoRA 保留供查看。',
-        apply: '一鍵套用到生成',
-        applied: '已套用相容參數',
-        noCompatible: '沒有可直接套用到 NovelAI 的相容參數',
-        details: '逐項參數',
-        noParams: '沒有讀取到生成參數。圖片可能被壓縮或匯出時關閉了中繼資料。',
-        raw: '完整原始資料',
-        copyRaw: '複製原始資料',
-        copied: '原始資料已複製',
-        copyItem: '複製此項',
-        itemCopied: '已複製',
-        viewOnly: '部分 SD / ComfyUI 專用值只能查看，無法直接套用到 NovelAI。',
-        readFailed: '無法讀取該圖片，請確認檔案未損壞並重新選擇原圖。',
-      );
-    case 'en-US':
-      return (
-        title: 'Restore Image Metadata',
-        subtitle:
-            'Read embedded NovelAI, Stable Diffusion WebUI / Forge, and ComfyUI generation data.',
-        historyTitle: 'Choose from grouped history',
-        historyHint:
-            'Tap an image in any group to inspect its complete metadata.',
-        historyGroup: 'Image group',
-        historyAll: 'All groups',
-        historyUngrouped: 'Ungrouped',
-        historyEmpty: 'No readable images in this group',
-        historyMore: 'Load more',
-        choose: 'Choose original image',
-        replace: 'Replace image',
-        dropHint:
-            'Supports PNG, JPG, JPEG, and WebP. Use the uncompressed original whenever possible.',
-        localOnly: '0 Anlas · no AI call · no network request',
-        detected: 'Detected source',
-        sourceNovelAi: 'NovelAI',
-        sourceSd: 'Stable Diffusion WebUI / Forge',
-        sourceComfy: 'ComfyUI',
-        sourceUnknown: 'Unknown or no recognized parameters',
-        compatible: 'Parameters ready to reuse',
-        compatibleHint:
-            'Only NovelAI-compatible values are applied. SD model, VAE, and LoRA values remain view-only.',
-        apply: 'Use in Generate',
-        applied: 'Compatible parameters applied',
-        noCompatible: 'No compatible parameters can be applied to NovelAI',
-        details: 'Parameter details',
-        noParams:
-            'No generation parameters were found. The image may have been compressed or exported without metadata.',
-        raw: 'Complete raw metadata',
-        copyRaw: 'Copy raw metadata',
-        copied: 'Raw metadata copied',
-        copyItem: 'Copy value',
-        itemCopied: 'Copied',
-        viewOnly:
-            'Some SD / ComfyUI-only values are view-only and cannot be applied directly to NovelAI.',
-        readFailed:
-            'Could not read this image. Check that the file is intact and choose the original again.',
-      );
-    case 'ja-JP':
-      return (
-        title: '画像の元データを復元',
-        subtitle:
-            'NovelAI、Stable Diffusion WebUI / Forge、ComfyUI の埋め込み生成情報を読み取ります。',
-        historyTitle: 'グループ履歴から選択',
-        historyHint: 'グループ内の画像をタップすると、完全な元データを確認できます。',
-        historyGroup: '画像グループ',
-        historyAll: 'すべてのグループ',
-        historyUngrouped: '未分類',
-        historyEmpty: 'このグループに読み取れる画像はありません',
-        historyMore: 'さらに読み込む',
-        choose: '元画像を選択',
-        replace: '画像を変更',
-        dropHint: 'PNG、JPG、JPEG、WebP に対応。可能な限り未圧縮の元画像を選択してください。',
-        localOnly: 'Anlas 0 · AI 不使用 · ネットワーク送信なし',
-        detected: '検出元',
-        sourceNovelAi: 'NovelAI',
-        sourceSd: 'Stable Diffusion WebUI / Forge',
-        sourceComfy: 'ComfyUI',
-        sourceUnknown: '不明または認識可能な設定なし',
-        compatible: '再利用できる設定',
-        compatibleHint: 'NovelAI と互換性のある項目だけを適用します。SD のモデル、VAE、LoRA は閲覧のみです。',
-        apply: '生成画面で使用',
-        applied: '互換設定を適用しました',
-        noCompatible: 'NovelAI に直接適用できる互換設定がありません',
-        details: '設定一覧',
-        noParams: '生成設定を読み取れません。圧縮されたか、メタデータなしで保存された可能性があります。',
-        raw: '完全な元データ',
-        copyRaw: '元データをコピー',
-        copied: '元データをコピーしました',
-        copyItem: 'この値をコピー',
-        itemCopied: 'コピーしました',
-        viewOnly: '一部の SD / ComfyUI 専用値は閲覧のみで、NovelAI へ直接適用できません。',
-        readFailed: '画像を読み取れません。ファイルが壊れていないか確認し、元画像を選び直してください。',
-      );
-    case 'ko-KR':
-      return (
-        title: '이미지 원본 데이터 복원',
-        subtitle:
-            'NovelAI, Stable Diffusion WebUI / Forge, ComfyUI 이미지의 내장 생성 정보를 읽습니다.',
-        historyTitle: '그룹 기록에서 선택',
-        historyHint: '그룹의 이미지를 누르면 전체 원본 데이터를 확인할 수 있습니다.',
-        historyGroup: '이미지 그룹',
-        historyAll: '모든 그룹',
-        historyUngrouped: '미분류',
-        historyEmpty: '이 그룹에 읽을 수 있는 이미지가 없습니다',
-        historyMore: '더 불러오기',
-        choose: '원본 이미지 선택',
-        replace: '이미지 변경',
-        dropHint: 'PNG, JPG, JPEG, WebP 지원. 가능하면 압축되지 않은 원본을 선택하세요.',
-        localOnly: 'Anlas 0 · AI 호출 없음 · 네트워크 전송 없음',
-        detected: '감지된 출처',
-        sourceNovelAi: 'NovelAI',
-        sourceSd: 'Stable Diffusion WebUI / Forge',
-        sourceComfy: 'ComfyUI',
-        sourceUnknown: '알 수 없거나 인식 가능한 매개변수 없음',
-        compatible: '바로 사용할 수 있는 매개변수',
-        compatibleHint: 'NovelAI와 호환되는 값만 적용합니다. SD 모델, VAE, LoRA 값은 보기 전용입니다.',
-        apply: '생성 화면에서 사용',
-        applied: '호환 매개변수를 적용했습니다',
-        noCompatible: 'NovelAI에 바로 적용할 수 있는 호환 매개변수가 없습니다',
-        details: '매개변수 상세',
-        noParams: '생성 매개변수를 찾지 못했습니다. 이미지가 압축되었거나 메타데이터 없이 저장되었을 수 있습니다.',
-        raw: '전체 원본 데이터',
-        copyRaw: '원본 데이터 복사',
-        copied: '원본 데이터를 복사했습니다',
-        copyItem: '이 값 복사',
-        itemCopied: '복사했습니다',
-        viewOnly: '일부 SD / ComfyUI 전용 값은 보기 전용이며 NovelAI에 바로 적용할 수 없습니다.',
-        readFailed: '이미지를 읽을 수 없습니다. 파일이 손상되지 않았는지 확인하고 원본을 다시 선택하세요.',
-      );
-    default:
-      return (
-        title: '恢复图片原数据',
-        subtitle: '读取 NovelAI、Stable Diffusion WebUI / Forge 与 ComfyUI 图片内嵌参数。',
-        historyTitle: '从分组记录选择',
-        historyHint: '直接点击分组中的图片，即可查看其完整原数据。',
-        historyGroup: '图片分组',
-        historyAll: '全部分组',
-        historyUngrouped: '未分组',
-        historyEmpty: '该分组暂无可读取的图片',
-        historyMore: '加载更多',
-        choose: '选择原始图片',
-        replace: '更换图片',
-        dropHint: '支持 PNG、JPG、JPEG、WebP。请尽量选择未经聊天软件压缩的原图。',
-        localOnly: '零积分 · 不调用 AI · 不发送网络请求',
-        detected: '识别来源',
-        sourceNovelAi: 'NovelAI',
-        sourceSd: 'Stable Diffusion WebUI / Forge',
-        sourceComfy: 'ComfyUI',
-        sourceUnknown: '未知或无可识别参数',
-        compatible: '可一键使用的参数',
-        compatibleHint: '只套用 NovelAI 支持的兼容项；SD 模型、VAE、LoRA 保留供查看。',
-        apply: '一键使用到生成',
-        applied: '已套用兼容参数',
-        noCompatible: '没有可直接套用到 NovelAI 的兼容参数',
-        details: '逐项参数',
-        noParams: '没有读取到生成参数。图片可能被平台压缩或导出时关闭了元数据。',
-        raw: '完整原始数据',
-        copyRaw: '复制原始数据',
-        copied: '原始数据已复制',
-        copyItem: '复制此项',
-        itemCopied: '已复制',
-        viewOnly: '部分 SD / ComfyUI 专用值只能查看，无法直接套用到 NovelAI。',
-        readFailed: '无法读取该图片，请确认文件未损坏并重新选择原图。',
-      );
-  }
+  return (
+    title: '恢复图片原数据',
+    subtitle: '读取 NovelAI、Stable Diffusion WebUI / Forge 与 ComfyUI 图片内嵌参数。',
+    historyTitle: '从分组记录选择',
+    historyHint: '直接点击分组中的图片，即可查看其完整原数据。',
+    historyGroup: '图片分组',
+    historyAll: '全部分组',
+    historyUngrouped: '未分组',
+    historyEmpty: '该分组暂无可读取的图片',
+    historyMore: '加载更多',
+    choose: '选择原始图片',
+    replace: '更换图片',
+    dropHint: '支持 PNG、JPG、JPEG、WebP。请尽量选择未经聊天软件压缩的原图。',
+    localOnly: '零积分 · 不调用 AI · 不发送网络请求',
+    detected: '识别来源',
+    sourceNovelAi: 'NovelAI',
+    sourceSd: 'Stable Diffusion WebUI / Forge',
+    sourceComfy: 'ComfyUI',
+    sourceUnknown: '未知或无可识别参数',
+    compatible: '可一键使用的参数',
+    compatibleHint: '只套用 NovelAI 支持的兼容项；SD 模型、VAE、LoRA 保留供查看。',
+    apply: '一键使用到生成',
+    applied: '已套用兼容参数',
+    noCompatible: '没有可直接套用到 NovelAI 的兼容参数',
+    details: '逐项参数',
+    noParams: '没有读取到生成参数。图片可能被平台压缩或导出时关闭了元数据。',
+    raw: '完整原始数据',
+    copyRaw: '复制原始数据',
+    copied: '原始数据已复制',
+    copyItem: '复制此项',
+    itemCopied: '已复制',
+    viewOnly: '部分 SD / ComfyUI 专用值只能查看，无法直接套用到 NovelAI。',
+    readFailed: '无法读取该图片，请确认文件未损坏并重新选择原图。',
+  );
 }
 
 const _importedEnglish = <String, String>{
@@ -391,136 +238,13 @@ const _zhCnParameters = <String, String>{
   'ADetailer version': '细节修复版本',
 };
 
-Map<String, String> _parameterTranslations(String code) => switch (code) {
-      'zh-CN' => _zhCnParameters,
-      'zh-TW' => _zhCnParameters.map((key, value) => MapEntry(
-          key,
-          value
-              .replaceAll('提示词', '提示詞')
-              .replaceAll('采样', '取樣')
-              .replaceAll('调度', '排程')
-              .replaceAll('噪声', '雜訊')
-              .replaceAll('种子', '種子')
-              .replaceAll('宽度', '寬度')
-              .replaceAll('软件', '軟體')
-              .replaceAll('哈希', '雜湊')
-              .replaceAll('参数', '參數')
-              .replaceAll('动态', '動態')
-              .replaceAll('质量', '品質')
-              .replaceAll('重绘', '重繪'))),
-      'ja-JP' => const {
-          'Positive prompt': 'ポジティブプロンプト',
-          'Negative prompt': 'ネガティブプロンプト',
-          'Description': 'プロンプト記述',
-          'Prompt': 'プロンプト',
-          'Undesired content': '除外内容',
-          'Steps': 'ステップ数',
-          'CFG scale': 'CFG スケール',
-          'CFG rescale': 'CFG リスケール',
-          'Sampler': 'サンプラー',
-          'Scheduler': 'スケジューラー',
-          'Schedule type': 'スケジュール方式',
-          'Noise schedule': 'ノイズスケジュール',
-          'Seed': 'シード',
-          'Seed mode': 'シード方式',
-          'Width': '幅',
-          'Height': '高さ',
-          'Size': 'サイズ',
-          'Model': 'モデル',
-          'Source': '生成元',
-          'Software': '生成ソフト',
-          'Model hash': 'モデルハッシュ',
-          'Checkpoint': 'チェックポイント',
-          'Denoise': 'ノイズ除去',
-          'Denoising strength': 'ノイズ除去強度',
-          'Clip skip': 'CLIP スキップ',
-          'Version': 'バージョン',
-          'SMEA Dyn': '動的 SMEA',
-          'Dynamic thresholding': '動的しきい値',
-          'Quality toggle': '品質向上',
-          'Style prompt': 'スタイルプロンプト',
-          'UC preset': 'ネガティブプリセット',
-          'Variety+': '多様化',
-          'Parameters version': 'パラメータ版',
-          'Hires steps': '高解像度ステップ',
-          'Hires upscale': '高解像度倍率',
-          'Hires upscaler': '高解像度アップスケーラー',
-          'Hires prompt': '高解像度プロンプト',
-          'Hires negative prompt': '高解像度ネガティブプロンプト',
-          'LoRA hashes': 'LoRA ハッシュ',
-          'ADetailer model': 'ディテール修正モデル',
-          'ADetailer prompt': 'ディテール修正プロンプト',
-          'ADetailer negative prompt': 'ディテール修正ネガティブプロンプト',
-          'ADetailer confidence': 'ディテール検出信頼度',
-          'ADetailer denoising strength': 'ディテール修正強度',
-          'ADetailer version': 'ADetailer バージョン',
-        },
-      'ko-KR' => const {
-          'Positive prompt': '긍정 프롬프트',
-          'Negative prompt': '부정 프롬프트',
-          'Description': '프롬프트 설명',
-          'Prompt': '프롬프트',
-          'Undesired content': '제외할 내용',
-          'Steps': '샘플링 단계',
-          'CFG scale': 'CFG 강도',
-          'CFG rescale': 'CFG 재조정',
-          'Sampler': '샘플러',
-          'Scheduler': '스케줄러',
-          'Schedule type': '스케줄 유형',
-          'Noise schedule': '노이즈 스케줄',
-          'Seed': '시드',
-          'Seed mode': '시드 모드',
-          'Width': '너비',
-          'Height': '높이',
-          'Size': '크기',
-          'Model': '모델',
-          'Source': '출처 모델',
-          'Software': '생성 소프트웨어',
-          'Model hash': '모델 해시',
-          'Checkpoint': '체크포인트',
-          'Denoise': '노이즈 제거',
-          'Denoising strength': '노이즈 제거 강도',
-          'Clip skip': 'CLIP 건너뛰기',
-          'Version': '버전',
-          'SMEA Dyn': '동적 SMEA',
-          'Dynamic thresholding': '동적 임계값',
-          'Quality toggle': '품질 향상',
-          'Style prompt': '스타일 프롬프트',
-          'UC preset': '네거티브 프리셋',
-          'Variety+': '다양화',
-          'Parameters version': '매개변수 버전',
-          'Hires steps': '고해상도 단계',
-          'Hires upscale': '고해상도 배율',
-          'Hires upscaler': '고해상도 업스케일러',
-          'Hires prompt': '고해상도 프롬프트',
-          'Hires negative prompt': '고해상도 부정 프롬프트',
-          'LoRA hashes': 'LoRA 해시',
-          'ADetailer model': '세부 보정 모델',
-          'ADetailer prompt': '세부 보정 프롬프트',
-          'ADetailer negative prompt': '세부 보정 부정 프롬프트',
-          'ADetailer confidence': '세부 감지 신뢰도',
-          'ADetailer denoising strength': '세부 보정 강도',
-          'ADetailer version': 'ADetailer 버전',
-        },
-      _ => const {},
-    };
-
 String metadataParameterLabel(Object? language, String key) {
-  final code = normalizeAppLocaleCode(language);
   final english = _parameterEnglish[key.trim().toLowerCase()] ?? key;
-  if (code == 'en-US') return english;
-  final generic = switch (code) {
-    'zh-TW' => '其他參數',
-    'ja-JP' => 'その他の設定',
-    'ko-KR' => '기타 매개변수',
-    _ => '其他参数',
-  };
-  final translated = _parameterTranslations(code)[english] ?? generic;
+  final translated = _zhCnParameters[english] ?? '其他参数';
   return '$translated ($english)';
 }
 
 String metadataGroupLabel(Object? language, String group) {
-  final code = normalizeAppLocaleCode(language);
   final english = const {
         'generation': 'Generation',
         'model': 'Model',
@@ -528,32 +252,11 @@ String metadataGroupLabel(Object? language, String group) {
         'raw': 'Raw'
       }[group] ??
       group;
-  if (code == 'en-US') return english;
-  final translated = switch (code) {
-        'zh-TW' => const {
-            'Generation': '生成參數',
-            'Model': '模型參數',
-            'Image': '圖片參數',
-            'Raw': '原始資料'
-          },
-        'ja-JP' => const {
-            'Generation': '生成設定',
-            'Model': 'モデル設定',
-            'Image': '画像設定',
-            'Raw': '元データ'
-          },
-        'ko-KR' => const {
-            'Generation': '생성 매개변수',
-            'Model': '모델 매개변수',
-            'Image': '이미지 매개변수',
-            'Raw': '원본 데이터'
-          },
-        _ => const {
-            'Generation': '生成参数',
-            'Model': '模型参数',
-            'Image': '图像参数',
-            'Raw': '原始数据'
-          },
+  final translated = const {
+        'Generation': '生成参数',
+        'Model': '模型参数',
+        'Image': '图像参数',
+        'Raw': '原始数据'
       }[english] ??
       english;
   return '$translated ($english)';
@@ -994,13 +697,7 @@ class _MetadataInspectorScreenState extends State<MetadataInspectorScreen> with 
                             TextButton(
                                 key: const ValueKey('metadata-selection-clear'),
                                 onPressed: () => setState(_selectedKeys.clear),
-                                child: Text(switch (state.settings.language) {
-                                  'zh-TW' => '全不選',
-                                  'en-US' => 'Clear selection',
-                                  'ja-JP' => '選択を解除',
-                                  'ko-KR' => '모두 선택 해제',
-                                  _ => '全不选'
-                                })),
+                                child: const Text('全不选')),
                             Text(
                                 '${_selectedKeys.length}/${selectionKeys.length}'),
                           ]),

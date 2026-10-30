@@ -68,8 +68,8 @@ class StudioAdaptiveShell extends StatelessWidget {
     required this.onDestinationSelected,
     required this.destinations,
     required this.pages,
-    this.moreLabel = 'More',
-    this.allFeaturesLabel = 'All features',
+    this.moreLabel = '更多',
+    this.allFeaturesLabel = '全部功能',
     this.destinationOrder,
     this.onDestinationOrderChanged,
   }) : assert(destinations.length == pages.length);
@@ -304,7 +304,7 @@ class _PhoneShell extends StatelessWidget {
                           }
                         },
                         icon: const Icon(Icons.reorder),
-                        label: Text(_orderLabels(context).$1),
+                        label: Text(_orderLabels.$1),
                       )),
                   const SizedBox(height: StudioSpacing.md),
                   Flexible(
@@ -344,7 +344,7 @@ class _PhoneShell extends StatelessWidget {
   }
 
   Future<void> _showOrderSheet(BuildContext context) async {
-    final labels = _orderLabels(context);
+    const labels = _orderLabels;
     final working = List<int>.of(order);
     final updated = await showModalBottomSheet<List<int>>(
       context: context, isScrollControlled: true, useSafeArea: true,
@@ -380,17 +380,7 @@ class _PhoneShell extends StatelessWidget {
   }
 }
 
-(String, String, String, String) _orderLabels(BuildContext context) =>
-    switch (Localizations.localeOf(context).toLanguageTag()) {
-      'en' => ('Reorder navigation', 'Drag to arrange. The first four appear in the bottom bar.', 'Save', 'Bottom bar'),
-      'en-US' => ('Reorder navigation', 'Drag to arrange. The first four appear in the bottom bar.', 'Save', 'Bottom bar'),
-      'ja' => ('ナビゲーションの並び替え', 'ドラッグして並べ替え。先頭4件は下部バーに表示。', '保存', '下部バー'),
-      'ja-JP' => ('ナビゲーションの並び替え', 'ドラッグして並べ替え。先頭4件は下部バーに表示。', '保存', '下部バー'),
-      'ko' => ('탐색 순서 변경', '드래그하여 정렬하세요. 앞의 네 항목이 하단 바에 표시됩니다.', '저장', '하단 바'),
-      'ko-KR' => ('탐색 순서 변경', '드래그하여 정렬하세요. 앞의 네 항목이 하단 바에 표시됩니다.', '저장', '하단 바'),
-      'zh-TW' => ('排列功能入口', '拖動排序；前四項顯示在底部導覽。', '儲存', '底部導覽'),
-      _ => ('排列功能入口', '拖动排序；前四项显示在底部导航。', '保存', '底部导航'),
-    };
+const _orderLabels = ('排列功能入口', '拖动排序；前四项显示在底部导航。', '保存', '底部导航');
 
 class _MoreDestinationButton extends StatelessWidget {
   final StudioDestination destination;

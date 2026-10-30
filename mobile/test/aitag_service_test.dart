@@ -60,12 +60,10 @@ void main() {
     service.close();
   });
   test('AITag errors are localized and do not expose server HTML', () {
-    for (final language in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      final text =
-          formatAitagFailure('AITAG_BLOCKED_403 <html>secret</html>', language);
-      expect(text, contains('403'));
-      expect(text, isNot(contains('secret')));
-    }
+    final text =
+        formatAitagFailure('AITAG_BLOCKED_403 <html>secret</html>', 'zh-CN');
+    expect(text, contains('403'));
+    expect(text, isNot(contains('secret')));
     expect(formatAitagFailure(const AitagFailure('HTTP_429'), 'zh-CN'),
         contains('429'));
   });

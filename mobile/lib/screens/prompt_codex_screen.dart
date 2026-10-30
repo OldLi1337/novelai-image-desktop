@@ -4,11 +4,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../services/prompt_codex_service.dart';
-import '../state/app_state.dart';
 
 class PromptCodexScreen extends StatefulWidget {
   final VoidCallback onBack;
@@ -76,142 +74,40 @@ class _PromptCodexScreenState extends State<PromptCodexScreen> {
     }
   }
 
-  String get _language => context.read<AppState>().settings.language;
-
   Map<String, String> _text() {
-    switch (_language) {
-      case 'zh-TW':
-        return {
-          'title': '所長個人法典 · nai4.top',
-          'search': '搜尋名稱、章節或 Tag',
-          'all': '全部',
-          'category': '統一分類',
-          'section': '原始章節',
-          'update': '手動更新',
-          'updating': '正在更新…',
-          'updated': '已更新',
-          'copy': '複製提示詞',
-          'source': '開啟來源',
-          'adult': '成人內容',
-          'empty': '沒有相符項目',
-          'more': '繼續顯示',
-          'website': '造訪原網站',
-          'introduction': '法典說明',
-          'introductionHint': '作者、版本、使用方式與測試環境（不作為提示詞）',
-        };
-      case 'en-US':
-        return {
-          'title': 'Personal Codex · nai4.top',
-          'search': 'Search names, sections, or tags',
-          'all': 'All',
-          'category': 'Unified category',
-          'section': 'Source section',
-          'update': 'Update now',
-          'updating': 'Updating…',
-          'updated': 'Updated',
-          'copy': 'Copy prompt',
-          'source': 'Open source',
-          'adult': 'Adult content',
-          'empty': 'No matching entries',
-          'more': 'Show more',
-          'website': 'Visit original site',
-          'introduction': 'About these codices',
-          'introductionHint':
-              'Author, version, usage, and test environment (not prompts)',
-        };
-      case 'ja-JP':
-        return {
-          'title': '個人プロンプト法典 · nai4.top',
-          'search': '名称・章・Tag を検索',
-          'all': 'すべて',
-          'category': '統一分類',
-          'section': '元の章',
-          'update': '手動更新',
-          'updating': '更新中…',
-          'updated': '更新済み',
-          'copy': 'プロンプトをコピー',
-          'source': '出典を開く',
-          'adult': '成人向け',
-          'empty': '一致する項目がありません',
-          'more': 'さらに表示',
-          'website': '元サイトを開く',
-          'introduction': '法典について',
-          'introductionHint': '作者・版・使い方・テスト環境（プロンプトではありません）',
-        };
-      case 'ko-KR':
-        return {
-          'title': '개인 프롬프트 법전 · nai4.top',
-          'search': '이름, 장 또는 태그 검색',
-          'all': '전체',
-          'category': '통합 분류',
-          'section': '원본 장',
-          'update': '수동 업데이트',
-          'updating': '업데이트 중…',
-          'updated': '업데이트됨',
-          'copy': '프롬프트 복사',
-          'source': '출처 열기',
-          'adult': '성인 콘텐츠',
-          'empty': '일치하는 항목이 없습니다',
-          'more': '더 보기',
-          'website': '원본 사이트 열기',
-          'introduction': '법전 안내',
-          'introductionHint': '작성자, 버전, 사용법 및 테스트 환경 (프롬프트 아님)',
-        };
-      default:
-        return {
-          'title': '所长个人法典 · nai4.top',
-          'search': '搜索名称、章节或 Tag',
-          'all': '全部',
-          'category': '统一分类',
-          'section': '原始章节',
-          'update': '手动更新',
-          'updating': '正在更新…',
-          'updated': '已更新',
-          'copy': '复制提示词',
-          'source': '打开来源',
-          'adult': '成人内容',
-          'empty': '没有匹配条目',
-          'more': '继续显示',
-          'website': '访问原网站',
-          'introduction': '法典说明',
-          'introductionHint': '作者、版本、使用方式与测试环境（不作为提示词）',
-        };
-    }
+    return {
+      'title': '所长个人法典 · nai4.top',
+      'search': '搜索名称、章节或 Tag',
+      'all': '全部',
+      'category': '统一分类',
+      'section': '原始章节',
+      'update': '手动更新',
+      'updating': '正在更新…',
+      'updated': '已更新',
+      'copy': '复制提示词',
+      'source': '打开来源',
+      'adult': '成人内容',
+      'empty': '没有匹配条目',
+      'more': '继续显示',
+      'website': '访问原网站',
+      'introduction': '法典说明',
+      'introductionHint': '作者、版本、使用方式与测试环境（不作为提示词）',
+    };
   }
 
   Map<String, String> _categories() {
-    final labels = <String, List<String>>{
-      'all': ['全部', '全部', 'All', 'すべて', '전체'],
-      'artist': ['画师', '畫師', 'Artists', '画家', '작가'],
-      'style': ['画风 / 质感', '畫風 / 質感', 'Style / texture', '画風 / 質感', '화풍 / 질감'],
-      'clothing': ['服饰', '服飾', 'Clothing', '衣装', '의상'],
-      'lighting': [
-        '光影 / 色彩',
-        '光影 / 色彩',
-        'Lighting / color',
-        '光 / 色',
-        '조명 / 색상'
-      ],
-      'scene': ['场景', '場景', 'Scenes', '背景', '장면'],
-      'composition': [
-        '构图 / 动作',
-        '構圖 / 動作',
-        'Composition / pose',
-        '構図 / 動作',
-        '구도 / 동작'
-      ],
-      'character': ['角色', '角色', 'Characters', 'キャラクター', '캐릭터'],
-      'other': ['其他', '其他', 'Other', 'その他', '기타'],
-      'adult-other': ['成人其他', '成人其他', 'Adult / other', '成人向けその他', '성인 / 기타'],
+    return const <String, String>{
+      'all': '全部',
+      'artist': '画师',
+      'style': '画风 / 质感',
+      'clothing': '服饰',
+      'lighting': '光影 / 色彩',
+      'scene': '场景',
+      'composition': '构图 / 动作',
+      'character': '角色',
+      'other': '其他',
+      'adult-other': '成人其他',
     };
-    final index = switch (_language) {
-      'zh-TW' => 1,
-      'en-US' => 2,
-      'ja-JP' => 3,
-      'ko-KR' => 4,
-      _ => 0,
-    };
-    return labels.map((key, value) => MapEntry(key, value[index]));
   }
 
   List<PromptCodexEntry> _filtered(PromptCodexSnapshot snapshot) {

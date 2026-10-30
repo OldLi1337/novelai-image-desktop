@@ -70,9 +70,6 @@ class ReferencePreset {
   String localizedName(String language) =>
       sourceNames[language] ?? sourceNames['zh-CN'] ?? name;
 
-  String localizedGameName(String language) =>
-      sourceGameNames[language] ?? sourceGameNames['zh-CN'] ?? sourceGameId;
-
   String get localizedSearchText => <String>{
         name,
         group,

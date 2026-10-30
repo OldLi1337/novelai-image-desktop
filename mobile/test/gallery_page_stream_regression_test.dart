@@ -43,7 +43,7 @@ List<File> _files(Directory root) => root
     .toList();
 bool _idle(WidgetTester t) {
   final buttons = find.ancestor(
-      of: find.text('Download current image'),
+      of: find.text('下载当前图片'),
       matching: find.byWidgetPredicate((w) => w is ButtonStyleButton));
   return buttons.evaluate().isNotEmpty &&
       t.widget<ButtonStyleButton>(buttons.first).onPressed != null;
@@ -76,7 +76,7 @@ void main() {
               const MethodChannel('plugins.flutter.io/path_provider'),
               (_) async => root!.path);
       final storage = Storage(),
-          app = AppState(storage: Storage())..settings.language = 'en-US';
+          app = AppState(storage: Storage());
       app.settings.onlineGalleryDownloadDir = root!.path;
       app.settings.imageOutputDir = root.path;
       await t.runAsync(() => storage.setSettings(app.settings));
@@ -95,9 +95,9 @@ void main() {
         await t.ensureVisible(card);
         await t.tap(card);
         await _io(
-            t, () => find.text('Download current image').evaluate().isNotEmpty);
+            t, () => find.text('下载当前图片').evaluate().isNotEmpty);
         Future<void> download() async {
-          final b = find.text('Download current image');
+          final b = find.text('下载当前图片');
           await t.ensureVisible(b);
           await t.tap(b);
           await t.pump();

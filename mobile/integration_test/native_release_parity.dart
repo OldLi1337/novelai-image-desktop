@@ -86,7 +86,7 @@ Future<void> _run()async{
   print('FEATURE_FIXTURE_MASK_PIXELS:${jsonEncode({'sourceSize':[decodedMask.width,decodedMask.height],'selectedRgba':[selectedMaskPixel.r,selectedMaskPixel.g,selectedMaskPixel.b,selectedMaskPixel.a],'unselectedRgba':[unselectedMaskPixel.r,unselectedMaskPixel.g,unselectedMaskPixel.b,unselectedMaskPixel.a]})}');
   _assert(decodedMask.width==3840&&decodedMask.height==2160&&selectedMaskPixel.r==255&&selectedMaskPixel.g==255&&selectedMaskPixel.b==255&&selectedMaskPixel.a==255&&unselectedMaskPixel.r==0&&unselectedMaskPixel.g==0&&unselectedMaskPixel.b==0&&unselectedMaskPixel.a==255,'Mask source pixels changed');
   // Actual rendered editor, real pointer events, not a helper-only cap assertion.
-  runApp(MaterialApp(home:InpaintMaskEditor(image:source,language:'en-US')));await _frame();await _frame();
+  runApp(MaterialApp(home:InpaintMaskEditor(image:source,language:'zh-CN')));await _frame();await _frame();
   final toggle=_element(const ValueKey('select-inpaint-region'))!;(toggle.widget as IconButton).onPressed!();await _frame();
   final box=_element(const ValueKey('inpaint-mask-canvas'))!.findRenderObject()! as RenderBox;
   final p=box.localToGlobal(const Offset(2,2)),q=box.localToGlobal(Offset(box.size.width-2,box.size.height-2));

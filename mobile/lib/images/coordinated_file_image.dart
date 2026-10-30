@@ -93,12 +93,7 @@ class CoordinatedFileImage extends StatelessWidget {
 }
 
 Widget imageAccessErrorWidget(BuildContext context, Object error, StackTrace? stack, {Widget? child}) {
-  final message = switch (Localizations.maybeLocaleOf(context)?.languageCode) {
-    'zh' => '图片暂不可用，请联网或重新选择输出目录；原路径与历史记录已保留。',
-    'ja' => '画像を読み込めません。接続または出力フォルダーを再選択してください。履歴は保持されています。',
-    'ko' => '이미지를 읽을 수 없습니다. 연결하거나 출력 폴더를 다시 선택하세요. 기록은 보존됩니다.',
-    _ => 'Image unavailable. Reconnect or reselect its output folder. Original path and history are retained.'
-  };
+  const message = '图片暂不可用，请联网或重新选择输出目录；原路径与历史记录已保留。';
   return Tooltip(message: message, child: Semantics(label: message,
     child: child ?? const Center(child: Icon(Icons.broken_image_outlined))));
 

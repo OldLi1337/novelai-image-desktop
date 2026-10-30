@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import '../integration_test/native_tls_context.dart';
 import '../integration_test/native_tls_root_credentials.dart';
 import '../integration_test/native_ui_tls_credentials.dart';
-import '../integration_test/native_os_tls_credentials.dart';
 
 class _Der {
   final int tag;
@@ -122,13 +121,6 @@ void main() {
       nativeUiChainBase64,
       nativeUiPkcs12Base64,
       ['relay-a.native.invalid', 'relay-b.native.invalid', 'danbooru.donmai.us']
-    ),
-    (
-      'os',
-      nativeOsFixtureCertificateBase64,
-      nativeOsFixtureChainBase64,
-      nativeOsFixturePkcs12Base64,
-      ['github.com', 'api.github.com', 'objects.githubusercontent.com']
     )
   ]) {
     test(

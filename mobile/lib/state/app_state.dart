@@ -1,6 +1,5 @@
 import '../images/image_file_access.dart';
 import '../images/coordinated_file_image.dart';
-import '../agent/external_mcp_runtime.dart';
 import '../services/works_batch.dart';
 import '../services/openai_image_edit.dart';
 import '../i18n/platform_feature_text.dart';
@@ -17,10 +16,8 @@ import '../batch/batch_redraw_models.dart';
 import '../services/comic_image_service.dart';
 import '../comic/comic_controller.dart';
 import '../services/generation_scope.dart';
-import '../i18n/parity_text.dart';
 import '../i18n/compatible_image_text.dart';
 import '../services/openai_images.dart';
-import '../services/apk_update.dart';
 import '../services/completion_sound.dart';
 import '../images/style_prompt_restore.dart';
 import '../images/upscale_plan.dart';
@@ -53,7 +50,6 @@ import '../services/nai_api.dart';
 import '../services/nai_stream.dart';
 import '../services/proxy_http_client.dart';
 import '../services/storage.dart';
-import '../services/update_service.dart';
 import '../services/background_queue_service.dart';
 import '../services/data_backup_service.dart';
 import '../services/resource_database_service.dart';
@@ -96,14 +92,6 @@ bool looksLikeReferenceGenerationError(Object error) {
       message.contains('encode-vibe') ||
       message.contains('information_extracted') ||
       message.contains('controlnet');
-}
-
-class CompatibleGenerationOutcome {
-  final bool ok;
-  final List<HistoryItem> items;
-  final String message;
-  CompatibleGenerationOutcome(this.ok, List<HistoryItem> items, this.message)
-      : items = List.unmodifiable(items);
 }
 
 class AppState extends ChangeNotifier {
@@ -219,31 +207,20 @@ class AppState extends ChangeNotifier {
     _scheduleGenerationQuote();
   }
 
-  /// Agent inputs never overwrite the user's current prompt, batch or workbench.
-  Future<CompatibleGenerationOutcome> generateCompatibleForAgent({required String prompt,
-      required int count, required VoidCallback ensureCurrent}) async {
-    ensureCurrent();
-    if (busy) throw StateError('另一个图像任务正在运行，请稍后重试。');
-    if (settings.imageProvider != 'openai-images') throw StateError('图片服务配置已变化，未提交生图。');
-    return _generateCompatible(promptOverride: prompt, countOverride: count, ensureCurrent: ensureCurrent);
-  }
-
-  Future<CompatibleGenerationOutcome> _generateCompatible({String? promptOverride, int? countOverride, VoidCallback? ensureCurrent}) async {
+  Future<void> _generateCompatible() async {
     final snapshot = AppSettings.fromJson(jsonDecode(jsonEncode(settings.toJson())) as Map<String, dynamic>);
     final c = snapshot.compatibleImage;
     if(!novelAiEnvelopeModels.contains(c['model'])) throw StateError('仅兼容 NovelAI 模型，未提交生成。');
-    final prompt = promptOverride ?? params.positivePrompt, count = countOverride ?? batchCount, group = generationGroupId;
+    final prompt = params.positivePrompt, count = batchCount, group = generationGroupId;
     final text = compatibleImageText(snapshot.language);
     final cancel = CompatibleImageCancellation();
     _compatibleCancellation = cancel;
     busy = true; generationQueueRunning = false; lastAnlasSpent = null;
     _clearGenerationPreview(notify: false); status = text['requesting']!; notifyListeners();
     final items = <HistoryItem>[];
-    var complete = false;
     try {
       final key = await storage.getCompatibleImageKey(c['credentialId'] as String? ?? '');
-      if (cancel.cancelled) { status = text['stopped']!; return CompatibleGenerationOutcome(false, items, status); }
-      ensureCurrent?.call();
+      if (cancel.cancelled) { status = text['stopped']!; return; }
       final config = CompatibleImageConfig(baseUrl: c['baseUrl'] as String? ?? '', model: c['model'] as String? ?? '',
         apiKey: key ?? '', responseFormat: c['responseFormat'] as String? ?? 'auto');
       final body = compatibleImageBody(config, prompt: prompt, size: c['size'] as String? ?? 'auto', n: count,
@@ -257,7 +234,6 @@ class AppState extends ChangeNotifier {
         on SavedImageHistoryException catch (error) { items.add(error.item); rethrow; }
       }
       if (!_compatibleDisposed && items.isNotEmpty) await _commitCompletedHistory(items);
-      complete = batch.complete;
       status = batch.complete ? '${text['done']} ${items.length}' : '${batch.cancelled ? text['stopped'] : text['failed']} ${batch.error?.status ?? ''} · ${text['savedCount']} ${items.length}';
     } on SavedImageHistoryException {
       if (!_compatibleDisposed && items.isNotEmpty) await _commitCompletedHistory(items);
@@ -270,7 +246,6 @@ class AppState extends ChangeNotifier {
       if (_compatibleCancellation == cancel) { _compatibleCancellation = null; busy = false; }
       if (!_compatibleDisposed) notifyListeners();
     }
-    return CompatibleGenerationOutcome(complete, items, status);
   }
   final NaiApi api;
   final Storage storage;
@@ -466,10 +441,6 @@ class AppState extends ChangeNotifier {
   OfflineTagStatus offlineTagStatus = const OfflineTagStatus();
   bool offlineTagBusy = false;
   final _textJobTimers=<Timer>{};
-  UpdateInfo? updateInfo;
-  bool updateInstalling=false;
-  double updateProgress=0;
-  bool updateChecking = false;
 
   Timer? _quoteTimer;
   Timer? _toolPersistTimer;
@@ -489,11 +460,6 @@ class AppState extends ChangeNotifier {
   String _spentText(int? amount) => amount == null
       ? _rt('status.actualSpentUnknown')
       : _rf('status.actualSpent', {'amount': amount});
-  String get displayStatus =>
-      status == runtimeTextFor('zh-CN', 'common.ready') ||
-              status == runtimeTextFor('en-US', 'common.ready')
-          ? _rt('common.ready')
-          : status;
 
   Future<void> load() async {
     try {
@@ -649,10 +615,17 @@ class AppState extends ChangeNotifier {
       booted = true;
       notifyListeners();
       _scheduleGenerationQuote();
-      unawaited(checkUpdate());
       unawaited(_refreshAccountAtBoot());
+      unawaited(_dropRemovedAgentApiKey());
       _scheduleAutomaticBackup();
     }
+  }
+
+  // Best effort: the API key of the removed image agent is not carried forward.
+  Future<void> _dropRemovedAgentApiKey() async {
+    try {
+      await storage.deleteRemovedAgentApiKey();
+    } catch (_) {}
   }
 
   void _scheduleAutomaticBackup({
@@ -2208,7 +2181,6 @@ class AppState extends ChangeNotifier {
         account,
       );
       generationQuote = quote;
-      _checkExternalAnlas(quote);
       if (!quote.ok || quote.amount == null) {
         throw Exception(quote.message);
       }
@@ -3096,10 +3068,7 @@ class AppState extends ChangeNotifier {
     if(busy)throw StateError('Another image operation is running');
     if (_naiChanging) throw StateError('账号正在切换，未提交请求');
     _naiOperationCount++;
-    final scope=GenerationScope(cancellationMessage:switch(settings.language){
-      'zh-TW'=>'後處理已取消，保留原圖。','en-US'=>'Postprocessing cancelled; original preserved.',
-      'ja-JP'=>'後処理をキャンセルしました。元画像を保持しました。','ko-KR'=>'후처리가 취소되어 원본을 보존했습니다。',
-      _=>'后期处理已取消，保留原图。'});
+    final scope=GenerationScope(cancellationMessage:'后期处理已取消，保留原图。');
     _directorScope=scope;
     final snapshot=AppSettings.fromJson(settings.toJson()),tool=directorTool;
     final options=AugmentOptions(defry:augmentOptions.defry,colorizePrompt:augmentOptions.colorizePrompt,emotion:augmentOptions.emotion,emotionLevel:augmentOptions.emotionLevel);
@@ -3183,10 +3152,7 @@ class AppState extends ChangeNotifier {
     }));
     } finally {
       if(identical(_directorScope,scope))_directorScope=null;
-      if(scope.cancelled){status=scope.cancellationMessage+(savedOutputs?switch(snapshot.language){
-        'zh-TW'=>' 已儲存的結果仍保留於歷史記錄。','en-US'=>' Saved outputs remain in history.',
-        'ja-JP'=>' 保存済みの結果は履歴に残ります。','ko-KR'=>' 저장된 결과는 기록에 남아 있습니다.',
-        _=>' 已保存的结果仍保留在历史记录。'}:'');}
+      if(scope.cancelled){status=scope.cancellationMessage+(savedOutputs?' 已保存的结果仍保留在历史记录。':'');}
       _naiOperationCount--;notifyListeners();
     }
   }
@@ -3631,36 +3597,6 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> installAppUpdate() async {
-    if(updateInstalling||updateInfo?.hasUpdate!=true)return;
-    updateInstalling=true;updateProgress=0;notifyListeners();
-    try {
-      final stage=await ApkUpdate.install(settings,updateInfo!, (value){updateProgress=value;notifyListeners();});
-      status=stage=='permission_required' ? parityText(settings.language,'update.allowSystemInstall') : parityText(settings.language,'update.systemInstallerOpened');
-    }catch(error){status='${_rt('status.updateFailedShort')}: $error';}
-    finally{updateInstalling=false;notifyListeners();}
-  }
-
-  Future<void> checkUpdate({bool manual = false}) async {
-    if (updateChecking) return;
-    updateChecking = true;
-    if (manual) {
-      status = _rt('status.updateChecking');
-      notifyListeners();
-    }
-    updateInfo = await checkAppUpdate(settings);
-    updateChecking = false;
-    if (manual) {
-      status = updateInfo?.error != null
-          ? _rt('status.updateFailedShort')
-          : updateInfo?.hasUpdate == true
-              ? _rf(
-                  'status.updateFound', {'version': updateInfo!.latestVersion})
-              : _rt('status.updateLatest');
-    }
-    notifyListeners();
-  }
-
   Future<List<String>> detectModels(String kind) async {
     if (kind == 'reverse') {
       return api.listModels(
@@ -4079,12 +4015,7 @@ class AppState extends ChangeNotifier {
       if(workbenchImage?.filePath==original.filePath)workbenchImage=WorkingImage(filePath:committed.filePath,width:committed.width,height:committed.height);
       final cleaned=await storage.finishRenameCopy(original,renamed,
         deleteOriginal:!history.any((item)=>item.id!=id&&item.filePath==original.filePath));
-      if(!cleaned){status=switch(settings.language){
-        'en-US'=>'New name saved. Old-path cleanup was not confirmed; inspect the original location.',
-        'zh-TW'=>'新名稱已保存；未能確認舊路徑清理，請核對原位置。',
-        'ja-JP'=>'新しい名前は保存済みです。旧パスの削除は未確認です。元の場所を確認してください。',
-        'ko-KR'=>'새 이름은 저장되었습니다. 이전 경로 정리를 확인하지 못했습니다. 원래 위치를 확인하세요.',
-        _=>'新名称已保存；未能确认旧路径清理，请核对原位置。'};}
+      if(!cleaned){status='新名称已保存；未能确认旧路径清理，请核对原位置。';}
       notifyListeners();
     } finally { _historyFileOperations.remove(id); }
   }
@@ -4155,7 +4086,6 @@ class AppState extends ChangeNotifier {
   ) async {
     account = await _fetchAccountPreservingLast(token);
     final quote = buildQuote(account);
-    _checkExternalAnlas(quote);
     if (!quote.ok || quote.amount == null) throw Exception(quote.message);
     if (quote.insufficient) {
       status = _rf('status.insufficientThisRun', {
@@ -4176,23 +4106,6 @@ class AppState extends ChangeNotifier {
         before != null && after != null ? max(0, before - after) : null;
     _pendingAuthorizedBalance = null;
     return _spentText(lastAnlasSpent);
-  }
-
-  int? _externalAnlasLimit;
-  Future<T> withExternalAnlasLimit<T>(int limit,Future<T> Function() action) async {
-    if(_externalAnlasLimit!=null || busy)throw StateError('Another image task is running');
-    _externalAnlasLimit=limit;
-    try {
-      final account=naiAccounts.active;
-      if(account==null)return await action();
-      // Hold the approved account lease before any executor await or token read.
-      return await naiAccounts.operation((_)=>action(),expectedToken:account.token,profileId:account.profile.id);
-    } finally {_externalAnlasLimit=null;}
-  }
-  void _checkExternalAnlas(AnlasQuote quote) {
-    if(_externalAnlasLimit!=null && (!quote.ok || quote.amount==null || quote.amount!>_externalAnlasLimit!)) {
-      throw StateError('MCP cost is above the human-approved budget; no image request submitted');
-    }
   }
 
   Future<void> _withTokenRun(Future<void> Function(String token) fn) async {
@@ -4273,11 +4186,8 @@ class AppState extends ChangeNotifier {
     return decodeImageDimensions(b);
   }
 
-  late final ExternalMcpRuntime externalMcp = ExternalMcpRuntime(this);
-
   @override
   void dispose() {
-    externalMcp.dispose();
     _comic?.dispose();
     _batchRedraw?.dispose();
     _compatibleDisposed = true;

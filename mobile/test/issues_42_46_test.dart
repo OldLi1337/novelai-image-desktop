@@ -108,7 +108,6 @@ void main() {
       final plain = File('${dir.path}/plain.png')
         ..writeAsBytesSync(fixture(false));
       final state = AppState(storage: Storage());
-      state.settings.language = 'en-US';
       state.params
         ..positivePrompt = 'edited'
         ..seed = 42
@@ -170,7 +169,6 @@ void main() {
     final files = List.generate(
         3, (i) => File('${dir.path}/$i.png')..writeAsBytesSync(fixture()));
     final state = AppState(storage: Storage());
-    state.settings.language = 'en-US';
     state.params
       ..positivePrompt = 'edited'
       ..seed = 42;
@@ -287,7 +285,6 @@ void main() {
       'items': [favorite.toJson()]
     }));
     final state = AppState(storage: Storage());
-    state.settings.language = 'en-US';
     state.params.positivePrompt = 'edited';
     t.view.physicalSize = const Size(390, 844);
     t.view.devicePixelRatio = 1;
@@ -302,9 +299,9 @@ void main() {
     await t.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 100)));
     await t.pumpAndSettle();
-    expect(find.byTooltip('Apply to generation'), findsOneWidget);
+    expect(find.byTooltip('应用到生成'), findsOneWidget);
     await t.runAsync(() async {
-      await t.tap(find.byTooltip('Apply to generation'));
+      await t.tap(find.byTooltip('应用到生成'));
       for (var i = 0;
           i < 80 && state.workbenchImage?.filePath != file.path;
           i++) {
@@ -327,7 +324,6 @@ void main() {
     final files = List.generate(
         3, (i) => File('${dir.path}/$i.png')..writeAsBytesSync(fixture(false)));
     final state = AppState(storage: Storage());
-    state.settings.language = 'en-US';
     state.groups = [
       const HistoryGroup(id: 'g', name: 'Group', createdAt: '2026-10-06')
     ];

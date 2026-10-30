@@ -15,9 +15,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:image/image.dart' as img;
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:novelai_mobile/agent/comic_generation_actions.dart';
-import 'package:novelai_mobile/agent/agent_models.dart';
-import 'package:novelai_mobile/agent/session_controls.dart';
 import 'package:novelai_mobile/comic/comic_models.dart';
 import 'package:novelai_mobile/models/nai_models.dart';
 import 'package:novelai_mobile/services/storage.dart';
@@ -70,11 +67,7 @@ void main() {
   late HttpServer server;
   late AppState app;
   late ComicStorage storage;
-  late AgentSessionControls sessions;
-  late ComicGenerationActions actions;
-  var posts = 0, approvals = 0;
-  Future<bool> Function()? onApprove;
-  Map<String, dynamic>? approvalSummary;
+  var posts = 0;
   final bodies = <Map<String, dynamic>>[];
   final bytes = img.encodePng(img.Image(width: 8, height: 6));
   const key = 'fixture-compatible-key';
@@ -88,11 +81,8 @@ void main() {
     PathProviderPlatform.instance = ComicPaths(root.path);
     server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     posts = 0;
-    approvals = 0;
     bodies.clear();
     handler = null;
-    onApprove = null;
-    approvalSummary = null;
     server.listen((req) async {
       if (req.method == 'POST') {
         posts++;
@@ -133,34 +123,12 @@ void main() {
               id: 'p$i', index: i + 1, title: 'panel $i', prompt: 'forest $i')
       ];
     await app.comic.flush();
-    sessions = AgentSessionControls(app);
-    actions = ComicGenerationActions(
-        app: app,
-        sessions: sessions,
-        root: root,
-        approve: (s, a) async {
-          approvals++;
-          approvalSummary = Map<String, dynamic>.from(a);
-          return await onApprove?.call() ?? true;
-        });
   });
   tearDown(() async {
-    await actions.close();
     app.dispose();
     await server.close(force: true);
     await root.delete(recursive: true);
   });
-  Map<String, dynamic> args() => {
-        'action': 'comic.generation.start',
-        'mode': 'initial',
-        'panelIds': <String>[],
-        'expectedRevision': app.comic.revision
-      };
-  Future<AgentToolResult> start(Map<String, dynamic> a) =>
-      actions.execute('langbai_software_action', a, 'one');
-  void deliver(Map<String, dynamic> a, AgentToolResult r) =>
-      actions.afterResponse('langbai_software_action', a, 'one', 'call',
-          {'ok': r.ok, 'data': r.ok ? jsonDecode(r.output) : null}, true);
   test(
       'baseline software comic queue uses saved compatible service without native credentials',
       () async {
@@ -176,31 +144,6 @@ void main() {
       'n': 1
     });
   });
-  test(
-      'baseline Agent compatible comic hands off once and persists real outputs',
-      () async {
-    final a = args(), r = await start(a);
-    expect(r.ok, true, reason: r.output);
-    expect(posts, 0);
-    deliver(a, r);
-    await actions.settled();
-    expect(actions.operation!['state'], 'completed');
-    expect(posts, 2);
-    expect(approvals, 0);
-    expect(storage.nativeReads, 0);
-    for (final p in app.comic.project.panels) {
-      final imageFile = File(p.candidates.single.outputPath);
-      expect(imageFile.existsSync(), true);
-      expect(img.decodeImage(await imageFile.readAsBytes())!.height, 6);
-    }
-  });
-
-  Future<void> runAgent() async {
-    final a = args(), r = await start(a);
-    expect(r.ok, true, reason: r.output);
-    deliver(a, r);
-    await actions.settled();
-  }
 
   Future<void> imageResponse(HttpRequest req, {int count = 1}) async {
     req.response.write(jsonEncode({
@@ -211,27 +154,6 @@ void main() {
     await req.response.close();
   }
 
-  test(
-      'Agent confirmation covers twelve compatible images once with provider fee notice',
-      () async {
-    await sessions.execute(
-        'studio_generation_policy', {'mode': 'confirm'}, 'one');
-    app.comic.project.initialGenerationCount = 6;
-    await runAgent();
-    expect(posts, 12);
-    expect(approvals, 1);
-    expect(approvalSummary!['imageProvider'], 'openai-images');
-    expect(approvalSummary!['notice'], contains('服务商'));
-    expect(app.comic.project.panels.map((p) => p.candidates.length), [6, 6]);
-    expect(storage.nativeReads, 0);
-    expect(
-        app.comic.project.panels
-            .expand((p) => p.candidates)
-            .every((c) => c.actualAnlas == null),
-        true);
-    final reopened = await storage.getComicProject(app.params);
-    expect(reopened.panels.first.candidates, hasLength(6));
-  });
   test(
       'compatible quote is unknown and explicit per-panel sizes plus extensions are sent',
       () async {
@@ -276,37 +198,10 @@ void main() {
     await app.comic.generateInitial();
     expect(app.comic.runPhase, 'failed');
     expect(posts, 0);
-    final r = await start(args());
-    expect(r.ok, false);
-    expect(approvals, 0);
-    expect(posts, 0);
     app.comic.project.preciseReferences.clear();
     app.comic.project.panels.last.prompt = '';
     await expectLater(app.comic.generateInitial(), throwsFormatException);
     expect(posts, 0);
-  });
-  test('approval-time model or credential change and denial never submit',
-      () async {
-    await sessions.execute(
-        'studio_generation_policy', {'mode': 'confirm'}, 'one');
-    onApprove = () async {
-      app.settings.compatibleImage['model'] = 'changed';
-      return true;
-    };
-    expect((await start(args())).ok, false);
-    expect(posts, 0);
-    onApprove = () async {
-      await app.saveCompatibleSettings(
-          Map<String, dynamic>.from(app.settings.compatibleImage),
-          'rotated-key');
-      return true;
-    };
-    expect((await start(args())).ok, false);
-    expect(posts, 0);
-    onApprove = () async => false;
-    expect((await start(args())).ok, false);
-    expect(posts, 0);
-    expect(actions.busy, false);
   });
   test(
       'service changes after an accepted first request retain its image and prevent the next POST',
@@ -432,58 +327,6 @@ void main() {
         hasLength(1));
   });
   test(
-      'owner stop aborts a waiting compatible request and no next panel starts',
-      () async {
-    final entered = Completer<void>(), gate = Completer<void>();
-    handler = (req) async {
-      entered.complete();
-      await gate.future;
-      try {
-        await imageResponse(req);
-      } catch (_) {}
-    };
-    final a = args(), r = await start(a);
-    expect(r.ok, true);
-    deliver(a, r);
-    await entered.future;
-    final id = actions.operation!['id'];
-    expect(
-        (await actions.execute('langbai_software_action',
-                {'action': 'comic.generation.stop', 'runId': id}, 'other'))
-            .ok,
-        false);
-    expect(
-        (await actions.execute('langbai_software_action',
-                {'action': 'comic.generation.stop', 'runId': id}, 'one'))
-            .ok,
-        true);
-    await actions.settled().timeout(const Duration(seconds: 3));
-    gate.complete();
-    expect(posts, 1);
-    expect(actions.operation!['state'], 'cancelled');
-    expect(app.busy, false);
-  });
-  test(
-      'lost compatible handoff produces no POST and restarted receipt never replays',
-      () async {
-    final a = args(), r = await start(a);
-    expect(r.ok, true);
-    actions.afterResponse('langbai_software_action', a, 'one', 'call',
-        {'ok': true, 'data': jsonDecode(r.output)}, false);
-    await actions.settled();
-    expect(posts, 0);
-    expect(actions.operation!['state'], 'interrupted');
-    final reopened = ComicGenerationActions(
-        app: app,
-        sessions: sessions,
-        root: root,
-        approve: (s, a) async => true);
-    await reopened.initialize();
-    expect(reopened.operation!['state'], 'interrupted');
-    expect(posts, 0);
-    await reopened.close();
-  });
-  test(
       'compatible confirmation stamp changes with output settings and secure credential version',
       () async {
     final first = await app.comic.authorizationStamp();
@@ -495,11 +338,9 @@ void main() {
     expect(await app.comic.authorizationStamp(), isNot(first));
     expect(storage.nativeReads, 0);
   });
-  test('comic provider notice has all five locales', () {
-    for (final lang in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      for (final k in ['title', 'rules', 'references', 'billing', 'settings']) {
-        expect(comicProviderText(lang, k), isNot(k));
-      }
+  test('comic provider notice has Chinese text for every key', () {
+    for (final k in ['title', 'rules', 'references', 'billing', 'settings']) {
+      expect(comicProviderText('zh-CN', k), isNot(k));
     }
   });
   testWidgets(

@@ -18,7 +18,6 @@ import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path_util;
 
-import '../agent/agent_models.dart';
 import '../batch/batch_redraw_models.dart';
 import '../comic/comic_models.dart';
 import '../history/history_archive.dart';
@@ -93,7 +92,7 @@ class Storage {
   void associateMetadataInspectorSource(String? path) { metadataInspectorSourcePath = path; }
 
   // All instances share one settings transaction queue. Secure-key writes and
-  // preference commits cannot interleave with UI, Agent or backup writes.
+  // preference commits cannot interleave with UI or backup writes.
   static Future<void>? _historyTail;
   static final Object _historyZone=Object();
   Future<T> historyTransaction<T>(Future<T> Function() work) {
@@ -157,9 +156,6 @@ class Storage {
   static const _kVisionKey = 'vision_api_key';
   static const _kConvertKey = 'convert_api_key';
   static const _kTagKey = 'tag_server_key';
-  static const _kAgentApiKey = 'agent_api_key';
-  static const _kAgentWorkspace = 'agent_workspace_v1';
-  static const _kAgentAlwaysAllowedTools = 'agent_always_allowed_tools_v1';
   static const _kConvertHistory = 'texttool_convert_history_v1';
   static const _kReverseHistory = 'texttool_reverse_history_v1';
   static const _kAitagCompatibleParams = 'aitag_compatible_params_v1';
@@ -402,10 +398,10 @@ class Storage {
   Future<String?> getTagKey() => _secure.read(key: _kTagKey);
   Future<void> setTagKey(String value) =>
       _secure.write(key: _kTagKey, value: value);
-  Future<String?> getAgentApiKey() => _secure.read(key: _kAgentApiKey);
-  Future<void> setAgentApiKey(String value) => value.trim().isEmpty
-      ? _secure.delete(key: _kAgentApiKey)
-      : _secure.write(key: _kAgentApiKey, value: value.trim());
+  // The removed image agent kept its API key here. It is dropped instead of
+  // carried forward; nothing reads or writes it any more.
+  Future<void> deleteRemovedAgentApiKey() =>
+      _secure.delete(key: 'agent_api_key');
   Future<String?> getBaiduSecret() => _secure.read(key: 'baidu_secret');
   Future<void> setBaiduSecret(String value) =>
       _secure.write(key: 'baidu_secret', value: value);
@@ -428,7 +424,7 @@ class Storage {
     return _settingsTransaction(() async {
       final current = await getSettings();
       // An unrelated settings save queued with an old image revision must not
-      // resurrect an old key/endpoint or undo an Agent provider change.
+      // resurrect an old key/endpoint or undo an image provider change.
       if (!imageCommit &&
           (current.compatibleImage['credentialId'] as String? ?? '')
               .isNotEmpty &&
@@ -448,69 +444,6 @@ class Storage {
       settings.imageProvider = snapshot.imageProvider;
       settings.openAIEdit = snapshot.openAIEdit;
     });
-  }
-
-  Future<AgentWorkspace> getAgentWorkspace() async {
-    final raw = (await _prefs).getString(_kAgentWorkspace);
-    if (raw == null || raw.trim().isEmpty) return AgentWorkspace();
-    try {
-      return AgentWorkspace.fromJson(
-        Map<String, dynamic>.from(jsonDecode(raw) as Map),
-      );
-    } catch (_) {
-      if (UnifiedStorage.active != null) rethrow;
-      return AgentWorkspace();
-    }
-  }
-
-  Future<AgentWorkspace> getAgentWorkspaceStrict() async {
-    final raw = (await _prefs).getString(_kAgentWorkspace);
-    if (raw == null || raw.trim().isEmpty) return AgentWorkspace();
-    try {
-      return AgentWorkspace.fromJson(
-          Map<String, dynamic>.from(jsonDecode(raw) as Map));
-    } catch (_) {
-      throw StateError('本机酒馆资料格式错误，请在软件内检查备份；未用空资料替代。');
-    }
-  }
-
-  Future<void> setAgentWorkspace(AgentWorkspace workspace) async {
-    workspace.updatedAt = agentNow();
-    final saved = await (await _prefs)
-        .setString(_kAgentWorkspace, jsonEncode(workspace.toJson()));
-    if (!saved) throw StateError('Agent workspace could not be saved.');
-  }
-
-  Future<Set<String>> getAgentAlwaysAllowedTools() async =>
-      ((await _prefs).getStringList(_kAgentAlwaysAllowedTools) ?? const [])
-          .where((item) => item.trim().isNotEmpty)
-          .toSet();
-
-  Future<void> setAgentAlwaysAllowedTools(Set<String> tools) async =>
-      (await _prefs).setStringList(
-        _kAgentAlwaysAllowedTools,
-        tools.toList()..sort(),
-      );
-
-  Future<Directory> agentWorkspaceDirectory() async {
-    final documents = await UnifiedStorage.documents();
-    final directory = Directory(
-      '${documents.path}${Platform.pathSeparator}LangbaiWorkspace',
-    );
-    if (!directory.existsSync()) directory.createSync(recursive: true);
-    return directory;
-  }
-
-  Future<Directory> agentAttachmentsDirectory([String? conversationId]) async {
-    final root = await agentWorkspaceDirectory();
-    final directory = Directory([
-      root.path,
-      'attachments',
-      if (conversationId != null && conversationId.trim().isNotEmpty)
-        conversationId.trim(),
-    ].join(Platform.pathSeparator));
-    if (!directory.existsSync()) directory.createSync(recursive: true);
-    return directory;
   }
 
   Future<({File file, String name})> saveMetadataInspectorImage(

@@ -5,81 +5,21 @@ import '../ui/studio_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../i18n/app_locales.dart';
 import '../state/app_state.dart';
 
-Map<String, String> promptAssistantLabels(Object? language) =>
-    switch (normalizeAppLocaleCode(language)) {
-      'zh-TW' => {
-          'optimize': '優化提示詞',
-          'custom': '提示詞助手',
-          'instruction': '修改要求',
-          'source': '目前提示詞',
-          'template': '使用範本模式',
-          'preview': '預覽結果',
-          'run': '執行',
-          'retry': '重試',
-          'apply': '套用',
-          'cancel': '取消',
-          'busy': '正在處理…',
-          'stale': '原提示詞已變更，請重新執行。'
-        },
-      'en-US' => {
-          'optimize': 'Optimize prompt',
-          'custom': 'Prompt assistant',
-          'instruction': 'Requested changes',
-          'source': 'Current prompt',
-          'template': 'Template mode',
-          'preview': 'Preview',
-          'run': 'Run',
-          'retry': 'Retry',
-          'apply': 'Apply',
-          'cancel': 'Cancel',
-          'busy': 'Working…',
-          'stale': 'The prompt changed. Run again.'
-        },
-      'ja-JP' => {
-          'optimize': 'プロンプトを最適化',
-          'custom': 'プロンプト助手',
-          'instruction': '変更内容',
-          'source': '現在のプロンプト',
-          'template': 'テンプレートモード',
-          'preview': 'プレビュー',
-          'run': '実行',
-          'retry': '再試行',
-          'apply': '適用',
-          'cancel': 'キャンセル',
-          'busy': '処理中…',
-          'stale': '元のプロンプトが変更されました。再実行してください。'
-        },
-      'ko-KR' => {
-          'optimize': '프롬프트 최적화',
-          'custom': '프롬프트 도우미',
-          'instruction': '변경 요청',
-          'source': '현재 프롬프트',
-          'template': '템플릿 모드',
-          'preview': '미리보기',
-          'run': '실행',
-          'retry': '재시도',
-          'apply': '적용',
-          'cancel': '취소',
-          'busy': '처리 중…',
-          'stale': '원본 프롬프트가 변경되었습니다. 다시 실행하세요.'
-        },
-      _ => {
-          'optimize': '优化提示词',
-          'custom': '提示词助手',
-          'instruction': '修改要求',
-          'source': '当前提示词',
-          'template': '使用模板模式',
-          'preview': '预览结果',
-          'run': '执行',
-          'retry': '重试',
-          'apply': '应用',
-          'cancel': '取消',
-          'busy': '正在处理…',
-          'stale': '原提示词已变化，请重新执行。'
-        },
+Map<String, String> promptAssistantLabels(Object? language) => const {
+      'optimize': '优化提示词',
+      'custom': '提示词助手',
+      'instruction': '修改要求',
+      'source': '当前提示词',
+      'template': '使用模板模式',
+      'preview': '预览结果',
+      'run': '执行',
+      'retry': '重试',
+      'apply': '应用',
+      'cancel': '取消',
+      'busy': '正在处理…',
+      'stale': '原提示词已变化，请重新执行。'
     };
 
 class PromptAssistantDialog extends StatefulWidget {
@@ -104,7 +44,7 @@ class _PromptAssistantDialogState extends State<PromptAssistantDialog> {
   bool busy = false;
   String? resultContext;
   String signature(){final s=context.read<AppState>().settings;return jsonEncode([widget.kind,widget.source,instruction.text,s.promptAssistantMode,s.promptAssistantTemplateVersion,s.promptAssistantSkillVersion,s.convertPromptTemplates,s.convertPromptTemplatesV45,s.convertPromptTemplatesV2,s.promptOptimizeTemplate,s.promptAssistantTemplate,s.promptOptimizeTemplateV2,s.promptAssistantTemplateV2]);}
-  List<String> modeLabels()=>switch(normalizeAppLocaleCode(context.read<AppState>().settings.language)){'zh-CN'=>['标签','自然语言','混合'],'zh-TW'=>['標籤','自然語言','混合'],'ja-JP'=>['タグ','自然言語','混合'],'ko-KR'=>['태그','자연어','혼합'],_=>['Tags','Natural','Mixed']};
+  List<String> modeLabels()=>const ['标签','自然语言','混合'];
 
   @override
   void dispose() {

@@ -97,7 +97,7 @@ void main() {
         find.byKey(const ValueKey('studio-phone-navigation')), findsOneWidget);
     expect(
         find.byKey(const ValueKey('studio-tablet-navigation')), findsNothing);
-    expect(find.text('More'), findsOneWidget);
+    expect(find.text('更多'), findsOneWidget);
     expect(find.text('预设'), findsOneWidget);
     final nav = tester.widget<NavigationBar>(find.byType(NavigationBar));
     expect(nav.destinations, hasLength(5));
@@ -160,7 +160,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(focusNode.hasFocus, isFalse);
-    expect(find.text('More'), findsWidgets);
+    expect(find.text('更多'), findsWidgets);
   });
 
   testWidgets('tablet uses the complete navigation rail', (tester) async {

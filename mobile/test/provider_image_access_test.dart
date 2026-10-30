@@ -127,7 +127,7 @@ void main() {
     var permitted=true;
     final reader=ImageFileReader(coordinated:true,nativeRead:(p,n) async {if(!permitted)throw PlatformException(code:'output_folder_permission');return png;});
     Widget editor(int epoch) => MaterialApp(home:InpaintMaskEditor(
-      image:const WorkingImage(filePath:'/provider/original.png',width:64,height:64),language:'en-US',
+      image:const WorkingImage(filePath:'/provider/original.png',width:64,height:64),language:'zh-CN',
       initialRegion:const (x:0,y:0,width:32,height:32),
       imageProvider:CoordinatedImageProvider('/provider/original.png',reader:reader,epoch:epoch)));
     await tester.pumpWidget(editor(0));

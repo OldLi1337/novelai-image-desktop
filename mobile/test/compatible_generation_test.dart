@@ -333,11 +333,8 @@ void main() {
         timeout: const Duration(milliseconds: 15),
         clientForUri: (_) => Completer<Never>().future);
     expect(result.timedOut, isTrue);
-    for (final language in ['zh-CN', 'zh-TW', 'en-US', 'ja-JP', 'ko-KR']) {
-      final labels = compatibleImageText(language);
-      expect(labels.keys, compatibleImageText('zh-CN').keys);
-      expect(labels.values.every((v) => v.isNotEmpty), isTrue);
-    }
+    final labels = compatibleImageText('zh-CN');
+    expect(labels.values.every((v) => v.isNotEmpty), isTrue);
   });
   test('retired separate image card is not mounted in normal settings', () {
     final settingsSource = File('lib/screens/settings_screen.dart').readAsStringSync();

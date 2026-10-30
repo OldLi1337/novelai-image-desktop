@@ -1,17 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:novelai_mobile/models/nai_models.dart';
-import 'package:novelai_mobile/agent/lyra_preset_data.dart';
-import 'package:novelai_mobile/agent/tavern_models.dart';
+import 'package:novelai_mobile/tavern/lyra_preset_data.dart';
+import 'package:novelai_mobile/tavern/tavern_models.dart';
 import 'package:novelai_mobile/prompts/dsh_image_ai.dart';
 import 'package:novelai_mobile/prompts/ig5_image_prompts.dart';
 
 void main() {
   group('built-in DSH image AI adapter', () {
-    test('supports exactly the three scoped image tasks', () {
-      expect(buildDshImageAiSystemAddon(DshImageAiTask.tavernImage),
-          contains('<langbai-image>'));
+    test('supports exactly the two scoped image tasks', () {
+      expect(DshImageAiTask.values,
+          [DshImageAiTask.reverse, DshImageAiTask.convert]);
       expect(buildDshImageAiSystemAddon(DshImageAiTask.reverse),
           contains('Inspect the supplied image directly'));
       expect(buildDshImageAiSystemAddon(DshImageAiTask.convert),
@@ -43,44 +41,26 @@ void main() {
       expect(defaults.reverseConvertDshMode, 'focused');
     });
 
-    test('every Tavern request uses the shared DSH injection path', () {
-      final source = File('lib/agent/agent_controller.dart').readAsStringSync();
-      expect(source, contains('task: DshImageAiTask.tavernImage'));
-      expect(source, isNot(contains('active.id == softwareImageCharacterId')));
-    });
-
-    test('mobile chat menu exposes persisted conversation rename', () {
-      final source = File('lib/screens/agent_screen.dart').readAsStringSync();
-      expect(source, contains("value: 'rename'"));
-      expect(source, contains('controller.renameConversation(chat.id'));
-      expect(source, contains("text['conversationName']"));
-    });
-
     test(
-        'fresh scoped defaults are the three shared IG5 adaptations; Lyra remains explicit legacy',
+        'fresh scoped defaults are the shared IG5 adaptations; Lyra remains explicit legacy',
         () {
       for (final task in DshImageAiTask.values) {
-        final key = task == DshImageAiTask.convert
-            ? 'convert'
-            : task == DshImageAiTask.reverse
-                ? 'reverse'
-                : 'studio';
         final value = buildDshImageAiSystemAddon(task);
-        expect(value, contains(ig5PromptBodies[key]!));
+        expect(value, contains(ig5PromptBodies[task.name]!));
         expect(value, isNot(contains(lyraPresetSystemPrompt)));
       }
       expect(lyraImageTaskSourceSha256,
           '09D89AE4F64E05C06962786BB19A8C7364898E863DCC3FCDE99F661E841EF6A9');
     });
 
-    test('does not duplicate the shared preset already assembled by Tavern',
+    test('does not duplicate a shared preset already in the system prompt',
         () {
       final value = injectDshImageAiSystemPrompt(
-        task: DshImageAiTask.tavernImage,
-        systemPrompt: lyraPresetSystemPrompt,
+        task: DshImageAiTask.reverse,
+        systemPrompt: ig5PromptBodies['reverse']!,
       );
-      expect(value.split(lyraPresetSystemPrompt), hasLength(2));
-      expect(value, contains('NovelAI image proposal'));
+      expect(value.split(ig5PromptBodies['reverse']!), hasLength(2));
+      expect(value, contains('Inspect the supplied image directly'));
     });
 
     test('uses a selected custom preset for reverse and conversion', () {

@@ -4,7 +4,7 @@ import 'package:novelai_mobile/ui/studio_shell.dart';
 
 void main() {
   test('mobile navigation default preserves existing phone shortcuts', () {
-    expect(StudioAdaptiveShell.normalizeDestinationOrder(null, 15).take(4),
+    expect(StudioAdaptiveShell.normalizeDestinationOrder(null, 14).take(4),
         [0, 1, 5, 7]);
   });
 
@@ -29,12 +29,12 @@ void main() {
     final nav = tester.widget<NavigationBar>(find.byType(NavigationBar));
     expect(nav.destinations.cast<NavigationDestination>().map((item) => item.label).take(4),
         ['Tab 0', 'Tab 1', 'Tab 5', 'Tab 7']);
-    await tester.tap(find.text('More'));
+    await tester.tap(find.text('更多'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Reorder navigation'));
+    await tester.tap(find.text('排列功能入口'));
     await tester.pumpAndSettle();
     expect(find.byType(ReorderableListView), findsOneWidget);
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.text('保存'));
     await tester.pumpAndSettle();
     expect(saved!.take(4), [0, 1, 5, 7]);
   });
