@@ -7,3 +7,6 @@ release/
 .tmp/
 scripts/__pycache__/
 *.pyc
+# Screenshots written by mobile/test (style covers, i18n audit).
+artifacts/
+docs/assets/i18n-audit/
