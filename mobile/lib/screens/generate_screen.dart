@@ -51,6 +51,7 @@ import '../ui/zoomable_image.dart';
 import '../widgets/generation_image_transfers.dart';
 import 'reference_catalog_panel.dart';
 import 'positive_prompt_preset_sheet.dart';
+import 'prompt_chunk_sheet.dart';
 import 'prompt_assistant_dialog.dart';
 
 bool _isRoomyPhoneLandscape(BuildContext context) {
@@ -280,18 +281,9 @@ class GenerateScreen extends StatelessWidget {
         maxLines: 5,
         showRelatedTags: true,
         showTextTools: true,
+        positiveLibrary: true,
         onChanged: (value) =>
             state.setParam((params) => params.positivePrompt = value),
-      ),
-      const SizedBox(height: 6),
-      Align(
-        alignment: Alignment.centerRight,
-        child: PositivePromptPresetButton(
-          currentPrompt: p.positivePrompt,
-          compact: true,
-          onApply: (value) =>
-              state.setParam((params) => params.positivePrompt = value),
-        ),
       ),
       const SizedBox(height: 12),
       if (!p.isMediumEffort) PromptEditor(
@@ -447,8 +439,15 @@ class PromptEditor extends StatefulWidget {
   final int maxLines;
   final String? hintText;
   final bool showRelatedTags;
+  // 'negative' shows the negative prompt library bar under the field.
   final String? lockKind;
+  // Compact negative library button (character negative prompts).
   final bool negativeLibrary;
+  // Positive preset and prompt chunk library bar under the field.
+  final bool positiveLibrary;
+  // Model whose character limit applies to character presets; null means the
+  // generation model.
+  final String? characterModel;
   // Translate / normalize / weight tools — only meaningful on the positive
   // prompt, so style and negative fields opt out.
   final bool showTextTools;
@@ -464,6 +463,8 @@ class PromptEditor extends StatefulWidget {
     this.showRelatedTags = false,
     this.lockKind,
     this.negativeLibrary=false,
+    this.positiveLibrary = false,
+    this.characterModel,
     this.showTextTools = false,
   });
 
@@ -1128,12 +1129,28 @@ class PromptEditorState extends State<PromptEditor> {
           const SizedBox(height: 6),
           _buildSuggestionList(context, language),
         ],
+        if (widget.positiveLibrary) ...[
+          const SizedBox(height: 8),
+          PositivePromptLibraryBar(
+            value: controller.text,
+            characterModel: widget.characterModel,
+            onApply: _apply,
+          ),
+        ],
+        if (widget.lockKind == 'negative') ...[
+          const SizedBox(height: 8),
+          NegativePromptLibraryBar(
+            value: controller.text,
+            onApply: (prompt, mode) =>
+                _apply(applyNegativePreset(controller.text, prompt, mode)),
+          ),
+        ],
         const SizedBox(height: 6),
         Wrap(
           spacing: 4,
           runSpacing: 4,
           children: [
-            if(widget.lockKind=='negative'||widget.negativeLibrary) NegativePromptLibraryButton(value:controller.text,onApply:(prompt,mode)=>_apply(applyNegativePreset(controller.text,prompt,mode))),
+            if(widget.negativeLibrary) NegativePromptLibraryButton(value:controller.text,onApply:(prompt,mode)=>_apply(applyNegativePreset(controller.text,prompt,mode))),
             if (widget.showTextTools) ...[
               TextButton.icon(onPressed: () => _openAssistant('optimize'),
                 icon: const Icon(Icons.auto_awesome, size: 18),
@@ -5202,6 +5219,15 @@ class _CharCardState extends State<_CharCard> {
         ? '${t('generate.positionCustom')} · '
             'X ${c.x.toStringAsFixed(2)} · Y ${c.y.toStringAsFixed(2)}'
         : t('generate.positionAiChoice');
+    // The prompt field keeps its own text, so the libraries replace the
+    // character with an updated copy, which rebuilds this card.
+    void setPrompt(String prompt) {
+      final index = s.extras.charCaptions.indexOf(c);
+      if (index < 0) return;
+      s.extras.charCaptions[index] =
+          CharCaptionItem.fromJson({...c.toJson(), 'prompt': prompt});
+      s.markCharacterChanged();
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 8),
@@ -5262,22 +5288,31 @@ class _CharCardState extends State<_CharCard> {
                   padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
                   child: Column(
                     children: [
-                      PositivePromptPresetButton(
-                          currentPrompt: c.prompt,
-                          currentCaptions: [c],
-                          onApply: (prompt) {
-                            c.prompt = prompt;
-                            s.markCharacterChanged();
-                          },
-                          onApplyCharacters: (captions) {
-                            if (captions.length == 1) {
-                              s.extras.charCaptions[widget.index] =
-                                  captions.single;
-                            } else {
-                              s.extras.charCaptions = captions;
-                            }
-                            s.markCharacterChanged();
-                          }),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          PositivePromptPresetButton(
+                              key: ValueKey(
+                                  'character-presets-${widget.index}'),
+                              currentPrompt: c.prompt,
+                              character: c,
+                              onApply: setPrompt,
+                              onApplyCharacters: (captions) {
+                                if (captions.length == 1) {
+                                  s.extras.charCaptions[widget.index] =
+                                      captions.single;
+                                } else {
+                                  s.extras.charCaptions = captions;
+                                }
+                                s.markCharacterChanged();
+                              }),
+                          PromptChunkButton(
+                              key: ValueKey('character-chunks-${widget.index}'),
+                              value: c.prompt,
+                              onApply: setPrompt),
+                        ],
+                      ),
                       if (!s.params.isMediumEffort) TextFormField(
                         key: ValueKey('character-prompt-field-${widget.index}'),
                         initialValue: c.prompt,

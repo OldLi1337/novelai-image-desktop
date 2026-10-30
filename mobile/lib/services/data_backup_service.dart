@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/nai_models.dart';
 import '../prompts/positive_prompt_presets.dart';
+import '../prompts/prompt_library_tags.dart';
 import '../prompts/prompt_mode.dart';
 import '../references/reference_presets.dart';
 import 'storage.dart';
@@ -185,6 +186,7 @@ class DataBackupService {
     'stylePromptPresets',
     'stylePromptPresetGroups',
     'positivePromptPresets',
+    'promptChunks',
   };
 
   final Storage storage;
@@ -662,13 +664,16 @@ class DataBackupService {
         'stylePromptPresetGroups': settings.stylePromptPresetGroups,
         'stylePromptPresets': styles,
         'positivePromptPresets': positivePrompts,
+        'promptChunks':
+            settings.promptChunks.map((chunk) => chunk.toJson()).toList(),
       };
       final bytes = _addJson(archive, 'data/prompt-presets.json', payload);
       summaries.add(DataBackupCategorySummary(
         category: DataBackupCategory.promptPresets,
         items: settings.promptShortcuts.length +
             styles.length +
-            positivePrompts.length,
+            positivePrompts.length +
+            settings.promptChunks.length,
         bytes: bytes + assetBytes,
       ));
     }
@@ -1370,6 +1375,12 @@ class DataBackupService {
         positivePrompts.add(PositivePromptPreset.fromJson(raw));
         index = positivePrompts.length - 1;
         counters.imported++;
+      } else {
+        // Tags of a matching entry merge into the existing one.
+        positivePrompts[index].tags = mergePromptTags([
+          positivePrompts[index].tags,
+          if (raw['tags'] is List) raw['tags'] as List,
+        ]);
       }
       positivePrompts[index].previewImages = await _restoreStylePreviews(
         bundle,
@@ -1380,6 +1391,58 @@ class DataBackupService {
       );
     }
     settings.positivePromptPresets = positivePrompts;
+
+    // Desktop custom prompt chunks: an entry with the same name and content
+    // only merges its tags; names stay unique and source IDs are reused when
+    // free, as in the desktop restore.
+    final promptChunks = List<PromptChunk>.from(settings.promptChunks);
+    final promptChunkNames =
+        promptChunks.map((item) => item.name.toLowerCase()).toSet();
+    final promptChunkIds = promptChunks.map((item) => item.id).toSet();
+    for (final value in payload['promptChunks'] as List? ?? const []) {
+      if (value is! Map) continue;
+      final raw = Map<String, dynamic>.from(value);
+      final name = raw['name'];
+      final content = raw['content'];
+      if (name is! String || content is! String || content.trim().isEmpty) {
+        continue;
+      }
+      final existing = promptChunks
+          .where((item) => item.name == name && item.content == content)
+          .firstOrNull;
+      if (existing != null) {
+        existing.tags = mergePromptTags([
+          existing.tags,
+          if (raw['tags'] is List) raw['tags'] as List,
+        ]);
+        counters.skipped++;
+        continue;
+      }
+      final cleanContent = content.trim();
+      final label = _uniqueLabel(
+        promptChunkNames,
+        name.trim().isNotEmpty
+            ? name
+            : cleanContent.substring(0, min(18, cleanContent.length)),
+        counters,
+      );
+      final sourceId = raw['id'] is String ? raw['id'] as String : '';
+      final id = sourceId.isNotEmpty && !promptChunkIds.contains(sourceId)
+          ? sourceId
+          : _id();
+      promptChunkIds.add(id);
+      final now = DateTime.now().toUtc().toIso8601String();
+      promptChunks.add(PromptChunk(
+        id: id,
+        name: label,
+        content: cleanContent,
+        tags: normalizePromptTags(raw['tags']),
+        createdAt: raw['createdAt'] is String ? raw['createdAt'] as String : now,
+        updatedAt: raw['updatedAt'] is String ? raw['updatedAt'] as String : now,
+      ));
+      counters.imported++;
+    }
+    settings.promptChunks = promptChunks;
     return settings;
   }
 

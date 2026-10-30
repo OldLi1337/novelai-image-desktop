@@ -526,4 +526,149 @@ void main() {
     expect((await storage.getSettings()).positivePromptPresets,hasLength(2));
   });
 
+  // The desktop app writes these records (electron/ipc/data-backup.ts); the
+  // fixture keeps its exact JSON shape, so tags round-trip between the apps.
+  test('desktop-shaped prompt library tags restore and are exported unchanged',
+      () async {
+    final fixture = jsonDecode(
+            File('test/fixtures/desktop_prompt_library_tags.json')
+                .readAsStringSync())
+        as Map<String, dynamic>;
+    final archive = Archive();
+    void addJson(String path, Object? data) {
+      final bytes = utf8.encode(jsonEncode(data));
+      archive.addFile(ArchiveFile(path, bytes.length, bytes));
+    }
+
+    addJson('manifest.json', {
+      'format': DataBackupService.format,
+      'version': DataBackupService.formatVersion,
+      'categories': [
+        {'category': 'configuration', 'items': 1, 'bytes': 0},
+        {'category': 'promptPresets', 'items': 4, 'bytes': 0},
+      ],
+    });
+    addJson('data/prompt-presets.json', fixture['promptPresets']);
+    addJson('data/configuration.json', fixture['configuration']);
+    final input = File('${root.path}/desktop-tags.naisbackup')
+      ..writeAsBytesSync(ZipEncoder().encode(archive));
+    await service.importBackup(input.path,
+        {DataBackupCategory.configuration, DataBackupCategory.promptPresets},
+        confirmConfigurationOverwrite: true);
+    final restored = await storage.getSettings();
+    expect(restored.positivePromptPresets.map((preset) => preset.tags), [
+      ['夜景', 'night sky'],
+      <String>[],
+    ]);
+    expect(restored.promptChunks.map((chunk) => chunk.tags), [
+      ['服装', '角色'],
+      <String>[],
+    ]);
+    expect(restored.negativePromptPresets.map((preset) => preset['tags']), [
+      ['手部', '质量'],
+      null,
+    ]);
+
+    final exported = await service.createBackup(
+        {DataBackupCategory.configuration, DataBackupCategory.promptPresets});
+    final bundle = ZipDecoder().decodeBytes(exported.readAsBytesSync());
+    Map<String, dynamic> read(String name) => jsonDecode(utf8.decode(
+            List<int>.from(bundle.findFile(name)!.content as List)))
+        as Map<String, dynamic>;
+    final prompts = read('data/prompt-presets.json');
+    final presets = fixture['promptPresets'] as Map<String, dynamic>;
+    expect(prompts['positivePromptPresets'], presets['positivePromptPresets']);
+    expect(prompts['promptChunks'], presets['promptChunks']);
+    final configuration = read('data/configuration.json');
+    expect(configuration['negativePromptPresets'],
+        (fixture['configuration'] as Map)['negativePromptPresets']);
+    // Chunks travel with the prompt presets only, as on the desktop.
+    expect(configuration.containsKey('promptChunks'), isFalse);
+  });
+
+  test('restores saved-prompt tags and merges them into matching existing entries',
+      () async {
+    Future<void> restore(Map<String, dynamic> payload) async {
+      final archive = Archive();
+      void addJson(String path, Object data) {
+        final bytes = utf8.encode(jsonEncode(data));
+        archive.addFile(ArchiveFile(path, bytes.length, bytes));
+      }
+
+      addJson('manifest.json', {
+        'format': DataBackupService.format,
+        'version': DataBackupService.formatVersion,
+        'categories': [
+          {'category': 'promptPresets', 'items': 2, 'bytes': 0}
+        ],
+      });
+      addJson('data/prompt-presets.json', payload);
+      final input = File('${root.path}/tags.naisbackup')
+        ..writeAsBytesSync(ZipEncoder().encode(archive));
+      await service.importBackup(input.path, {DataBackupCategory.promptPresets},
+          confirmConfigurationOverwrite: false);
+    }
+
+    final preset = {
+      'id': 'same-source',
+      'name': 'Neutral preset',
+      'prompt': 'blue square',
+      'captions': <Object>[],
+      'createdAt': '2026-10-11T00:00:00Z',
+    };
+    Map<String, dynamic> payload(List<String> tags) => {
+          'positivePromptPresets': [
+            {...preset, 'tags': tags}
+          ],
+          'promptChunks': [
+            {
+              'id': 'chunk',
+              'name': 'Outfit',
+              'content': 'white dress',
+              'tags': tags,
+              'createdAt': 'x',
+              'updatedAt': 'y',
+            }
+          ],
+        };
+    await restore(payload([' 夜景 ', '#夜景']));
+    var settings = await storage.getSettings();
+    expect(settings.positivePromptPresets.map((p) => p.tags), [
+      ['夜景']
+    ]);
+    expect(settings.promptChunks.map((c) => c.tags), [
+      ['夜景']
+    ]);
+    await restore(payload(['城市']));
+    settings = await storage.getSettings();
+    expect(settings.positivePromptPresets.single.tags, ['夜景', '城市']);
+    expect(settings.promptChunks.single.tags, ['夜景', '城市']);
+    expect(settings.promptChunks.single.toJson(), {
+      'id': 'chunk',
+      'name': 'Outfit',
+      'content': 'white dress',
+      'tags': ['夜景', '城市'],
+      'createdAt': 'x',
+      'updatedAt': 'y',
+    });
+    await restore({
+      'positivePromptPresets': [
+        {...preset, 'id': 'untagged', 'name': 'Untagged', 'prompt': 'plain'}
+      ],
+      'promptChunks': [
+        {'id': 'chunk', 'name': 'Outfit 2', 'content': ' smile ', 'tags': '表情'}
+      ],
+    });
+    settings = await storage.getSettings();
+    expect(settings.positivePromptPresets[1].toJson().containsKey('tags'),
+        isFalse);
+    // A different chunk whose source ID is taken gets a new ID; text is
+    // trimmed and missing dates are filled in.
+    final added = settings.promptChunks.last;
+    expect(added.id, isNot('chunk'));
+    expect((added.name, added.content), ('Outfit 2', 'smile'));
+    expect(added.tags, ['表情']);
+    expect(added.createdAt, isNotEmpty);
+  });
+
 }

@@ -46,6 +46,7 @@ import '../prompts/prompt_templates.dart';
 import '../prompts/prompt_skill_selection.dart';
 import '../prompts/prompt_tools.dart';
 import '../prompts/positive_prompt_presets.dart';
+import '../prompts/prompt_library_tags.dart';
 import '../references/reference_presets.dart';
 import '../services/nai_api.dart';
 import '../services/nai_stream.dart';
@@ -352,7 +353,7 @@ class AppState extends ChangeNotifier {
   String? comparisonSurface;
   bool comparisonAutoOpenPending=false;
   Future<void> _negativeSave=Future.value();
-  Future<void> mutateNegativePresets(List<Map<String,String>> Function(List<Map<String,String>>) update){
+  Future<void> mutateNegativePresets(List<Map<String,Object>> Function(List<Map<String,Object>>) update){
     final operation=_negativeSave.catchError((Object _){}).then((_)async{
       final next=normalizeNegativePromptPresets(update(settings.negativePromptPresets));
       final saved=AppSettings.fromJson({...settings.toJson(),"negativePromptPresets":next});
@@ -1159,6 +1160,7 @@ class AppState extends ChangeNotifier {
     required String name,
     required String prompt,
     List<CharCaptionItem>? captions,
+    List<String>? tags,
   }) async {
     final cleanPrompt = prompt;
     if (cleanPrompt.trim().isEmpty && (captions?.isEmpty ?? true)) {
@@ -1186,6 +1188,7 @@ class AppState extends ChangeNotifier {
               .map((c) => CharCaptionItem.fromJson(c.toJson()))
               .toList();
         }
+        if (tags != null) preset.tags = normalizePromptTags(tags);
         await storage.setSettings(settings);
         notifyListeners();
         return preset;
@@ -1197,12 +1200,58 @@ class AppState extends ChangeNotifier {
       prompt: cleanPrompt,
       captions:
           captions?.map((c) => CharCaptionItem.fromJson(c.toJson())).toList(),
+      tags: tags,
       createdAt: DateTime.now().toIso8601String(),
     );
     settings.positivePromptPresets.insert(0, preset);
     await storage.setSettings(settings);
     notifyListeners();
     return preset;
+  }
+
+  /// Saves a custom prompt chunk: updates the one with [id], or adds a new one
+  /// at the top of the library.
+  Future<PromptChunk> savePromptChunk({
+    String? id,
+    required String name,
+    required String content,
+    List<String>? tags,
+  }) async {
+    final cleanName = name.trim();
+    final cleanContent = content.trim();
+    if (cleanName.isEmpty || cleanContent.isEmpty) {
+      throw ArgumentError('Prompt chunk name and content are required.');
+    }
+    final now = DateTime.now().toUtc().toIso8601String();
+    final existing =
+        settings.promptChunks.where((chunk) => chunk.id == id).firstOrNull;
+    final PromptChunk chunk;
+    if (existing != null) {
+      chunk = existing
+        ..name = cleanName
+        ..content = cleanContent
+        ..tags = normalizePromptTags(tags)
+        ..updatedAt = now;
+    } else {
+      chunk = PromptChunk(
+        id: '${DateTime.now().microsecondsSinceEpoch}-${Random().nextInt(1 << 20)}',
+        name: cleanName,
+        content: cleanContent,
+        tags: tags,
+        createdAt: now,
+        updatedAt: now,
+      );
+      settings.promptChunks.insert(0, chunk);
+    }
+    await storage.setSettings(settings);
+    notifyListeners();
+    return chunk;
+  }
+
+  Future<void> removePromptChunk(String id) async {
+    settings.promptChunks.removeWhere((chunk) => chunk.id == id);
+    await storage.setSettings(settings);
+    notifyListeners();
   }
 
   Future<void> removePositivePromptPreset(String id) async {

@@ -11,7 +11,11 @@ import 'package:provider/provider.dart';
 import '../i18n/app_locales.dart';
 import '../models/nai_models.dart';
 import '../prompts/positive_prompt_presets.dart';
+import '../prompts/prompt_library_tags.dart';
 import '../state/app_state.dart';
+import '../ui/prompt_library_bar.dart';
+import '../ui/prompt_tag_controls.dart';
+import 'prompt_chunk_sheet.dart';
 
 typedef _PresetText = ({
   String trigger,
@@ -33,16 +37,22 @@ typedef _PresetText = ({
   String save,
   String cancel,
   String apply,
+  String append,
+  String appendCharacters,
   String duplicate,
   String required,
   String confirmDelete,
+  String applyNotice,
+  String appendNotice,
+  String appendCharactersNotice,
+  String applyCharactersNotice,
 });
 
 _PresetText _textFor(String language) {
   return (
     trigger: '正面预设',
     title: '正面提示词预设',
-    subtitle: '应用后直接替换当前正面提示词；参考图只用于查看，不会参与生图。',
+    subtitle: '选择预设后可替换或追加到当前正面提示词；参考图只用于查看，不会参与生图。',
     saveCurrent: '保存当前',
     create: '手动新建',
     search: '搜索名称或提示词',
@@ -59,16 +69,24 @@ _PresetText _textFor(String language) {
     save: '保存',
     cancel: '取消',
     apply: '替换当前正面提示词',
+    append: '追加到当前提示词',
+    appendCharacters: '追加这些角色',
     duplicate: '相同预设已存在，未重复保存。',
     required: '请填写正面提示词。',
     confirmDelete: '删除这个预设及其参考图？',
+    applyNotice: '已替换当前正面提示词。',
+    appendNotice: '已追加到当前正面提示词末尾。',
+    appendCharactersNotice: '已在现有角色后追加预设角色。',
+    applyCharactersNotice: '已应用预设角色。',
   );
 }
 
-class PositivePromptPresetButton extends StatelessWidget {
+class PositivePromptPresetButton extends StatefulWidget {
   final String currentPrompt;
   final ValueChanged<String> onApply;
-  final List<CharCaptionItem> currentCaptions;
+  // The character row this button belongs to: 保存当前 saves it as a
+  // character preset, and appending one saved character extends the row.
+  final CharCaptionItem? character;
   final ValueChanged<List<CharCaptionItem>>? onApplyCharacters;
   final bool compact;
 
@@ -76,10 +94,20 @@ class PositivePromptPresetButton extends StatelessWidget {
     super.key,
     required this.currentPrompt,
     required this.onApply,
-    this.currentCaptions = const [],
+    this.character,
     this.onApplyCharacters,
     this.compact = false,
   });
+
+  @override
+  State<PositivePromptPresetButton> createState() =>
+      _PositivePromptPresetButtonState();
+}
+
+class _PositivePromptPresetButtonState
+    extends State<PositivePromptPresetButton> {
+  // Kept while the button lives, like the desktop library's selected tag.
+  String _tagFilter = '';
 
   @override
   Widget build(BuildContext context) {
@@ -87,14 +115,16 @@ class PositivePromptPresetButton extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: () => showPositivePromptPresetSheet(
         context,
-        currentPrompt: currentPrompt,
-        onApply: onApply,
-        currentCaptions: currentCaptions,
-        onApplyCharacters: onApplyCharacters,
+        currentPrompt: widget.currentPrompt,
+        onApply: widget.onApply,
+        character: widget.character,
+        onApplyCharacters: widget.onApplyCharacters,
+        tagFilter: _tagFilter,
+        onTagFilterChanged: (value) => _tagFilter = value,
       ),
       icon: const Icon(Icons.bookmarks_outlined, size: 18),
       label: Text(text.trigger),
-      style: compact
+      style: widget.compact
           ? OutlinedButton.styleFrom(
               minimumSize: const Size(0, 40),
               padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -105,12 +135,96 @@ class PositivePromptPresetButton extends StatelessWidget {
   }
 }
 
+/// The positive prompt's library actions, always visible under the field as
+/// on the desktop app: 正面预设, 保存当前 (straight into a new preset made
+/// from the prompt) and 自定义提词. [characterModel] is the model whose
+/// character limit applies to character presets (the inpaint model on the
+/// inpaint screen); null means the generation model.
+class PositivePromptLibraryBar extends StatefulWidget {
+  final String value;
+  final ValueChanged<String> onApply;
+  final String? characterModel;
+
+  const PositivePromptLibraryBar({
+    super.key,
+    required this.value,
+    required this.onApply,
+    this.characterModel,
+  });
+
+  @override
+  State<PositivePromptLibraryBar> createState() =>
+      _PositivePromptLibraryBarState();
+}
+
+class _PositivePromptLibraryBarState extends State<PositivePromptLibraryBar> {
+  // Each library keeps its selected tag while the bar lives.
+  String _presetTagFilter = '';
+  String _chunkTagFilter = '';
+
+  void _openPresets({bool createFromCurrent = false}) {
+    showPositivePromptPresetSheet(
+      context,
+      currentPrompt: widget.value,
+      onApply: widget.onApply,
+      characterModel: widget.characterModel,
+      createFromCurrent: createFromCurrent,
+      tagFilter: _presetTagFilter,
+      onTagFilterChanged: (value) => _presetTagFilter = value,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = _textFor(context.watch<AppState>().settings.language);
+    return PromptLibraryBar(
+      semanticLabel: text.prompt,
+      actions: [
+        (
+          key: const ValueKey('positive-library-presets'),
+          icon: Icons.bookmarks_outlined,
+          label: text.trigger,
+          onPressed: _openPresets,
+        ),
+        (
+          key: const ValueKey('positive-library-save-current'),
+          icon: Icons.push_pin_outlined,
+          label: text.saveCurrent,
+          onPressed: widget.value.trim().isEmpty
+              ? null
+              : () => _openPresets(createFromCurrent: true),
+        ),
+        (
+          key: const ValueKey('positive-library-chunks'),
+          icon: Icons.playlist_add,
+          label: promptChunkText.trigger,
+          onPressed: () => showPromptChunkSheet(
+                context,
+                value: widget.value,
+                onApply: widget.onApply,
+                tagFilter: _chunkTagFilter,
+                onTagFilterChanged: (value) => _chunkTagFilter = value,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Opens the positive preset library. With [createFromCurrent] it opens
+/// straight into a new preset made from [currentPrompt]. [tagFilter] is the
+/// filter selected the last time this library was open; [onTagFilterChanged]
+/// reports changes so the next opening keeps it.
 Future<void> showPositivePromptPresetSheet(
   BuildContext context, {
   required String currentPrompt,
   required ValueChanged<String> onApply,
-  List<CharCaptionItem> currentCaptions = const [],
+  CharCaptionItem? character,
   ValueChanged<List<CharCaptionItem>>? onApplyCharacters,
+  String? characterModel,
+  bool createFromCurrent = false,
+  String tagFilter = '',
+  ValueChanged<String>? onTagFilterChanged,
 }) {
   return showModalBottomSheet<void>(
     context: context,
@@ -122,8 +236,12 @@ Future<void> showPositivePromptPresetSheet(
       child: _PositivePromptPresetSheet(
         currentPrompt: currentPrompt,
         onApply: onApply,
-        currentCaptions: currentCaptions,
+        character: character,
         onApplyCharacters: onApplyCharacters,
+        characterModel: characterModel,
+        createFromCurrent: createFromCurrent,
+        tagFilter: tagFilter,
+        onTagFilterChanged: onTagFilterChanged,
       ),
     ),
   );
@@ -132,14 +250,22 @@ Future<void> showPositivePromptPresetSheet(
 class _PositivePromptPresetSheet extends StatefulWidget {
   final String currentPrompt;
   final ValueChanged<String> onApply;
-  final List<CharCaptionItem> currentCaptions;
+  final CharCaptionItem? character;
   final ValueChanged<List<CharCaptionItem>>? onApplyCharacters;
+  final String? characterModel;
+  final bool createFromCurrent;
+  final String tagFilter;
+  final ValueChanged<String>? onTagFilterChanged;
 
   const _PositivePromptPresetSheet({
     required this.currentPrompt,
     required this.onApply,
-    this.currentCaptions = const [],
+    this.character,
     this.onApplyCharacters,
+    this.characterModel,
+    this.createFromCurrent = false,
+    this.tagFilter = '',
+    this.onTagFilterChanged,
   });
 
   @override
@@ -152,39 +278,69 @@ class _PositivePromptPresetSheetState
   final _search = TextEditingController();
   final _name = TextEditingController();
   final _prompt = TextEditingController();
+  final _tags = TextEditingController();
   String? _editingId;
   String _selectedId = '';
   String _activeImageId = '';
   String _message = '';
   bool _busy = false;
+  late String _tagFilter = widget.tagFilter;
   List<CharCaptionItem> _draftCaptions = [];
   String get _draftText => _draftCaptions.isEmpty
       ? _prompt.text
       : _draftCaptions.map((c) => c.prompt).join('\n');
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.createFromCurrent) {
+      _beginCreate(context.read<AppState>().settings.positivePromptPresets, true);
+    }
+  }
+
+  @override
   void dispose() {
     _search.dispose();
     _name.dispose();
     _prompt.dispose();
+    _tags.dispose();
     super.dispose();
   }
 
+  void _setTagFilter(String value) {
+    _tagFilter = value;
+    widget.onTagFilterChanged?.call(value);
+  }
+
+  void _beginCreate(List<PositivePromptPreset> presets, bool current) {
+    // 保存当前 on the library bar opens the editor directly, with the filter
+    // remembered from an earlier opening: a tag removed since then is dropped,
+    // not pre-filled.
+    if (isStalePromptTagFilter(
+        [for (final preset in presets) preset.tags], _tagFilter)) {
+      _setTagFilter('');
+    }
+    final character = widget.character;
+    _editingId = '';
+    _draftCaptions = current && character != null
+        ? [
+            CharCaptionItem.fromJson(
+                {...character.toJson(), 'prompt': widget.currentPrompt})
+          ]
+        : [];
+    _prompt.text = current ? widget.currentPrompt : '';
+    _name.text = current && widget.currentPrompt.trim().isNotEmpty
+        ? defaultPositivePromptPresetName(
+            widget.currentPrompt, presets.length + 1)
+        : '';
+    _tags.text = _tagFilter.isNotEmpty && _tagFilter != untaggedPromptFilter
+        ? _tagFilter
+        : '';
+    _message = '';
+  }
+
   void _startCreate(List<PositivePromptPreset> presets, bool current) {
-    setState(() {
-      _editingId = '';
-      _draftCaptions = current
-          ? widget.currentCaptions
-              .map((c) => CharCaptionItem.fromJson(c.toJson()))
-              .toList()
-          : [];
-      _prompt.text = current ? widget.currentPrompt : '';
-      _name.text = current && widget.currentPrompt.trim().isNotEmpty
-          ? defaultPositivePromptPresetName(
-              widget.currentPrompt, presets.length + 1)
-          : '';
-      _message = '';
-    });
+    setState(() => _beginCreate(presets, current));
   }
 
   void _startEdit(PositivePromptPreset preset) {
@@ -196,6 +352,7 @@ class _PositivePromptPresetSheetState
       _selectedId = preset.id;
       _name.text = preset.name;
       _prompt.text = preset.prompt;
+      _tags.text = formatPromptTagInput(preset.tags);
       _message = '';
     });
   }
@@ -232,6 +389,7 @@ class _PositivePromptPresetSheetState
         name: requested,
         prompt: _draftText,
         captions: _draftCaptions,
+        tags: normalizePromptTags(_tags.text),
       );
       if (!mounted) return;
       setState(() {
@@ -335,6 +493,7 @@ class _PositivePromptPresetSheetState
         final active = preset.id == selected?.id;
         final first = preset.previewImages.firstOrNull;
         return SizedBox(
+          key: ValueKey('positive-preset-item-${preset.id}'),
           width: horizontal ? 250 : null,
           child: Card(
             clipBehavior: Clip.antiAlias,
@@ -378,12 +537,21 @@ class _PositivePromptPresetSheetState
                           Text(preset.name,
                               maxLines: 1, overflow: TextOverflow.ellipsis),
                           const SizedBox(height: 3),
-                          Text(
-                            preset.prompt,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall,
+                          // Flexible: the phone layout's cards have a fixed
+                          // height, so large text is cut off, not overflowed.
+                          Flexible(
+                            child: Text(
+                              preset.prompt,
+                              maxLines: preset.tags.isEmpty ? 2 : 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
                           ),
+                          if (preset.tags.isNotEmpty)
+                            Flexible(
+                              child:
+                                  PromptTagList(preset.tags, singleLine: true),
+                            ),
                         ],
                       ),
                     ),
@@ -530,6 +698,50 @@ class _PositivePromptPresetSheetState
     );
   }
 
+  void _apply(
+    AppState state,
+    PositivePromptPreset preset,
+    PositivePresetApplyMode mode,
+    _PresetText text,
+  ) {
+    final model = widget.characterModel ?? state.params.model;
+    final application = resolvePositivePresetApplication(
+      preset,
+      mode,
+      value: widget.currentPrompt,
+      character: widget.character,
+      currentCaptions: state.extras.charCaptions,
+      maxCharacters: (state.params.copy()..model = model).maxCharacterPrompts,
+    );
+    final String notice;
+    switch (application) {
+      case PositivePresetOverCapacity():
+        setState(() =>
+            _message = characterPresetLabels(state.settings.language)[9]);
+        return;
+      case PositivePresetPrompt(:final prompt, :final appended):
+        widget.onApply(prompt);
+        notice = appended ? text.appendNotice : text.applyNotice;
+      case PositivePresetCharacters(:final captions, :final appended, :final row):
+        if (widget.onApplyCharacters != null) {
+          widget.onApplyCharacters!(captions);
+        } else if (row) {
+          widget.onApply(captions.single.prompt);
+        } else {
+          state.extras.charCaptions = captions;
+          state.markCharacterChanged();
+        }
+        notice = row
+            ? text.appendNotice
+            : appended
+                ? text.appendCharactersNotice
+                : text.applyCharactersNotice;
+    }
+    final messenger = ScaffoldMessenger.maybeOf(context);
+    Navigator.pop(context);
+    messenger?.showSnackBar(SnackBar(content: Text(notice)));
+  }
+
   Widget _detail(
     AppState state,
     PositivePromptPreset? selected,
@@ -538,6 +750,9 @@ class _PositivePromptPresetSheetState
     if (selected == null) {
       return Center(child: Text(text.empty));
     }
+    // One saved character appended inside a character row extends that row.
+    final appendsToRow =
+        widget.character != null && selected.captions.length == 1;
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
       children: [
@@ -559,6 +774,10 @@ class _PositivePromptPresetSheetState
             ),
           ],
         ),
+        if (selected.tags.isNotEmpty) ...[
+          PromptTagList(selected.tags),
+          const SizedBox(height: 8),
+        ],
         Card.outlined(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -569,31 +788,23 @@ class _PositivePromptPresetSheetState
         _images(state, selected, text),
         const SizedBox(height: 12),
         FilledButton.icon(
-          onPressed: () {
-            if (selected.captions.isNotEmpty) {
-              if (selected.captions.length > state.params.maxCharacterPrompts) {
-                setState(() => _message =
-                    characterPresetLabels(state.settings.language)[9]);
-                return;
-              }
-              final captions = selected.captions
-                  .map((c) => CharCaptionItem.fromJson(c.toJson()))
-                  .toList();
-              if (widget.onApplyCharacters != null) {
-                widget.onApplyCharacters!(captions);
-              } else {
-                state.extras.charCaptions = captions;
-                state.markCharacterChanged();
-              }
-            } else {
-              widget.onApply(selected.prompt);
-            }
-            Navigator.pop(context);
-          },
+          key: const ValueKey('positive-preset-replace'),
+          onPressed: () =>
+              _apply(state, selected, PositivePresetApplyMode.replace, text),
           icon: const Icon(Icons.swap_horiz),
           label: Text(selected.captions.isNotEmpty
               ? "${characterPresetLabels(state.settings.language)[2]} · ${selected.captions.length}"
               : text.apply),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const ValueKey('positive-preset-append'),
+          onPressed: () =>
+              _apply(state, selected, PositivePresetApplyMode.append, text),
+          icon: const Icon(Icons.playlist_add),
+          label: Text(selected.captions.isNotEmpty && !appendsToRow
+              ? text.appendCharacters
+              : text.append),
         ),
         if (_message.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -607,6 +818,7 @@ class _PositivePromptPresetSheetState
     AppState state,
     PositivePromptPreset? selected,
     _PresetText text,
+    List<String> tagSuggestions,
   ) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -655,6 +867,12 @@ class _PositivePromptPresetSheetState
             ),
           ),
         const SizedBox(height: 12),
+        PromptTagInput(
+          controller: _tags,
+          suggestions: tagSuggestions,
+          enabled: !_busy,
+        ),
+        const SizedBox(height: 12),
         if ((_editingId ?? '').isNotEmpty && selected != null)
           _images(state, selected, text)
         else
@@ -698,20 +916,32 @@ class _PositivePromptPresetSheetState
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final text = _textFor(state.settings.language);
-    final query = _search.text.trim().toLowerCase();
-    final presets = state.settings.positivePromptPresets
-        .where((preset) =>
-            query.isEmpty ||
-            preset.name.toLowerCase().contains(query) ||
-            preset.prompt.toLowerCase().contains(query))
+    final all = state.settings.positivePromptPresets;
+    final tagLists = [for (final preset in all) preset.tags];
+    // A selected tag whose last preset was deleted or untagged resets the
+    // filter, so a hidden filter never makes the library look empty.
+    if (isStalePromptTagFilter(tagLists, _tagFilter)) _setTagFilter('');
+    final tagSuggestions = [
+      for (final item in collectPromptTags(tagLists)) item.tag
+    ];
+    final presets = all
+        .where((preset) => matchesPromptLibraryEntry(
+              preset.tags,
+              [
+                preset.name,
+                preset.prompt,
+                for (final caption in preset.captions) caption.prompt,
+              ],
+              _search.text,
+              _tagFilter,
+            ))
         .toList();
-    if (_selectedId.isEmpty &&
-        state.settings.positivePromptPresets.isNotEmpty) {
-      _selectedId = state.settings.positivePromptPresets.first.id;
+    if (_editingId == null &&
+        !presets.any((preset) => preset.id == _selectedId)) {
+      _selectedId = presets.firstOrNull?.id ?? '';
     }
-    final selected = state.settings.positivePromptPresets
-        .where((preset) => preset.id == _selectedId)
-        .firstOrNull;
+    final selected =
+        all.where((preset) => preset.id == _selectedId).firstOrNull;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -755,7 +985,9 @@ class _PositivePromptPresetSheetState
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
                     prefixIcon: const Icon(Icons.search),
-                    hintText: text.search,
+                    hintText: tagSuggestions.isNotEmpty
+                        ? promptTagText.searchHint
+                        : text.search,
                     suffixIcon: _search.text.isEmpty
                         ? null
                         : IconButton(
@@ -780,8 +1012,7 @@ class _PositivePromptPresetSheetState
                     const SizedBox(width: 8),
                     Expanded(
                       child: FilledButton.icon(
-                        onPressed: widget.currentPrompt.trim().isEmpty &&
-                                widget.currentCaptions.isEmpty
+                        onPressed: widget.currentPrompt.trim().isEmpty
                             ? null
                             : () => _startCreate(
                                 state.settings.positivePromptPresets, true),
@@ -794,10 +1025,17 @@ class _PositivePromptPresetSheetState
               ],
             ),
           ),
+        if (_editingId == null)
+          PromptTagFilter(
+            entries: tagLists,
+            value: _tagFilter,
+            onChanged: (value) => setState(() => _setTagFilter(value)),
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          ),
         const Divider(height: 1),
         Expanded(
           child: _editingId != null
-              ? _editor(state, selected, text)
+              ? _editor(state, selected, text, tagSuggestions)
               : LayoutBuilder(
                   builder: (context, constraints) {
                     if (constraints.maxWidth >= 760) {

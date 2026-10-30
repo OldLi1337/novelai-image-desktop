@@ -1,0 +1,61 @@
+{
+  "comment": "Saved-prompt libraries as the desktop app (electron/ipc/data-backup.ts) writes them into a .naisbackup archive: data/prompt-presets.json, and the negativePromptPresets of data/configuration.json. Tags are a normalized array, omitted when an entry has none.",
+  "promptPresets": {
+    "promptTemplates": [],
+    "stylePromptPresetGroups": ["Default"],
+    "stylePromptPresets": [],
+    "positivePromptPresets": [
+      {
+        "id": "desktop-night",
+        "name": "夜景少女",
+        "prompt": "1girl, night sky, 1.2::stars::",
+        "captions": [],
+        "tags": ["夜景", "night sky"],
+        "createdAt": "2026-10-28T08:00:00.000Z",
+        "previewImages": []
+      },
+      {
+        "id": "desktop-plain",
+        "name": "Plain",
+        "prompt": "smile",
+        "captions": [],
+        "createdAt": "2026-10-28T08:00:00.000Z",
+        "previewImages": []
+      }
+    ],
+    "promptChunks": [
+      {
+        "id": "desktop-outfit",
+        "name": "服装",
+        "content": "white dress, blue ribbon",
+        "tags": ["服装", "角色"],
+        "createdAt": "2026-10-28T08:00:00.000Z",
+        "updatedAt": "2026-10-28T09:00:00.000Z"
+      },
+      {
+        "id": "desktop-smile",
+        "name": "表情",
+        "content": "smile",
+        "createdAt": "2026-10-28T08:00:00.000Z",
+        "updatedAt": "2026-10-28T08:00:00.000Z"
+      }
+    ]
+  },
+  "configuration": {
+    "negativePromptPresets": [
+      {
+        "id": "desktop-hands",
+        "name": "手部",
+        "prompt": "bad hands, extra fingers",
+        "tags": ["手部", "质量"],
+        "createdAt": "2026-10-28T08:00:00.000Z"
+      },
+      {
+        "id": "desktop-blur",
+        "name": "模糊",
+        "prompt": "blurry",
+        "createdAt": "2026-10-28T08:00:00.000Z"
+      }
+    ]
+  }
+}

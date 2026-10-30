@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import '../prompts/prompt_skill_legacy_fingerprints.dart';
 import '../prompts/negative_prompt_library.dart';
+import '../prompts/prompt_library_tags.dart';
 import 'ui_typography.dart';
 import '../prompts/translation.dart';
 
@@ -979,8 +980,9 @@ class AppSettings {
   String stylePromptPresetSort;
   List<Map<String, dynamic>> characterPromptPresets;
   List<String> stylePromptPresetGroups;
-  List<Map<String,String>> negativePromptPresets;
+  List<Map<String,Object>> negativePromptPresets;
   List<PositivePromptPreset> positivePromptPresets;
+  List<PromptChunk> promptChunks;
   String reversePromptSkillVersion;
   String convertPromptSkillVersion;
   String promptAssistantSkillVersion;
@@ -1105,8 +1107,9 @@ class AppSettings {
     this.stylePromptPresetSort = "default",
     List<Map<String, dynamic>>? characterPromptPresets,
     List<String>? stylePromptPresetGroups,
-    List<Map<String,String>>? negativePromptPresets,
+    List<Map<String,Object>>? negativePromptPresets,
     List<PositivePromptPreset>? positivePromptPresets,
+    List<PromptChunk>? promptChunks,
     String? reversePromptSkillVersion,
     String? convertPromptSkillVersion,
     String? promptAssistantSkillVersion,
@@ -1183,7 +1186,8 @@ class AppSettings {
         stylePromptPresetGroups = stylePromptPresetGroups ?? ['Default'],
         negativePromptPresets = normalizeNegativePromptPresets(negativePromptPresets),
         positivePromptPresets = mergeLegacyPositivePresets(
-            positivePromptPresets ?? [], characterPromptPresets ?? []) {
+            positivePromptPresets ?? [], characterPromptPresets ?? []),
+        promptChunks = promptChunks ?? [] {
     this.convertSystemPromptPresetId = resolveImageSystemPresetId(this.reverseConvertPromptPresets, convertSystemPromptPresetId, reverseConvertPromptPresetId, 'convert');
     this.reverseSystemPromptPresetId = resolveImageSystemPresetId(this.reverseConvertPromptPresets, reverseSystemPromptPresetId, reverseConvertPromptPresetId, 'reverse');
   }
@@ -1255,6 +1259,7 @@ class AppSettings {
         'negativePromptPresets': negativePromptPresets,
         'positivePromptPresets':
             positivePromptPresets.map((item) => item.toJson()).toList(),
+        'promptChunks': promptChunks.map((item) => item.toJson()).toList(),
         'reversePromptSkillVersion': reversePromptSkillVersion,
         'convertPromptSkillVersion': convertPromptSkillVersion,
         'promptAssistantSkillVersion': promptAssistantSkillVersion,
@@ -1403,6 +1408,16 @@ class AppSettings {
                 .where((item) =>
                     item.id.isNotEmpty &&
                     (item.prompt.trim().isNotEmpty || item.captions.isNotEmpty))
+                .toList() ??
+            [],
+        promptChunks: (j['promptChunks'] as List?)
+                ?.whereType<Map>()
+                .map((item) =>
+                    PromptChunk.fromJson(Map<String, dynamic>.from(item)))
+                .where((item) =>
+                    item.id.isNotEmpty &&
+                    item.name.isNotEmpty &&
+                    item.content.isNotEmpty)
                 .toList() ??
             [],
         reversePromptSkillVersion: _optionalPromptSkillVersion(j['reversePromptSkillVersion']),
@@ -1634,6 +1649,8 @@ class PositivePromptPreset {
   final String id;
   String name;
   String prompt;
+  // Library organization only; never part of the prompt.
+  List<String> tags;
   String createdAt;
   List<StylePromptPreviewImage> previewImages;
 
@@ -1643,8 +1660,10 @@ class PositivePromptPreset {
     required this.prompt,
     required this.createdAt,
     List<CharCaptionItem>? captions,
+    List<String>? tags,
     List<StylePromptPreviewImage>? previewImages,
   })  : captions = captions ?? [],
+        tags = normalizePromptTags(tags),
         previewImages = previewImages ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -1652,6 +1671,7 @@ class PositivePromptPreset {
         'id': id,
         'name': name,
         'prompt': prompt,
+        ...promptTagField(tags),
         'createdAt': createdAt,
         'previewImages': previewImages.map((item) => item.toJson()).toList(),
       };
@@ -1667,6 +1687,7 @@ class PositivePromptPreset {
         id: json['id']?.toString() ?? '',
         name: json['name']?.toString() ?? '',
         prompt: json['prompt']?.toString() ?? '',
+        tags: normalizePromptTags(json['tags']),
         createdAt: json['createdAt']?.toString() ?? '',
         previewImages: (json['previewImages'] as List?)
                 ?.whereType<Map>()
@@ -1676,6 +1697,51 @@ class PositivePromptPreset {
                 .toList() ??
             [],
       );
+}
+
+/// A saved prompt fragment that is inserted into the current prompt (the
+/// desktop app's custom prompt chunks, 自定义提词). Stored in the desktop
+/// shape so settings and backups read the same on both apps.
+class PromptChunk {
+  final String id;
+  String name;
+  String content;
+  // Library organization only; never inserted into the prompt.
+  List<String> tags;
+  String createdAt;
+  String updatedAt;
+
+  PromptChunk({
+    required this.id,
+    required this.name,
+    required this.content,
+    required this.createdAt,
+    required this.updatedAt,
+    List<String>? tags,
+  }) : tags = normalizePromptTags(tags);
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'name': name,
+        'content': content,
+        ...promptTagField(tags),
+        'createdAt': createdAt,
+        'updatedAt': updatedAt,
+      };
+
+  factory PromptChunk.fromJson(Map<String, dynamic> json) {
+    String text(String key) => json[key] is String ? json[key] as String : '';
+    String time(String key) =>
+        json[key] is String ? json[key] as String : '1970-01-01T00:00:00.000Z';
+    return PromptChunk(
+      id: text('id'),
+      name: text('name').trim(),
+      content: text('content').trim(),
+      tags: normalizePromptTags(json['tags']),
+      createdAt: time('createdAt'),
+      updatedAt: time('updatedAt'),
+    );
+  }
 }
 
 class StylePromptPreviewImage {

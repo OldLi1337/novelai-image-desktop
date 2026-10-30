@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'prompt_append.dart';
+import 'prompt_library_tags.dart';
 
 const negativeBuiltins=[
   {
@@ -24,20 +26,25 @@ const negativeBuiltins=[
 ];
 
 bool _valid(dynamic p)=>p is Map && p['id'] is String && (p['id'] as String).isNotEmpty && (p['id'] as String).length<=100 && p['name'] is String && (p['name'] as String).trim().isNotEmpty && (p['name'] as String).length<=100 && p['prompt'] is String && (p['prompt'] as String).trim().isNotEmpty && (p['prompt'] as String).length<=100000 && p['createdAt'] is String;
-List<Map<String,String>> normalizeNegativePromptPresets(dynamic value){
- if(value is! List)return negativeBuiltins.map((p)=>Map<String,String>.from(p)).toList();
- final ids=<String>{};return value.where(_valid).where((p)=>ids.add(p['id'] as String)).take(2000).map((p)=><String,String>{for(final k in ['id','name','prompt','createdAt'])k:p[k] as String}).toList();
+/// Optional `tags` are kept in the desktop app's shape: a normalized list,
+/// omitted when empty.
+List<Map<String,Object>> normalizeNegativePromptPresets(dynamic value){
+ if(value is! List)return negativeBuiltins.map((p)=>Map<String,Object>.from(p)).toList();
+ final ids=<String>{};return value.where(_valid).where((p)=>ids.add(p['id'] as String)).take(2000).map((p)=><String,Object>{for(final k in ['id','name','prompt'])k:p[k] as String,...promptTagField(p['tags']),'createdAt':p['createdAt'] as String}).toList();
 }
-List<Map<String,String>> parseNegativeLibrary(String text){
+List<String> negativePresetTags(Map<String,Object> preset)=>normalizePromptTags(preset['tags']);
+List<Map<String,Object>> parseNegativeLibrary(String text){
  if(text.length>5000000)throw const FormatException('Library file exceeds 5 MB');
  final doc=jsonDecode(text.replaceFirst(RegExp(r'^\uFEFF'),''));
  if(doc is! Map||doc['identifier']!='langbai-negative-prompt-library'||doc['version']!=1||doc['presets'] is! List)throw const FormatException('Invalid negative prompt library');
  final raw=doc['presets'] as List;if(raw.length>2000||raw.any((p)=>!_valid(p)))throw const FormatException('Invalid negative prompt presets');
  final entries=normalizeNegativePromptPresets(raw);if(entries.length!=raw.length)throw const FormatException('Duplicate preset IDs');return entries;
 }
-String exportNegativeLibrary(List<Map<String,String>> entries)=>const JsonEncoder.withIndent('  ').convert({'identifier':'langbai-negative-prompt-library','version':1,'presets':normalizeNegativePromptPresets(entries)});
-String applyNegativePreset(String current,String prompt,String mode)=>mode=='replace'||current.trim().isEmpty?prompt:prompt.trim().isEmpty?current:current+(current.trimRight().endsWith(',')?' ':', ')+prompt;
-List<Map<String,String>> mergeNegativeLibrary(List<Map<String,String>> current,List<Map<String,String>> imported,String Function() newId){final next=current.map((p)=>Map<String,String>.from(p)).toList();for(final p in imported){if(next.any((e)=>e['name']==p['name']&&e['prompt']==p['prompt']))continue;next.add({...p,'id':next.any((e)=>e['id']==p['id'])?newId():p['id']!});}if(next.length>2000)throw const FormatException('Maximum 2000 presets');return next;}
+String exportNegativeLibrary(List<Map<String,Object>> entries)=>const JsonEncoder.withIndent('  ').convert({'identifier':'langbai-negative-prompt-library','version':1,'presets':normalizeNegativePromptPresets(entries)});
+/// Preserve literal tag weights, repetitions and line breaks. Do not normalize prompts.
+String applyNegativePreset(String current,String prompt,String mode)=>mode=='replace'?prompt:appendPromptText(current,prompt);
+/// A duplicate (same name and prompt) is not added again; its tags are merged into the existing entry.
+List<Map<String,Object>> mergeNegativeLibrary(List<Map<String,Object>> current,List<Map<String,Object>> imported,String Function() newId){final next=current.map((p)=>Map<String,Object>.from(p)).toList();for(final p in imported){final same=next.where((e)=>e['name']==p['name']&&e['prompt']==p['prompt']).firstOrNull;if(same!=null){final tags=mergePromptTags([negativePresetTags(same),negativePresetTags(p)]);if(tags.isNotEmpty)same['tags']=tags;continue;}next.add({...p,'id':next.any((e)=>e['id']==p['id'])?newId():p['id']!});}if(next.length>2000)throw const FormatException('Maximum 2000 presets');return next;}
 
 String decodeNegativeFile(Uint8List bytes)=>utf8.decode(bytes);
 const _negativeLabels={

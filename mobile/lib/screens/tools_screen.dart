@@ -422,6 +422,9 @@ class _InpaintPanelState extends State<_InpaintPanel> {
               hintText: t('tools.positiveHint'),
               showRelatedTags: true,
               showTextTools: true,
+              // Character presets check the inpaint model's character limit.
+              positiveLibrary: state.inpaintEngine == 'novelai',
+              characterModel: state.inpaintModel,
               onChanged: (v) {
                 state.inpaintPositivePrompt = v;
                 state.markChanged();
